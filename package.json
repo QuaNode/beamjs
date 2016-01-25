@@ -1,0 +1,35 @@
+{
+  "name": "beamjs",
+  "version": "0.9.0",
+  "description": "A new full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "dependencies": {
+    "mongoose": "latest",
+    "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
+    "mongoose-pagination": "quaNode/mongoose-pagination",
+    "mongoose-cache": "latest",
+    "backend-js": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quaNode/beamjs.git"
+  },
+  "keywords": [
+    "backend",
+    "express",
+    "mongodb",
+    "angular",
+    "web",
+    "stack",
+    "full"
+  ],
+  "author": "Ahmed Ragab <ahmed.ragab@me.com> (http://backendjs.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/quaNode/beamjs/issues"
+  },
+  "homepage": "https://github.com/quaNode/beamjs#readme"
+}

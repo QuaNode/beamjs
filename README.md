@@ -58,5 +58,6 @@ you should define process.env.MONGODB_URI otherwise beamjs will try to connect t
 1. create angular services when create behaviours
 2. add plugins support
 3. add user management plugin
+4. add cli
 
 

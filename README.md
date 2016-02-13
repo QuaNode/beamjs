@@ -9,42 +9,38 @@ A new full stack web development framework (BackendJS - ExpressJS - AngularJS - 
 
 ``` js
 
-var express = require('express');
-var app = express();
-
-var backend = require('beamjs').backend(app);
-var model = backend.model();
+var backend = require('beamjs').backend();
 var behaviour = backend.behaviour('/api/v1');
 
+var model = backend.model();
 var User = model({
-  name : 'User'
+
+  name: 'User'
 }, {
-  username : String
+
+  username: String,
+  password: String
 });
 
 behaviour({
-  name : 'GetUser',
-  version : '1',
-  path : '/user'
-}, function (init) {
 
-    return function () {
+  name: 'GetUsers',
+  version: '1',
+  path: '/users',
+  method: 'GET'
+}, function(init) {
 
-        var self = init.apply(this, arguments).self();
-        self.begin('QUERY', function (key, businessController, operation) {
+  return function() {
 
-            var queryExpressions = [new QueryExpression({
+    var self = init.apply(this, arguments).self();
+    self.begin('Query', function(key, businessController, operation) {
 
-                fieldName: 'username',
-                comparisonOperator: ComparisonOperators.EQUAL,
-                fieldValue: 'test'
-            })];
-            operation
-                .query(queryExpressions)
-                .entity(new User())
-                .apply();
-        })
-    };
+        operation
+          .entity(new User())
+          .append(true)
+          .apply();
+      });
+  };
 });
 
 ```

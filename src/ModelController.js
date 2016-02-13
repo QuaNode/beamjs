@@ -5,7 +5,7 @@
 
 var ModelEntity = require('../node_modules/backend-js/model/ModelEntity.js').ModelEntity;
 var QueryExpression = require('../node_modules/backend-js/model/QueryExpression.js').QueryExpression;
-var backend = require('backend-js')();
+var backend = require('backend-js');
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var autoIncrement = require('mongodb-autoincrement');
@@ -18,14 +18,14 @@ var cacheOpts = {
 };
 require('mongoose-cache').install(mongoose, cacheOpts);
 
-var LogicalOperators = {
+var LogicalOperators = module.exports.LogicalOperators = {
 
     AND: '$and',
     OR: '$or',
     NOT: '$not'
 };
 
-var ComparisonOperators = {
+var ComparisonOperators = module.exports.ComparisonOperators = {
 
     EQUAL: '=',
     NE: '$ne',
@@ -222,7 +222,6 @@ var openConnection = function(defaultURI, callback) {
 
     var connect = function() {
 
-        var uriString = process.env.MONGODB_URI || defaultURI;
         var options = {
 
             server: {
@@ -244,7 +243,7 @@ var openConnection = function(defaultURI, callback) {
         };
         try {
 
-            mongoose.connect(uriString, options, function(error, response) {
+            mongoose.connect(defaultURI, options, function(error, response) {
 
                 if (typeof callback === 'function') callback(error, response);
             });
@@ -333,7 +332,6 @@ var ModelController = function(defaultURI, cb) {
         if (typeof callback === 'function') callback(modelObjects);
         return (modelObjects.length === 1 && modelObjects[0]) || modelObjects;
     };
-
     self.getObjects = function(queryExprs, entity, callback) {
 
         if (!checkConnection(defaultURI, callback)) return;

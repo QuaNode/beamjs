@@ -3,9 +3,9 @@
 /*global map*/
 'use strict';
 
-var ModelEntity = require('../node_modules/backend-js/model/ModelEntity.js').ModelEntity;
-var QueryExpression = require('../node_modules/backend-js/model/QueryExpression.js').QueryExpression;
 var backend = require('backend-js');
+var ModelEntity = backend.ModelEntity;
+var QueryExpression = backend.QueryExpression;
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var autoIncrement = require('mongodb-autoincrement');

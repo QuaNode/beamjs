@@ -409,7 +409,7 @@ ModelController.prototype.constructor = ModelController;
 
 backend.setComparisonOperators(ComparisonOperators);
 backend.setLogicalOperators(LogicalOperators);
-backend.setModelController(new ModelController('mongodb://localhost:27017/test', function(error) {
+backend.setModelController(new ModelController(backend.dbURI || ('mongodb://localhost:27017/' + (backend.dbName || 'test')), function(error) {
 
     if (!error) {
 

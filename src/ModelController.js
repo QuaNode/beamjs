@@ -7,6 +7,7 @@ var backend = require('backend-js');
 var ModelEntity = backend.ModelEntity;
 var QueryExpression = backend.QueryExpression;
 var mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
 var Schema = mongoose.Schema;
 var autoIncrement = require('mongodb-autoincrement');
 mongoose.plugin(autoIncrement.mongoosePlugin);

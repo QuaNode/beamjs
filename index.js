@@ -12,7 +12,7 @@ module.exports.backend = function() {
 
 module.exports.database = function(dbType, dbURI, dbName) {
 
-  if (!started) return database;
+  if (started) return database;
   started = true;
   backend.dbType = dbType;
   backend.dbURI = dbURI;

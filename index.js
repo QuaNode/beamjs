@@ -2,24 +2,27 @@
 'use strict';
 
 var backend = require('backend-js');
-var database = {};
+var beam = module.exports;
 var started = false;
 
-module.exports.backend = function() {
+module.exports.backend = function(database) {
 
+  if (started || !database) return backend;
+  started = true;
+  backend.dbType = database.dbType;
+  backend.dbURI = database.dbURI;
+  backend.dbName = database.dbName;
+  beam.ComparisonOperators = require('./src/ModelController.js').ComparisonOperators;
+  beam.LogicalOperators = require('./src/ModelController.js').LogicalOperators;
   return backend;
 };
 
 module.exports.database = function(dbType, dbURI, dbName) {
 
-  if (started) return database;
-  started = true;
-  backend.dbType = dbType;
-  backend.dbURI = dbURI;
-  backend.dbName = dbName;
-  var LogicalOperators = require('./src/ModelController.js').LogicalOperators;
-  var ComparisonOperators = require('./src/ModelController.js').ComparisonOperators;
-  database.ComparisonOperators = ComparisonOperators;
-  database.LogicalOperators = LogicalOperators;
-  return database;
+  return {
+
+    dbType: dbType,
+    dbURI: dbURI,
+    dbName: dbName
+  };
 };

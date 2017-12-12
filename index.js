@@ -2,27 +2,32 @@
 'use strict';
 
 var backend = require('backend-js');
+
 var beam = module.exports;
 var started = false;
+var ModelControllerPath = {
 
-module.exports.backend = function(database) {
+    mongodb: './src/MongoController.js',
+    mysql: './src/SQLController.js'
+}
 
-  if (started || !database) return backend;
-  started = true;
-  backend.dbType = database.dbType;
-  backend.dbURI = database.dbURI;
-  backend.dbName = database.dbName;
-  beam.ComparisonOperators = require('./src/ModelController.js').ComparisonOperators;
-  beam.LogicalOperators = require('./src/ModelController.js').LogicalOperators;
-  return backend;
-};
+beam.database = function(path, options) {
 
-module.exports.database = function(dbType, dbURI, dbName) {
+    if (started || !options) return backend;
+    if (!ModelControllerPath[options.type]) throw new Error('Invalid database type.');
+    started = true;
+    var ModelController = require(ModelControllerPath[options.type]);
+    module.exports.ComparisonOperators = ModelController.ComparisonOperators;
+    module.exports.LogicalOperators = ModelController.LogicalOperators;
+    backend.setComparisonOperators(ModelController.ComparisonOperators);
+    backend.setLogicalOperators(ModelController.LogicalOperators);
+    backend.setModelController(ModelController.getModelControllerObject(options, function() {
 
-  return {
+        // if (!error) {
 
-    dbType: dbType,
-    dbURI: dbURI,
-    dbName: dbName
-  };
+        // } else {
+
+        // }
+    }), path);
+    return backend;
 };

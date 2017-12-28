@@ -6,18 +6,29 @@
 var backend = require('backend-js');
 var ModelEntity = backend.ModelEntity;
 var QueryExpression = backend.QueryExpression;
-var Sequelize = require('sequelize');
-var sequelize = null;
-var sequelizePagination = require('sequelize-paginate-cursor');
-var cacheOpts = {
 
-    max: 50,
-    maxAge: 1000 * 60 * 2
-};
-var VariableAdaptor = require('sequelize-transparent-cache-variable');
-var variableAdaptor = new VariableAdaptor(cacheOpts);
+
+var Memcached = require('memcached');
+var memcached = new Memcached('localhost:11211');
+var MemcachedAdaptor = require('sequelize-transparent-cache-memcached')
+var memcachedAdaptor = new MemcachedAdaptor({
+  client: memcached,
+  lifetime: 60 * 60
+})
 var sequelizeCache = require('sequelize-transparent-cache');
-var withCache = sequelizeCache(variableAdaptor).withCache;
+var withCache = sequelizeCache(memcachedAdaptor).withCache;
+
+var Sequelize = require('sequelize');
+var Sequelize = require('sequelize');
+require('sequelize-values')(Sequelize);
+var sequelize = null;
+
+var SequelizeTokenify = require('sequelize-tokenify');
+
+var bcrypt = require("bcrypt");
+
+var sequelizePagination = require('sequelize-paginate-cursor');
+
 var Op = Sequelize.Op;
 var LogicalOperators = module.exports.LogicalOperators = {
 
@@ -49,7 +60,10 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     },
     THROUGH: 'through'
 };
-
+var DataTypes = {
+  String: Sequelize.STRING,
+  Number: Sequelize.NUMBER
+}
 var adapter = {
 
     getQuery: function(queryExpressions, contextualLevel) {
@@ -187,75 +201,43 @@ var getExecuteQuery = function(session) {
 
     return function(queryExpressions, ObjectConstructor, features, callback) {
 
-        var query = ObjectConstructor.find(adapter.constructQuery(queryExpressions, features));
-        if (typeof features.distinct === 'string') query = query.distinct(features.distinct);
-        if (features.cache) query = query.cache();
-        if (features.readonly) query = query.lean();
-        if (features.paginate && typeof features.limit === 'number') query.paginate(features.page, features.limit,
-            function(error, modelObjects, total) {
+        var query = adapter.constructQuery(queryExpressions, features);
 
-                if (!features.readonly) Array.prototype.push.apply(session, modelObjects);
-                if (typeof callback === 'function') callback({
+        var func = features.paginate ? "findAndCountAll" : "findAll";
 
-                    modelObjects: modelObjects,
-                    pageCount: total / features.limit
-                }, error);
-            });
-        else query.exec(function(error, modelObjects) {
+        if (features.paginate && typeof features.limit === 'number') {
+          query.limit = features.limit;
+          query.offset = (features.page-1)*features.limit;
+        }
 
-            if (!features.readonly) Array.prototype.push.apply(session, modelObjects);
-            if (typeof callback === 'function') callback(modelObjects, error);
+        if (features.cache) {
+          ObjectConstructor = withCache(ObjectConstructor);
+          ObjectConstructor = ObjectConstructor.cache();
+        }
+
+        ObjectConstructor[func](query).then(function(result){
+          var modelObjects = null;
+          var pageCount = null;
+          if (features.paginate && typeof features.limit === 'number') {
+            modelObjects = result.rows;
+            pageCount = result.count;
+          }
+          if (features.readonly) {
+            modelObjects = Sequelize.getValues(result);
+          }
+          callback(modelObjects,null);
+        }).catch(function(error){
+          callback(null,error);
         });
     };
-};
 
-var getMapReduce = function(session) {
-
-    return function(queryExpressions, entity, features, callback) {
-
-        var hasAfterQuery = function() {
-
-            return (!features.mapReduce.query && queryExpressions.length > 0) || typeof features.distinct === 'string' ||
-                Array.isArray(features.include) || Array.isArray(features.exclude) || Array.isArray(features.sort) ||
-                Array.isArray(features.populate) || features.cache || features.paginate;
-        };
-        var options = {};
-        options.map = function() {
-
-            var data = map(this);
-            if (data && data.key && data.value)
-                emit(data.key, data.value);
-        };
-        options.reduce = features.mapReduce.reduce;
-        if (features.mapReduce.query) options.query = adapter.constructQuery(queryExpressions);
-        if (hasAfterQuery()) options.out = {
-
-            replace: 'MapReduceResults'
-        };
-        if (Array.isArray(features.mapReduce.sort)) options.sort = features.mapReduce.sort.reduce(function(sort,
-            opt) {
-
-            if (typeof opt.by !== 'string') throw new Error('invalid sort by field name');
-            sort[opt.by] = opt.order === 'desc' ? -1 : 1;
-            return sort;
-        }, {});
-        if (typeof features.mapReduce.limit === 'number') options.limit = features.mapReduce.limit;
-        if (typeof features.mapReduce.finalize === 'function') options.finalize = features.mapReduce.finalize;
-        options.scope = features.mapReduce.scope || {};
-        options.scope.map = features.mapReduce.map;
-        entity.getObjectConstructor().mapReduce(options, function(error, out) {
-
-            if (Array.isArray(out)) {
-
-                if (typeof callback === 'function') callback(out, error);
-            } else getExecuteQuery(session)(features.mapReduce.query ? [] : queryExpressions, out, features, callback);
-        });
-    };
 };
 
 var openConnection = function(defaultURI, config) {
+//check if config null, if null initialize, add define
+    //if(config)
+      return new Sequelize(defaultURI, config);
 
-    return new Sequelize(defaultURI, config);
 };
 
 var checkConnection = function(seq, callback) {
@@ -355,11 +337,7 @@ var ModelController = function(defaultURI, cb, config) {
 
                 var features = entity.getObjectFeatures() || {};
                 var queryExpressions = queryExprs.concat(entity.getObjectQuery() || []);
-                if (features.mapReduce && typeof features.mapReduce.map === 'function' &&
-                    typeof features.mapReduce.reduce === 'function') {
-
-                    getMapReduce(session)(queryExpressions, entity, features, callback);
-                } else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
+                getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
             }
         });
     };
@@ -371,7 +349,7 @@ var ModelController = function(defaultURI, cb, config) {
 
             setTimeout(function() {
 
-                if (workingSession[index] instanceof mongoose.Model) workingSession[index].save(function(error, modelObject
+                if (workingSession[index] instanceof sequelize.Model) workingSession[index].save(function(error, modelObject
                     /*, count*/
                 ) {
 
@@ -396,7 +374,7 @@ var ModelController = function(defaultURI, cb, config) {
     };
 };
 
-var resovleTypeAttribute = function(attributes) {
+/*var resovleTypeAttribute = function(attributes) {
 
     Object.keys(attributes).forEach(function(key) {
 
@@ -408,7 +386,7 @@ var resovleTypeAttribute = function(attributes) {
                 case 2:
                     if (Object.keys(object).indexOf('ref') === -1) break;
                     /* falls through */
-                case 1:
+                /*case 1:
                     if (Object.keys(object).indexOf('type') > -1) {
 
                         attributes[key] = object.type;
@@ -418,22 +396,64 @@ var resovleTypeAttribute = function(attributes) {
             resovleTypeAttribute(object);
         }
     });
-};
+};*/
 
-ModelController.defineEntity = function(name, attributes, plugins) {
+ModelController.defineEntity = function(constraints, attributes, plugins) {
 
-    if (typeof name !== 'string') throw new Error('invalid entity name');
+    //name object changed to constraints and it has name string
+    var config = null;
+    var sequelizeAttributes = null;
+    if (typeof constraints.name !== 'string') throw new Error('invalid entity name');
     if (typeof attributes !== 'object') throw new Error('invalid entity schema');
-    var entitySchema = new Schema(attributes, {
 
-        autoIndex: false
-    });
     for (var i = 0; Array.isArray(plugins) && i < plugins.length && typeof plugins[i] === 'function'; i++) {
 
-        entitySchema.plugin(plugins[i]);
+      if(plugins[i] == 'TimestampsPlugin'){
+        config = {
+          timestamp: true
+        }
+      }
+      if(plugins[i] == 'HashedpropertyPlugin'){
+        config.instanceMethods: {
+            generateHash(property) {
+                return bcrypt.hash(property, bcrypt.genSaltSync(8));
+            },
+            validPassword(property) {
+                return bcrypt.compare(password, this.password);
+            }
+        }
+      }
     }
-    var entityModel = mongoose.model(name, entitySchema);
-    resovleTypeAttribute(attributes);
+    sequelizeAttributes._id = {
+      type: DataTypes.String,
+      autoIncrement: true,
+      primaryKey: true
+    }
+    sequelizeAttributes.recovery_token: {
+            type: DataTypes.String,
+            unique: true
+        }
+    Object.keys(attributes).forEach(function(key) {
+      sequelizeAttributes.key = {
+        type: DataTypes.attributes[key];
+      }
+    });
+    var entityModel  = sequelize.define(constraints.name, attributes, config);
+    if(plugins.indexOf('SequelizeTokenify')){
+      SequelizeTokenify.tokenify(entityModel, {
+        field: 'recovery_token'
+      });
+    }
+    //associations
+    Object.keys(attributes).forEach(function(key) {
+
+        var object = Array.isArray(attributes[key]) ? attributes[key][0] : typeof attributes[key] === 'object' ? attributes[key] : null;
+        if (object) {
+          entityModel.belongsTo(object,{as: key});
+          entityModel[constraints[key]](object);
+        }
+    });
+
     return entityModel;
 };
 

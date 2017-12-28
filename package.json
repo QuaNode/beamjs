@@ -11,6 +11,7 @@
         "mysql2": "latest",
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
+        "sequelize-transparent-cache-memcached": "DanielHreben/sequelize-transparent-cache-memcached",
         "sequelize-paginate-cursor": "quaNode/sequelize-paginate-cursor",
         "mongoose": "latest",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",

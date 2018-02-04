@@ -442,3 +442,13 @@ module.exports.getModelControllerObject = function(options, cb) {
         cb.apply(this, arguments);
     });
 };
+
+backend.setModelController(new ModelController(backend.dbURI || ('mongodb://localhost:27017/' + (backend.dbName || 'test')), function(error) {
+
+    if (!error) {
+
+    } else {
+
+    }
+}));
+

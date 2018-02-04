@@ -2,6 +2,7 @@
 'use strict';
 
 var backend = require('backend-js');
+var beam = module.exports;
 var started = false;
 
 module.exports.backend = function(database) {
@@ -11,8 +12,10 @@ module.exports.backend = function(database) {
   backend.dbType = database.dbType;
   backend.dbURI = database.dbURI;
   backend.dbName = database.dbName;
-  backend.setComparisonOperators(require('./src/ModelController.js').ComparisonOperators);
-  backend.setLogicalOperators(require('./src/ModelController.js').LogicalOperators);
+  beam.ComparisonOperators = require('./src/ModelController.js').ComparisonOperators;
+  beam.LogicalOperators = require('./src/ModelController.js').LogicalOperators;
+  backend.setComparisonOperators(beam.ComparisonOperators);
+  backend.setLogicalOperators(beam.LogicalOperators);
   return backend;
 };
 

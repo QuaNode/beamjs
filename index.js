@@ -12,8 +12,8 @@ module.exports.backend = function(database) {
   backend.dbType = database.dbType;
   backend.dbURI = database.dbURI;
   backend.dbName = database.dbName;
-  beam.ComparisonOperators = require('./src/ModelController.js').ComparisonOperators;
-  beam.LogicalOperators = require('./src/ModelController.js').LogicalOperators;
+  beam.setComparisonOperators(require('./src/ModelController.js').ComparisonOperators);
+  beam.setLogicalOperators(require('./src/ModelController.js').LogicalOperators);
   return backend;
 };
 

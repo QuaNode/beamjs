@@ -421,7 +421,8 @@ ModelController.defineEntity = function(name, attributes, plugins) {
     if (typeof attributes !== 'object') throw new Error('invalid entity schema');
     var entitySchema = new Schema(attributes, {
 
-        autoIndex: false
+        autoIndex: false,
+        usePushEach: true
     });
     for (var i = 0; Array.isArray(plugins) && i < plugins.length && typeof plugins[i] === 'function'; i++) {
 
@@ -451,4 +452,3 @@ backend.setModelController(new ModelController(backend.dbURI || ('mongodb://loca
 
     }
 }));
-

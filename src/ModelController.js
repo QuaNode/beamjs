@@ -19,7 +19,7 @@ var cacheOpts = {
 };
 require('mongoose-cache').install(mongoose, cacheOpts);
 
-var LogicalOperators = module.exports.LogicalOperators = {
+module.exports.LogicalOperators = {
 
     AND: '$and',
     OR: '$or',
@@ -44,7 +44,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
             $elemMatch: Array.isArray(value) ? {
 
                 $in: value
-            } : {
+            } : typeof value === 'object' ? value : {
 
                 $eq: value
             }
@@ -108,7 +108,7 @@ var constructQuery = function(queryExpressions) {
             return !(queryExpression instanceof QueryExpression) || (index > 0 && !queryExpression.logicalOperator);
         })) {
 
-        throw new Error('invalid query expressions');
+        throw new Error('Invalid query expressions');
     }
     var query = getQuery(queryExpressions, 0);
     return query || {};
@@ -128,31 +128,30 @@ var getExecuteQuery = function(session) {
                 return '-' + field;
             }).join(' '));
         }
-        if (Array.isArray(features.sort)) query = query.sort(features.sort.map(function(options) {
+        if (Array.isArray(features.sort)) query = query.sort(features.sort.map(function(option) {
 
-            if (typeof options.by !== 'string') throw new Error('invalid sort by field name');
-            return (options.order === 'desc' ? '-' : '') + options.by;
+            if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
+            return (option.order === 'desc' ? '-' : '') + option.by;
         }).join(' '));
-        if (Array.isArray(features.populate)) features.populate.forEach(function(options) {
+        if (Array.isArray(features.populate)) features.populate.forEach(function(option) {
 
             var opt = {};
-            if (typeof options.path !== 'string') throw new Error('invalid populate path');
-            opt.path = options.path;
-            if (Array.isArray(options.include)) {
+            if (typeof option.path !== 'string') throw new Error('Invalid populate path');
+            opt.path = option.path;
+            if (Array.isArray(option.include)) {
 
-                opt.select = options.include.join(' ');
-                console.log();
+                opt.select = option.include.join(' ');
             }
-            if (Array.isArray(options.exclude)) {
+            if (Array.isArray(option.exclude)) {
 
-                opt.select = (opt.select ? opt.select + ' ' : '') + options.exclude.map(
+                opt.select = (opt.select ? opt.select + ' ' : '') + option.exclude.map(
                     function(field) {
 
                         return '-' + field;
                     }).join(' ');
             }
-            if (typeof options.model !== 'string') throw new Error('invalid populate model');
-            opt.model = options.model;
+            if (typeof option.model !== 'string') throw new Error('Invalid populate model');
+            opt.model = option.model;
             query = query.populate(opt);
         });
         if (features.cache) query = query.cache();
@@ -287,19 +286,19 @@ var ModelController = function(defaultURI, cb) {
     self.removeObjects = function(queryExprs, entity, callback) {
 
         var self = this;
-        if (!checkConnection(defaultURI, callback)) return;
         if (!entity || !(entity instanceof ModelEntity)) {
 
             throw new Error('invalid entity');
         }
-        self.save(function(error) {
+        if (!checkConnection(defaultURI, callback)) return;
+        self.save(function(err) {
 
-            if (error) {
+            if (err) {
 
-                if (typeof callback === 'function') callback(null, error);
+                if (typeof callback === 'function') callback(null, err);
             } else {
 
-                var queryExpressions = queryExprs.concat(entity.getObjectQueryExpressions() || []);
+                var queryExpressions = queryExprs.concat(entity.getObjectQuery() || []);
                 entity.getObjectConstructor().remove(constructQuery(queryExpressions), function(error) {
 
                     if (typeof callback === 'function') callback(null, error);
@@ -325,7 +324,7 @@ var ModelController = function(defaultURI, cb) {
                 modelObjects.push(modelObject);
             } catch (e) {
 
-                if (typeof callback === 'function') callback(null, new Error('invalid attributes'));
+                if (typeof callback === 'function') callback(null, e);
             }
         };
         if (Array.isArray(objsAttributes)) objsAttributes.forEach(newObject);
@@ -348,7 +347,7 @@ var ModelController = function(defaultURI, cb) {
             } else {
 
                 var features = entity.getObjectFeatures() || {};
-                var queryExpressions = queryExprs.concat(entity.getObjectQueryExpressions() || []);
+                var queryExpressions = queryExprs.concat(entity.getObjectQuery() || []);
                 if (features.mapReduce && typeof features.mapReduce.map === 'function' &&
                     typeof features.mapReduce.reduce === 'function') {
 
@@ -361,6 +360,7 @@ var ModelController = function(defaultURI, cb) {
 
         if (!checkConnection(defaultURI, callback)) return;
         var workingSession = (Array.isArray(oldSession) && oldSession) || session;
+        var currentSession = [];
         var save = function(index) {
 
             setTimeout(function() {
@@ -375,19 +375,44 @@ var ModelController = function(defaultURI, cb) {
                         if (typeof callback === 'function') callback(error);
                     } else {
 
+                        currentSession.push(modelObject);
                         save(index + 1);
                     }
                 });
                 else {
 
                     if (!Array.isArray(oldSession)) session = [];
-                    if (typeof callback === 'function') callback();
+                    if (typeof callback === 'function') callback(null, currentSession);
                 }
             }, 0);
         };
         save(0);
         return workingSession;
     };
+};
+
+var resovleTypeAttribute = function(attributes) {
+
+    Object.keys(attributes).forEach(function(key) {
+
+        var object = Array.isArray(attributes[key]) ? attributes[key][0] : typeof attributes[key] === 'object' ? attributes[key] : null;
+        if (object) {
+
+            switch (Object.keys(object).length) {
+
+                case 2:
+                    if (Object.keys(object).indexOf('ref') === -1) break;
+                    /* falls through */
+                case 1:
+                    if (Object.keys(object).indexOf('type') > -1) {
+
+                        attributes[key] = object.type;
+                        return;
+                    }
+            }
+            resovleTypeAttribute(object);
+        }
+    });
 };
 
 ModelController.defineEntity = function(name, attributes, plugins) {
@@ -403,20 +428,17 @@ ModelController.defineEntity = function(name, attributes, plugins) {
         entitySchema.plugin(plugins[i]);
     }
     var entityModel = mongoose.model(name, entitySchema);
+    resovleTypeAttribute(attributes);
     return entityModel;
 };
 
 ModelController.prototype.constructor = ModelController;
 
-backend.setComparisonOperators(ComparisonOperators);
-backend.setLogicalOperators(LogicalOperators);
-backend.setModelController(new ModelController(backend.dbURI || ('mongodb://localhost:27017/' + (backend.dbName || 'test')), function(error) {
+module.exports.getModelControllerObject = function(options, cb) {
 
-    if (!error) {
+    return new ModelController(options.uri || ('mongodb://localhost:27017/' + (options.name ||
+        'test')), function() {
 
-    } else {
-
-    }
-}));
-
-module.exports.ModelController = ModelController;
+        cb.apply(this, arguments);
+    });
+};

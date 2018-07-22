@@ -11,7 +11,7 @@
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
         "mongoose-pagination": "quaNode/mongoose-pagination",
         "mongoose-cache": "quaNode/mongoose-cache",
-        "backend-js": "latest"
+        "backend-js": "github:quaNode/backendjs#mahmoudsalah"
     },
     "repository": {
         "type": "git",

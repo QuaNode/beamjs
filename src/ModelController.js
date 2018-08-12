@@ -54,6 +54,24 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     CASEINSENSITIVECOMPARE: function(query) {
 
         query.$options = 'i';
+        return query;
+    },
+    SOME: function(query, expression) {
+
+        var attributes = expression.fieldName.split('.');
+        if (!Array.isArray(attributes) || attributes.length < 2) throw new Error('Invalid field name in a query expression');
+        var attribute = attributes.splice(-1, 1)[0];
+        expression.fieldName = attributes.splice(0, attributes.length - 1).join('.');
+        var newQuery = {
+
+            input: "$" + expression.fieldName,
+            as: "item"
+        };
+        newQuery.cond[expression.comparisonOperator] = ["$$item." + attribute, expression.fieldValue];
+        return {
+
+            $filter: newQuery
+        };
     }
 };
 
@@ -65,15 +83,17 @@ var getQuery = function(queryExpressions, contextualLevel) {
 
             var filter = {};
             var subFilter = {};
+            var fieldName = queryExpressions[0].fieldName;
             filter[queryExpressions[0].fieldName] = queryExpressions[0].fieldValue;
             if (typeof queryExpressions[0].comparisonOperator === 'string')
                 subFilter[queryExpressions[0].comparisonOperator] = queryExpressions[0].fieldValue;
             else if (typeof queryExpressions[0].comparisonOperator === 'function')
                 subFilter = queryExpressions[0].comparisonOperator(queryExpressions[0].fieldValue);
             if (typeof queryExpressions[0].comparisonOperatorOptions === 'function')
-                queryExpressions[0].comparisonOperatorOptions(subFilter);
+                subFilter = queryExpressions[0].comparisonOperatorOptions(subFilter, queryExpressions[0]);
             if (queryExpressions[0].comparisonOperator !== ComparisonOperators.EQUAL)
                 filter[queryExpressions[0].fieldName] = subFilter;
+            queryExpressions[0].fieldName = fieldName;
             return filter;
         }
         for (var j = 0; j <= contextualLevel; j++) {
@@ -103,13 +123,13 @@ var getQuery = function(queryExpressions, contextualLevel) {
 
 var constructQuery = function(queryExpressions) {
 
-    if (Array.isArray(queryExpressions) && queryExpressions.some(function(queryExpression, index) {
 
-            return !(queryExpression instanceof QueryExpression) || (index > 0 && !queryExpression.logicalOperator);
-        })) {
+    if (Array.isArray(queryExpressions)) queryExpressions.forEach(function(queryExpression, index) {
 
-        throw new Error('Invalid query expressions');
-    }
+        if (!(queryExpression instanceof QueryExpression)) throw new Error('Invalid query expressions');
+        if (index > 0 && !queryExpression.logicalOperator) throw new Error('Query expression missing logical operator');
+        if (index > 0 && typeof queryExpression.contextualLevel !== 'number') throw new Error('Query expression missing contextual level');
+    });
     var query = getQuery(queryExpressions, 0);
     return query || {};
 };
@@ -210,7 +230,7 @@ var getMapReduce = function(session) {
         options.scope.map = features.mapReduce.map;
         entity.getObjectConstructor().mapReduce(options, function(error, out) {
 
-            if (Array.isArray(out)) {
+            if (!out || Array.isArray(out)) {
 
                 if (typeof callback === 'function') callback(out, error);
             } else getExecuteQuery(session)(features.mapReduce.query ? [] : queryExpressions, out, features, callback);
@@ -372,6 +392,8 @@ var ModelController = function(defaultURI, cb) {
                     if (error) console.log(error);
                     if (error || !modelObject) {
 
+                        var i = session.indexOf(workingSession[index]);
+                        if (i > -1) session.splice(i, 1);
                         if (typeof callback === 'function') callback(error);
                     } else {
 

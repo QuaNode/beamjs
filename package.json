@@ -1,5 +1,5 @@
 {
-    "name": "beamjs",
+  "name": "beamjs",
     "version": "0.9.1-15",
     "description": "A new full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",

@@ -14,15 +14,12 @@ var ModelControllerPath = {
 
 beam.database = function(path, options) {
 
-    if (typeof options === 'string') return (function(dbType, dbURI, dbName) {
+    if (typeof options === 'string') return {
 
-        return {
-
-            dbType: dbType,
-            dbURI: dbURI,
-            dbName: dbName
-        };
-    })(arguments[0], arguments[1], arguments[3]);
+        dbType: arguments[0],
+        dbURI: arguments[1],
+        dbName: arguments[2]
+    };
     if (started || !options) return backend;
     if (!ModelControllerPath[options.type]) throw new Error('Invalid database type.');
     started = true;

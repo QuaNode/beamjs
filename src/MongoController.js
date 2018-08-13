@@ -464,4 +464,4 @@ module.exports.getModelControllerObject = function(options, cb) {
 
         cb.apply(this, arguments);
     });
-}();
+};

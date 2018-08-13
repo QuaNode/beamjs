@@ -1,5 +1,5 @@
 {
-  "name": "beamjs",
+    "name": "beamjs",
     "version": "0.9.1-15",
     "description": "A new full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
@@ -12,7 +12,6 @@
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
         "sequelize-transparent-cache-memcached": "DanielHreben/sequelize-transparent-cache-memcached",
-        "sequelize-paginate-cursor": "quaNode/sequelize-paginate-cursor",
         "mongoose": "^4.13.8",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
         "mongoose-pagination": "quaNode/mongoose-pagination",

@@ -54,7 +54,7 @@ var DataType = function(datatype) {
         case Boolean:
             return Sequelize.DataTypes.BOOLEAN;
         case Date:
-            return Sequelize.DataTypes.DATE;    
+            return Sequelize.DataTypes.DATE;
     }
 };
 
@@ -427,7 +427,7 @@ ModelController.defineEntity = function(name, attributes, plugins, constraints) 
 
         if (attributes[key] === String && constraints && constraints[key] && constraints[key].unique) attributes[key] = Object.assign({
 
-            type:Sequelize.DataTypes.STRING(125) 
+            type:Sequelize.DataTypes.STRING(125)
         }, (constraints && constraints[key]) || {});
 
         else if (DataType(attributes[key])) attributes[key] = Object.assign({

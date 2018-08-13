@@ -1,4 +1,5 @@
-# beamjs
+
+# beamjs [![Known Vulnerabilities](https://snyk.io/test/github/QuaNode/beamjs/badge.svg?targetFile=package.json)](https://snyk.io/test/github/QuaNode/beamjs?targetFile=package.json)
 A new full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)
 
 ## Installation

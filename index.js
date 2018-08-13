@@ -41,7 +41,7 @@ beam.database = function(path, options) {
 
 beam.backend = function(database) {
 
-    return module.exports.database('', {
+    return module.exports.database('', database && {
 
         type: database.dbType,
         uri: database.dbURI,

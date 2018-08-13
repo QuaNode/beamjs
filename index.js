@@ -14,7 +14,7 @@ var ModelControllerPath = {
 
 beam.database = function(path, options) {
 
-    if (arguments.length === 3) return (function(dbType, dbURI, dbName) {
+    if (typeof options === 'string') return (function(dbType, dbURI, dbName) {
 
         return {
 

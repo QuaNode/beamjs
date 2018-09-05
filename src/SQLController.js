@@ -374,6 +374,7 @@ var ModelController = function(defaultURI, cb, options) {
     self.save = function(callback, oldSession) {
 
         var workingSession = (Array.isArray(oldSession) && oldSession) || session;
+        if (workingSession.length === 0) console.log('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function(index) {
 

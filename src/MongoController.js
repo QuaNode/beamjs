@@ -29,31 +29,80 @@ module.exports.LogicalOperators = {
 var ComparisonOperators = module.exports.ComparisonOperators = {
 
     EQUAL: '=',
+    EQUALIGNORECASE: function(value, options, expression) {
+
+        var query = {
+
+            $regex: value instanceof RegExp ? value : new RegExp('^' + value + '$'),
+            $options: 'i'
+        };
+        if (typeof options === 'function') query = options.apply(this,[query, expression]);
+        return query;
+    },
     NE: '$ne',
+    NEIGNORECASE: function(value, options, expression) {
+
+        return {
+
+            $ne: this.EQUALIGNORECASE(value, options, expression)
+        };
+    },
     LT: '$lt',
     LE: '$lte',
     GT: '$gt',
     GE: '$gte',
     IN: '$in',
-    NIN: '$nin',
-    CONTAINS: '$regex',
-    ANY: function(value) {
+    INIGNORECASE: function(value, options, expression) {
 
+        if (!Array.isArray(value)) throw new Error('Invalid field value');
+        var query = {
+
+            $in: value.map(function(value) {
+
+                return new RegExp(value instanceof RegExp ? value.toString() + 'i' :
+                    (new RegExp('^' + value + '$')).toString() + 'i');
+            })
+        };
+        if (typeof options === 'function') query = options.apply(this,[query, expression]);
+        return query;
+    },
+    NIN: '$nin',
+    NINIGNORECASE: function(value, options, expression) {
+
+        var query = this.INIGNORECASE(value, options, expression);
+        query.$nin = query.$in;
+        delete query.$in;
+        return query;
+    },
+    CONTAINS: '$regex',
+    ANY: function(value, options, expression) {
+
+        var query = Array.isArray(value) ? {
+
+            $in: value
+        } : typeof value === 'object' ? value : {
+
+            $eq: value
+        };
+        if (typeof options === 'function') query = options.apply(this, [query, expression]);
         return {
 
-            $elemMatch: Array.isArray(value) ? {
-
-                $in: value
-            } : typeof value === 'object' ? value : {
-
-                $eq: value
-            }
+            $elemMatch: query
         };
     },
     ALL: '$all',
     CASEINSENSITIVECOMPARE: function(query) {
 
-        query.$options = 'i';
+        if (Array.isArray(query.$in)) return this.INIGNORECASE(query.$in);
+        else if (Array.isArray(query.$nin)) return this.NINIGNORECASE(query.$nin);
+        else if (query.$eq) return this.EQUALIGNORECASE(query.$eq);
+        else if (query['=']) return this.EQUALIGNORECASE(query['=']);
+        else if (query.$ne) return this.NEIGNORECASE(query.$ne);
+        else if (query.$regex) {
+
+            query.$regex = query.$regex instanceof RegExp ? query.$regex : new RegExp(query.$regex);
+            query.$options = 'i';
+        }
         return query;
     },
     SOME: function(query, expression) {
@@ -75,6 +124,8 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     }
 };
 
+ComparisonOperators.IGNORECASE = ComparisonOperators.CASEINSENSITIVECOMPARE;
+
 var getQuery = function(queryExpressions, contextualLevel) {
 
     if (Array.isArray(queryExpressions) && contextualLevel > -1) {
@@ -85,13 +136,16 @@ var getQuery = function(queryExpressions, contextualLevel) {
             var subFilter = {};
             var fieldName = queryExpressions[0].fieldName;
             filter[queryExpressions[0].fieldName] = queryExpressions[0].fieldValue;
-            if (typeof queryExpressions[0].comparisonOperator === 'string')
+            if (typeof queryExpressions[0].comparisonOperator === 'string') {
+
                 subFilter[queryExpressions[0].comparisonOperator] = queryExpressions[0].fieldValue;
-            else if (typeof queryExpressions[0].comparisonOperator === 'function')
-                subFilter = queryExpressions[0].comparisonOperator(queryExpressions[0].fieldValue);
-            if (typeof queryExpressions[0].comparisonOperatorOptions === 'function')
-                subFilter = queryExpressions[0].comparisonOperatorOptions(subFilter, queryExpressions[0]);
-            if (queryExpressions[0].comparisonOperator !== ComparisonOperators.EQUAL)
+                if (typeof queryExpressions[0].comparisonOperatorOptions === 'function')
+                    subFilter = queryExpressions[0].comparisonOperatorOptions.apply(ComparisonOperators, [subFilter, queryExpressions[0]]);
+            } else if (typeof queryExpressions[0].comparisonOperator === 'function')
+                subFilter = queryExpressions[0].comparisonOperator.apply(ComparisonOperators, [queryExpressions[0].fieldValue,
+                    queryExpressions[0].comparisonOperatorOptions, queryExpressions[0]
+                ]);
+            if (Object.keys(subFilter).length > 0)
                 filter[queryExpressions[0].fieldName] = subFilter;
             queryExpressions[0].fieldName = fieldName;
             return filter;
@@ -380,6 +434,7 @@ var ModelController = function(defaultURI, cb) {
 
         if (!checkConnection(defaultURI, callback)) return;
         var workingSession = (Array.isArray(oldSession) && oldSession) || session;
+        if (workingSession.length === 0) console.log('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function(index) {
 

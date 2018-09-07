@@ -144,7 +144,7 @@ var getQuery = function(queryExpressions, contextualLevel) {
                 subFilter = queryExpressions[0].comparisonOperator.apply(ComparisonOperators, [queryExpressions[0].fieldValue,
                     queryExpressions[0].comparisonOperatorOptions, queryExpressions[0]
                 ]);
-            if (!subFilter[ComparisonOperators.EQUAL])
+            if (Object.keys(subFilter).indexOf(ComparisonOperators.EQUAL) === -1)
                 filter[queryExpressions[0].fieldName] = subFilter;
             queryExpressions[0].fieldName = fieldName;
             return filter;

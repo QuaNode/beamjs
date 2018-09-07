@@ -59,8 +59,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 
             $in: value.map(function(value) {
 
-                return new RegExp(value instanceof RegExp ? value.toString() + 'i' :
-                    (new RegExp('^' + value + '$')).toString() + 'i');
+                return value instanceof RegExp ? new RegExp(value, 'i') : new RegExp('^' + value + '$', 'i');
             })
         };
         if (typeof options === 'function') query = options.apply(this,[query, expression]);

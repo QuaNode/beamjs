@@ -1,4 +1,5 @@
 /*jslint node: true */
+/*global Symbol*/
 'use strict';
 
 var backend = require('backend-js');

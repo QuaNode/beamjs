@@ -36,7 +36,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
             $regex: value instanceof RegExp ? value : new RegExp('^' + value + '$'),
             $options: 'i'
         };
-        if (typeof options === 'function') query = options.apply(this,[query, expression]);
+        if (typeof options === 'function') query = options.apply(this, [query, expression]);
         return query;
     },
     NE: '$ne',
@@ -62,7 +62,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
                 return value instanceof RegExp ? new RegExp(value, 'i') : new RegExp('^' + value + '$', 'i');
             })
         };
-        if (typeof options === 'function') query = options.apply(this,[query, expression]);
+        if (typeof options === 'function') query = options.apply(this, [query, expression]);
         return query;
     },
     NIN: '$nin',
@@ -90,6 +90,20 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         };
     },
     ALL: '$all',
+    FOREACH: function(query) {
+
+        return {
+
+            $elemMatch: query
+        };
+    },
+    FOREACHIGNORECASE: function(query) {
+
+        return {
+
+            $elemMatch: this.CASEINSENSITIVECOMPARE(query)
+        };
+    },
     CASEINSENSITIVECOMPARE: function(query) {
 
         if (Array.isArray(query.$in)) return this.INIGNORECASE(query.$in);
@@ -106,19 +120,34 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     },
     SOME: function(query, expression) {
 
+        var fieldName = expression.fieldName;
         var attributes = expression.fieldName.split('.');
         if (!Array.isArray(attributes) || attributes.length < 2) throw new Error('Invalid field name in a query expression');
         var attribute = attributes.splice(-1, 1)[0];
-        expression.fieldName = attributes.splice(0, attributes.length - 1).join('.');
+        expression.fieldName = attributes.join('.');
         var newQuery = {
 
             input: "$" + expression.fieldName,
-            as: "item"
+            as: "item",
+            cond: query
         };
-        newQuery.cond[expression.comparisonOperator] = ["$$item." + attribute, expression.fieldValue];
+        if (query['=']) newQuery.cond = {
+            $eq: ["$$item." + attribute, query['=']]
+        };
+        else if (query.$regex) query.$regex = ["$$item." + attribute,
+            query.$regex instanceof RegExp ? new RegExp(query.$regex, query.$options) :
+            new RegExp('^' + query.$regex + '$', query.$options)
+        ];
+        else if (Object.keys[query].length === 1) {
+
+            query[Object.keys[query][0]] = ["$$item." + attribute, query[Object.keys[query][0]]];
+        } else throw new Error('Invalid filter condition');
         return {
 
-            $filter: newQuery
+            $expr: {
+
+                $filter: newQuery
+            }
         };
     }
 };
@@ -144,8 +173,11 @@ var getQuery = function(queryExpressions, contextualLevel) {
                 subFilter = queryExpressions[0].comparisonOperator.apply(ComparisonOperators, [queryExpressions[0].fieldValue,
                     queryExpressions[0].comparisonOperatorOptions, queryExpressions[0]
                 ]);
-            if (Object.keys(subFilter).indexOf(ComparisonOperators.EQUAL) === -1)
-                filter[queryExpressions[0].fieldName] = subFilter;
+            if (Object.keys(subFilter).length > 0 && Object.keys(subFilter).indexOf(ComparisonOperators.EQUAL) === -1) {
+
+                if (filter[queryExpressions[0].fieldName]) filter[queryExpressions[0].fieldName] = subFilter;
+                else filter = subFilter;
+            }
             queryExpressions[0].fieldName = fieldName;
             return filter;
         }

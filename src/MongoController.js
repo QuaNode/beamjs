@@ -283,12 +283,20 @@ var getMapReduce = function(session) {
 
     return function(queryExpressions, entity, features, callback) {
 
-        var hasAfterQuery = function() {
+        var afterQueryUniqueArray = function() {
 
-            return (!features.mapReduce.query && queryExpressions.length > 0) || typeof features.distinct === 'string' ||
-                Array.isArray(features.include) || Array.isArray(features.exclude) || Array.isArray(features.sort) ||
-                Array.isArray(features.populate) || features.cache || features.paginate;
-        };
+            var uniqueArray = [];
+            if (!features.mapReduce.query && queryExpressions.length > 0)
+                uniqueArray = ['query'].concat(queryExpressions.map(function(queryExpression) {
+
+                    return queryExpression.fieldValue;
+                }));
+            if (typeof features.distinct === 'string' || Array.isArray(features.include) ||
+                Array.isArray(features.exclude) || Array.isArray(features.sort) ||
+                Array.isArray(features.populate) || features.cache || features.paginate)
+                uniqueArray = uniqueArray.concat(Object.keys(features).concat(Object.values(features)));
+            return uniqueArray;
+        }();
         var options = {};
         options.map = function() {
 
@@ -298,9 +306,13 @@ var getMapReduce = function(session) {
         };
         options.reduce = features.mapReduce.reduce;
         if (features.mapReduce.query) options.query = constructQuery(queryExpressions);
-        if (hasAfterQuery()) options.out = {
+        if (afterQueryUniqueArray.length > 0) options.out = {
 
-            replace: 'MapReduceResults'
+            replace: 'MapReduce' + entity.getObjectConstructor().modelName.toUpperCase() +
+                JSON.stringify(afterQueryUniqueArray).split('').reduce(function(number, string) {
+
+                    return number / string.codePointAt(0);
+                }, 9999999999).toString().replace('e-', '').slice(-10)
         };
         if (Array.isArray(features.mapReduce.sort)) options.sort = features.mapReduce.sort.reduce(function(sort,
             opt) {
@@ -519,7 +531,7 @@ var resovleTypeAttribute = function(attributes) {
                     }
             }
             resovleTypeAttribute(object);
-        }
+        } else if (key === 'type') throw new Error('type is reserved word if it is used as an attribute so it should be an object');
     });
 };
 

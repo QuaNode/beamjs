@@ -345,24 +345,9 @@ var openConnection = function(defaultURI, callback) {
         var options = {
 
             useMongoClient: true,
-            server: {
-
-                socketOptions: {
-
-                    keepAlive: true,
-                    connectTimeoutMS: 30000
-                },
-                reconnectTries: Number.MAX_VALUE
-            },
-            replset: {
-
-                socketOptions: {
-
-                    keepAlive: true,
-                    connectTimeoutMS: 30000
-                },
-                reconnectTries: Number.MAX_VALUE
-            }
+            keepAlive: true,
+            connectTimeoutMS: 30000,
+            reconnectTries: Number.MAX_VALUE
         };
         try {
 

@@ -175,7 +175,7 @@ var getQuery = function(queryExpressions, contextualLevel) {
                 ]);
             if (Object.keys(subFilter).length > 0 && Object.keys(subFilter).indexOf(ComparisonOperators.EQUAL) === -1) {
 
-                if (filter[queryExpressions[0].fieldName]) filter[queryExpressions[0].fieldName] = subFilter;
+                if (Object.keys(filter).indexOf(queryExpressions[0].fieldName) > -1) filter[queryExpressions[0].fieldName] = subFilter;
                 else filter = subFilter;
             }
             queryExpressions[0].fieldName = fieldName;
@@ -300,9 +300,12 @@ var getMapReduce = function(session) {
         var options = {};
         options.map = function() {
 
-            var data = map(this);
-            if (data && data.key && data.value)
-                emit(data.key, data.value);
+            var emitting = map(this);
+            if (typeof emitting === 'function') emitting(function(data) {
+
+                if (data && data.key && data.value) emit(data.key, data.value);
+            });
+            else if (emitting && emitting.key && emitting.value) emit(emitting.key, emitting.value);
         };
         options.reduce = features.mapReduce.reduce;
         if (features.mapReduce.query) options.query = constructQuery(queryExpressions);
@@ -312,7 +315,7 @@ var getMapReduce = function(session) {
                 JSON.stringify(afterQueryUniqueArray).split('').reduce(function(number, string) {
 
                     return number / string.codePointAt(0);
-                }, 9999999999).toString().replace('e-', '').slice(-10)
+                }, 9999).toString().replace('e-', '').slice(-4)
         };
         if (Array.isArray(features.mapReduce.sort)) options.sort = features.mapReduce.sort.reduce(function(sort,
             opt) {
@@ -341,21 +344,24 @@ var openConnection = function(defaultURI, callback) {
 
         var options = {
 
+            useMongoClient: true,
             server: {
 
                 socketOptions: {
 
-                    keepAlive: 1,
+                    keepAlive: true,
                     connectTimeoutMS: 30000
-                }
+                },
+                reconnectTries: Number.MAX_VALUE
             },
             replset: {
 
                 socketOptions: {
 
-                    keepAlive: 1,
+                    keepAlive: true,
                     connectTimeoutMS: 30000
-                }
+                },
+                reconnectTries: Number.MAX_VALUE
             }
         };
         try {

@@ -1,47 +1,51 @@
 {
-    "name": "beamjs",
-    "version": "0.9.1-27",
-    "description": "A new full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)",
-    "main": "index.js",
-    "scripts": {
-        "test": "test"
-    },
-    "dependencies": {
-        "sequelize": "latest",
-        "mysql2": "latest",
-        "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
-        "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
-        "sequelize-transparent-cache-memcached": "quaNode/sequelize-transparent-cache",
-        "mongoose": "^4.13.8",
-        "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
-        "mongoose-pagination": "quaNode/mongoose-pagination",
-        "mongoose-cache": "quaNode/mongoose-cache",
-        "backend-js": "latest"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/quaNode/beamjs.git"
-    },
-    "keywords": [
-        "backend",
-        "express",
-        "mongodb",
-        "angular",
-        "web",
-        "stack",
-        "full"
-    ],
-    "author": "Ahmed Ragab <ahmed.ragab@me.com> (http://backendjs.com)",
-    "license": "MIT",
-    "bugs": {
-        "url": "https://github.com/quaNode/beamjs/issues"
-    },
-    "homepage": "https://github.com/quaNode/beamjs#readme",
-    "devDependencies": {
-        "eslint-config-standard": "^10.2.1",
-        "eslint-plugin-import": "^2.7.0",
-        "eslint-plugin-node": "^5.1.1",
-        "eslint-plugin-promise": "^3.5.0",
-        "eslint-plugin-standard": "^3.0.1"
-    }
+  "name": "beamjs",
+  "version": "0.9.1-27",
+  "description": "A new full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)",
+  "main": "index.js",
+  "scripts": {
+    "test": "test",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
+  },
+  "dependencies": {
+    "sequelize": "latest",
+    "mysql2": "latest",
+    "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
+    "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
+    "sequelize-transparent-cache-memcached": "quaNode/sequelize-transparent-cache",
+    "mongoose": "^4.13.8",
+    "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
+    "mongoose-pagination": "quaNode/mongoose-pagination",
+    "mongoose-cache": "quaNode/mongoose-cache",
+    "backend-js": "latest",
+    "snyk": "^1.123.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quaNode/beamjs.git"
+  },
+  "keywords": [
+    "backend",
+    "express",
+    "mongodb",
+    "angular",
+    "web",
+    "stack",
+    "full"
+  ],
+  "author": "Ahmed Ragab <ahmed.ragab@me.com> (http://backendjs.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/quaNode/beamjs/issues"
+  },
+  "homepage": "https://github.com/quaNode/beamjs#readme",
+  "devDependencies": {
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-node": "^5.1.1",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1"
+  },
+  "snyk": true
 }

@@ -7,16 +7,15 @@
         "test": "test"
     },
     "dependencies": {
-        "sequelize": "latest",
-        "mysql2": "latest",
-        "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
-        "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
-        "sequelize-transparent-cache-memcached": "quaNode/sequelize-transparent-cache",
-        "mongoose": "^4.13.8",
+        "backend-js": "^0.9.9",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
-        "mongoose-pagination": "quaNode/mongoose-pagination",
+        "mongoose": "^4.13.8",
         "mongoose-cache": "quaNode/mongoose-cache",
-        "backend-js": "latest"
+        "mongoose-pagination": "quaNode/mongoose-pagination",
+        "mysql2": "latest",
+        "sequelize": "latest",
+        "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
+        "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable"
     },
     "repository": {
         "type": "git",

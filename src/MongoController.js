@@ -483,7 +483,7 @@ var ModelController = function(defaultURI, cb) {
 
                         var i = session.indexOf(workingSession[index]);
                         if (i > -1) session.splice(i, 1);
-                        if (typeof callback === 'function') callback(error);
+                        if (typeof callback === 'function') callback(error, currentSession);
                     } else {
 
                         currentSession.push(modelObject);

@@ -388,7 +388,7 @@ var ModelController = function(defaultURI, cb, options) {
                 }).
                 catch(function(error) {
 
-                    if (typeof callback === 'function') callback(error);
+                    if (typeof callback === 'function') callback(error, currentSession);
                 });
                 else {
 

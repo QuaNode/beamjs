@@ -26,8 +26,10 @@ beam.database = function(path, options) {
     var ModelController = require(ModelControllerPath[options.type]);
     module.exports.ComparisonOperators = ModelController.ComparisonOperators;
     module.exports.LogicalOperators = ModelController.LogicalOperators;
+    module.exports.ComputationOperators = ModelController.ComputationOperators;
     backend.setComparisonOperators(ModelController.ComparisonOperators);
     backend.setLogicalOperators(ModelController.LogicalOperators);
+    backend.setComputationOperators(ModelController.ComputationOperators);
     backend.setModelController(ModelController.getModelControllerObject(options, function() {
 
         // if (!error) {

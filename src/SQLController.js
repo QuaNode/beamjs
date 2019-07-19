@@ -110,7 +110,8 @@ var adapter = {
 
     getQuery: function(queryExpressions, contextualLevel) {
 
-        if (Array.isArray(queryExpressions) && contextualLevel > -1) {
+        if (contextualLevel < 0) throw new Error('Invalid contextual level');
+        if (Array.isArray(queryExpressions)) {
 
             if (queryExpressions.length === 1) {
 
@@ -134,7 +135,7 @@ var adapter = {
                     if (queryExpressions[i].contextualLevel === j) {
 
                         var logicalOperator = queryExpressions[i].logicalOperator;
-                        var rightFilter = this.getQuery(queryExpressions.splice(i, queryExpressions.length), contextualLevel + 1);
+                        var rightFilter = this.getQuery(queryExpressions.splice(i), contextualLevel + 1);
                         var leftFilter = this.getQuery(queryExpressions, contextualLevel + 1);
                         if (logicalOperator && leftFilter && rightFilter) {
 
@@ -316,7 +317,8 @@ var ModelController = function(defaultURI, cb, options) {
             } else {
 
                 var features = entity.getObjectFeatures() || {};
-                var queryExpressions = queryExprs.concat(entity.getObjectQuery() || []);
+                var queryExpressions = ((!Array.isArray(queryExprs) && [queryExprs]) ||
+                    queryExprs).concat(entity.getObjectQuery() || []);
                 entity.getObjectConstructor().destroy(adapter.constructQuery(queryExpressions, features)).
                 then(function(modelObjects) {
 
@@ -353,7 +355,7 @@ var ModelController = function(defaultURI, cb, options) {
         if (typeof callback === 'function') callback(modelObjects);
         return (modelObjects.length === 1 && modelObjects[0]) || modelObjects;
     };
-    self.getObjects = function(queryExprs, entity, callback) {
+    self.getObjects = function(exprs, entity, callback) {
 
         if (!entity || !(entity instanceof ModelEntity)) {
 
@@ -367,8 +369,18 @@ var ModelController = function(defaultURI, cb, options) {
             } else {
 
                 var features = entity.getObjectFeatures() || {};
+                var queryExprs = [];
+                var aggregateExprs = [];
+                if (Array.isArray(exprs) && exprs.length == 2 && Array.isArray(exprs[0]) && Array.isArray(exprs[1])) {
+
+                    queryExprs = exprs[0];
+                    aggregateExprs = exprs[1];
+                } else if (Array.isArray(exprs)) queryExprs = exprs;
+                else queryExprs.push(exprs);
                 var queryExpressions = queryExprs.concat(entity.getObjectQuery() || []);
-                getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
+                var aggregateExpressions = aggregateExprs.concat(entity.getObjectAggregate() || []);
+                if (aggregateExpressions.length > 0) throw new Error('This feature is implemented yet');
+                else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
             }
         });
     };
@@ -429,7 +441,7 @@ ModelController.defineEntity = function(name, attributes, plugins, constraints) 
 
         if (attributes[key] === String && constraints && constraints[key] && constraints[key].unique) attributes[key] = Object.assign({
 
-            type:Sequelize.DataTypes.STRING(125)
+            type: Sequelize.DataTypes.STRING(125)
         }, (constraints && constraints[key]) || {});
 
         else if (DataType(attributes[key])) attributes[key] = Object.assign({

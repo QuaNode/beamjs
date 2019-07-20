@@ -12,7 +12,7 @@ var ModelControllerPath = {
     mysql: './src/SQLController.js'
 };
 
-beam.database = function(path, options) {
+beam.database = function (path, options) {
 
     if (typeof arguments[1] === 'string' || typeof arguments[2] === 'string') return {
 
@@ -30,7 +30,7 @@ beam.database = function(path, options) {
     backend.setComparisonOperators(ModelController.ComparisonOperators);
     backend.setLogicalOperators(ModelController.LogicalOperators);
     backend.setComputationOperators(ModelController.ComputationOperators);
-    backend.setModelController(ModelController.getModelControllerObject(options, function() {
+    backend.setModelController(ModelController.getModelControllerObject(options, function () {
 
         // if (!error) {
 
@@ -41,7 +41,7 @@ beam.database = function(path, options) {
     return backend;
 };
 
-beam.backend = function(database) {
+beam.backend = function (database) {
 
     return module.exports.database('', database && {
 
@@ -51,17 +51,17 @@ beam.backend = function(database) {
     });
 };
 
-beam.SQLTimestamps = function(name, hooks) {
+beam.SQLTimestamps = function (name, hooks) {
 
-    hooks.on('beforeDefine', function(attributes, options) {
+    hooks.on('beforeDefine', function (attributes, options) {
 
         options.timestamps = true;
     });
 };
 
-beam.SQLHashedProperty = function(name, hooks, sequelize) {
+beam.SQLHashedProperty = function (name, hooks, sequelize) {
 
-    var hash = function(password, options) {
+    var hash = function (password, options) {
 
         var salt,
             saltlen,
@@ -73,14 +73,14 @@ beam.SQLHashedProperty = function(name, hooks, sequelize) {
             saltlen = options.salt.length;
         } else {
 
-            saltlen = options && options.saltlen || 64;
+            saltlen = (options && options.saltlen) || 64;
             salt = crypto.randomBytes(saltlen);
         }
-        iterations = options && options.iterations || 10000;
+        iterations = (options && options.iterations) || 10000;
         hashedPassword = crypto.pbkdf2Sync(password, salt, iterations, saltlen, 'sha256');
         return 'pkdf2$' + iterations + '$' + salt.toString('hex') + '$' + hashedPassword.toString('hex');
     };
-    var verify = function(password, hashedPassword) {
+    var verify = function (password, hashedPassword) {
 
         var split = hashedPassword.split('$');
         if (split.length !== 4) {
@@ -111,7 +111,7 @@ beam.SQLHashedProperty = function(name, hooks, sequelize) {
             return false;
         }
     };
-    hooks.on('beforeDefine', function(attributes, options) {
+    hooks.on('beforeDefine', function (attributes, options) {
 
         attributes.hashed_password = {
 
@@ -120,15 +120,15 @@ beam.SQLHashedProperty = function(name, hooks, sequelize) {
         attributes.password = {
 
             type: sequelize.Sequelize.DataTypes.VIRTUAL,
-            set: function(password) {
+            set: function (password) {
 
                 this.setDataValue('hashed_password', hash(password));
             }
         };
     });
-    hooks.on('afterDefine', function(Model) {
+    hooks.on('afterDefine', function (Model) {
 
-        Model.prototype.verifyPassword = function(password) {
+        Model.prototype.verifyPassword = function (password) {
 
             if (this.getDataValue('hashed_password')) {
 
@@ -141,14 +141,14 @@ beam.SQLHashedProperty = function(name, hooks, sequelize) {
     });
 };
 
-beam.SQLSecret = function(name, hooks, sequelize) {
+beam.SQLSecret = function (name, hooks, sequelize) {
 
-    var createSecret = function(size) {
+    var createSecret = function (size) {
 
         var hex = crypto.randomBytes(size).toString('hex');
         return hex.substring(0, size);
     };
-    hooks.on('beforeDefine', function(attributes, options) {
+    hooks.on('beforeDefine', function (attributes, options) {
 
         attributes.secret = {
 
@@ -156,15 +156,15 @@ beam.SQLSecret = function(name, hooks, sequelize) {
             defaultValue: createSecret(32)
         };
     });
-    hooks.on('afterDefine', function(Model) {
+    hooks.on('afterDefine', function (Model) {
 
-        Model.prototype.generateNewSecret = function(cb) {
+        Model.prototype.generateNewSecret = function (cb) {
 
             this.setDataValue('secret', createSecret(32));
-            return this.save().then(function(model) {
+            return this.save().then(function (model) {
 
                 cb(model.getDataValue('secret'));
-            }).catch(function(error) {
+            }).catch(function (error) {
 
                 cb(null, error);
             });

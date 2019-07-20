@@ -1,6 +1,6 @@
 /*jslint node: true */
 /*global emit*/
-/*global map*/
+/*global _*/
 'use strict';
 
 var backend = require('backend-js');
@@ -121,7 +121,6 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     },
     SOME: function(query, expression) {
 
-        var fieldName = expression.fieldName;
         var attributes = expression.fieldName.split('.');
         if (!Array.isArray(attributes) || attributes.length < 2) throw new Error('Invalid field name in a query expression');
         var attribute = attributes.splice(-1, 1)[0];
@@ -136,7 +135,8 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 
             $eq: ['$$item.' + attribute, query['=']]
         };
-        else if (query.$regex) query.$regex = ['$$item.' + attribute,
+        else if (query.$regex) query.$regex = [
+            '$$item.' + attribute,
             query.$regex instanceof RegExp ? new RegExp(query.$regex, query.$options) :
             new RegExp('^' + query.$regex + '$', query.$options)
         ];
@@ -221,12 +221,12 @@ var ComputationOperators = module.exports.ComputationOperators = {
     EQUAL: getBinaryOperator('$eq'),
     EQUALIGNORECASE: function(leftValue, rightValue) {
 
-        return this.EQUAL.apply(this, [this.CASEINSENSITIVECOMPARE.apply(this, [leftValue, rightValue]), 0]);
+        return this.EQUAL(this.CASEINSENSITIVECOMPARE(leftValue, rightValue), 0);
     },
     NE: getBinaryOperator('$ne'),
     NEIGNORECASE: function(leftValue, rightValue) {
 
-        return this.NE.apply(this, [this.CASEINSENSITIVECOMPARE.apply(this, [leftValue, rightValue]), 0]);
+        return this.NE(this.CASEINSENSITIVECOMPARE(leftValue, rightValue), 0);
     },
     LT: getBinaryOperator('$lt'),
     LE: getBinaryOperator('$lte'),
@@ -237,18 +237,18 @@ var ComputationOperators = module.exports.ComputationOperators = {
 
         if (!Array.isArray(rightValue)) throw new Error('Invalid in operator array');
         var self = this;
-        return self.OR.apply(self, [rightValue.map(function(value) {
+        return self.OR(rightValue.map(function(value) {
 
-            return self.EQUALIGNORECASE.apply(self, [leftValue, value]);
-        }), true]);
+            return self.EQUALIGNORECASE(leftValue, value);
+        }), true);
     },
     NIN: function(leftValue, rightValue) {
 
-        return this.NOT.apply(this, [this.IN.apply(this, [leftValue, rightValue])]);
+        return this.NOT(this.IN(leftValue, rightValue));
     },
     NINIGNORECASE: function(leftValue, rightValue) {
 
-        return this.NOT.apply(this, [this.INIGNORECASE.apply(this, [leftValue, rightValue])]);
+        return this.NOT(this.INIGNORECASE(leftValue, rightValue));
     },
     CONTAINS: function(leftValue, rightValue) {
 
@@ -263,7 +263,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
     },
     CONTAINSIGNORECASE: function(leftValue, rightValue) {
 
-        var operation = this.CONTAINS.apply(this, [leftValue, rightValue]);
+        var operation = this.CONTAINS(leftValue, rightValue);
         operation.$regexMatch.options = 'i';
         return operation;
     },
@@ -514,6 +514,7 @@ var getQueryUniqueArray = function(queryExpressions, features, attribute) {
 
     var uniqueArray = [];
     if (!features[attribute].query && queryExpressions.length > 0) {
+
         uniqueArray = ['query'].concat(queryExpressions.map(function(queryExpression) {
 
             return queryExpression.fieldValue;
@@ -531,9 +532,25 @@ var getMapReduce = function(session) {
     return function(queryExpressions, ObjectConstructor, features, callback) {
 
         var options = {};
+        var constructedQuery;
+        if (features.mapReduce.query && queryExpressions.length > 0)
+            options.query = constructedQuery = constructQuery(queryExpressions);
+        if (features.mapReduce.query && Array.isArray(features.sort)) options.sort = features.sort.reduce(function(sort,
+            opt) {
+
+            if (typeof opt.by !== 'string') throw new Error('Invalid sort by field name');
+            sort[opt.by] = opt.order === 'desc' ? -1 : 1;
+            return sort;
+        }, {});
         options.map = function() {
 
-            var emitting = map(this);
+            if (typeof _.count === 'number') {
+
+                _.count++;
+                if (typeof _.skip === 'number' && _.count <= _.skip) return;
+                if (typeof _.limit === 'number' && _.count > _.skip + _.limit) return;
+            }
+            var emitting = _.map(this);
             if (typeof emitting === 'function') emitting(function(data) {
 
                 if (data && data.key && data.value) emit(data.key, data.value);
@@ -541,7 +558,17 @@ var getMapReduce = function(session) {
             else if (emitting && emitting.key && emitting.value) emit(emitting.key, emitting.value);
         };
         options.reduce = features.mapReduce.reduce;
-        if (features.mapReduce.query && queryExpressions.length > 0) options.query = constructQuery(queryExpressions);
+        if (typeof features.mapReduce.finalize === 'function') options.finalize = features.mapReduce.finalize;
+        options.scope = features.mapReduce.scope || {};
+        if (options.scope._) throw new Error('Invalid use of _ it is reserved');
+        options.scope._ = {};
+        options.scope._.map = features.mapReduce.map;
+        if (features.mapReduce.query && features.paginate && typeof features.limit === 'number') {
+
+            options.scope._.limit = features.limit;
+            options.scope._.skip = ((features.page || 1) - 1) * features.limit;
+            options.scope._.count = 0;
+        }
         var queryUniqueArray = getQueryUniqueArray(queryExpressions, features, 'mapReduce');
         if (queryUniqueArray.length > 0) options.out = {
 
@@ -551,23 +578,24 @@ var getMapReduce = function(session) {
                     return number / string.codePointAt(0);
                 }, 9999).toString().replace('e-', '').slice(-4)
         };
-        if (Array.isArray(features.mapReduce.sort)) options.sort = features.mapReduce.sort.reduce(function(sort,
-            opt) {
-
-            if (typeof opt.by !== 'string') throw new Error('invalid sort by field name');
-            sort[opt.by] = opt.order === 'desc' ? -1 : 1;
-            return sort;
-        }, {});
-        if (typeof features.mapReduce.limit === 'number') options.limit = features.mapReduce.limit;
-        if (typeof features.mapReduce.finalize === 'function') options.finalize = features.mapReduce.finalize;
-        options.scope = features.mapReduce.scope || {};
-        options.scope.map = features.mapReduce.map;
         ObjectConstructor.mapReduce(options, function(error, out) {
 
             if (!out || Array.isArray(out)) {
 
-                if (typeof callback === 'function') callback(out, error);
-            } else getExecuteQuery(session)(features.mapReduce.query ? [] : queryExpressions, out, features, callback);
+                if (typeof callback === 'function') {
+
+                    if (constructedQuery && features.paginate && typeof features.limit === 'number')
+                        ObjectConstructor.countDocuments(constructedQuery, function(err, total) {
+
+                            callback({
+
+                                modelObjects: out,
+                                pageCount: total / features.limit
+                            }, error || err);
+                        });
+                    else callback(out, error);
+                }
+            } else getExecuteQuery(session)(queryExpressions, out, features, callback);
         });
     };
 };
@@ -827,7 +855,7 @@ var ModelController = function(defaultURI, cb) {
         var self = this;
         if (!entity || !(entity instanceof ModelEntity)) {
 
-            throw new Error('invalid entity');
+            throw new Error('Invalid entity');
         }
         if (!checkConnection(defaultURI, callback)) return;
         self.save(function(err) {
@@ -851,7 +879,7 @@ var ModelController = function(defaultURI, cb) {
         if (!checkConnection(defaultURI, callback)) return;
         if (!entity || !(entity instanceof ModelEntity)) {
 
-            throw new Error('invalid entity');
+            throw new Error('Invalid entity');
         }
         var modelObjects = [];
         var newObject = function(objAttributes) {
@@ -877,7 +905,7 @@ var ModelController = function(defaultURI, cb) {
         if (!checkConnection(defaultURI, callback)) return;
         if (!entity || !(entity instanceof ModelEntity)) {
 
-            throw new Error('invalid entity');
+            throw new Error('Invalid entity');
         }
         self.save(function(error) {
 
@@ -973,8 +1001,8 @@ var resovleTypeAttribute = function(attributes) {
 
 ModelController.defineEntity = function(name, attributes, plugins) {
 
-    if (typeof name !== 'string') throw new Error('invalid entity name');
-    if (typeof attributes !== 'object') throw new Error('invalid entity schema');
+    if (typeof name !== 'string') throw new Error('Invalid entity name');
+    if (typeof attributes !== 'object') throw new Error('Invalid entity schema');
     var entitySchema = new Schema(attributes, {
 
         autoIndex: false,

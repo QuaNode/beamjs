@@ -307,7 +307,7 @@ var ModelController = function(defaultURI, cb, options) {
         var self = this;
         if (!entity || !(entity instanceof ModelEntity)) {
 
-            throw new Error('invalid entity');
+            throw new Error('Invalid entity');
         }
         self.save(function(err) {
 
@@ -335,7 +335,7 @@ var ModelController = function(defaultURI, cb, options) {
 
         if (!entity || !(entity instanceof ModelEntity)) {
 
-            throw new Error('invalid entity');
+            throw new Error('Invalid entity');
         }
         var modelObjects = [];
         var newObject = function(objAttributes) {
@@ -359,7 +359,7 @@ var ModelController = function(defaultURI, cb, options) {
 
         if (!entity || !(entity instanceof ModelEntity)) {
 
-            throw new Error('invalid entity');
+            throw new Error('Invalid entity');
         }
         self.save(function(error) {
 

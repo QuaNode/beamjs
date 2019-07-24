@@ -1,17 +1,17 @@
 /*jslint node: true */
+/*jshint esversion: 6 */
 /*global Symbol*/
 'use strict';
 
-var backend = require('backend-js');
-var ModelEntity = backend.ModelEntity;
-var QueryExpression = backend.QueryExpression;
-var Sequelize = require('sequelize');
+let backend = require('backend-js');
+let ModelEntity = backend.ModelEntity;
+let QueryExpression = backend.QueryExpression;
+let Sequelize = require('sequelize');
 require('sequelize-values')(Sequelize);
-var VariableAdaptor = require('sequelize-transparent-cache-variable');
+let VariableAdaptor = require('sequelize-transparent-cache-variable');
+let withCache = require('sequelize-transparent-cache')(new VariableAdaptor()).withCache;
 
-var withCache = require('sequelize-transparent-cache')(new VariableAdaptor()).withCache;
-
-var Op = Sequelize.Op;
+let Op = Sequelize.Op;
 
 var LogicalOperators = module.exports.LogicalOperators = {
 
@@ -355,7 +355,7 @@ var ModelController = function(defaultURI, cb, options) {
         if (typeof callback === 'function') callback(modelObjects);
         return (modelObjects.length === 1 && modelObjects[0]) || modelObjects;
     };
-    self.getObjects = function(exprs, entity, callback) {
+    self.getObjects = function(objWrapper, entity, callback) {
 
         if (!entity || !(entity instanceof ModelEntity)) {
 
@@ -368,18 +368,12 @@ var ModelController = function(defaultURI, cb, options) {
                 if (typeof callback === 'function') callback(null, error);
             } else {
 
+                var queryExpressions = (objWrapper.getObjectQuery() || []).concat(entity.getObjectQuery() || []);
+                var aggregateExpressions = (objWrapper.getObjectAggregate() || []).concat(entity.getObjectAggregate() || []);
+                var filterExpressions = objWrapper.getObjectFilter() || [];
                 var features = entity.getObjectFeatures() || {};
-                var queryExprs = [];
-                var aggregateExprs = [];
-                if (Array.isArray(exprs) && exprs.length == 2 && Array.isArray(exprs[0]) && Array.isArray(exprs[1])) {
-
-                    queryExprs = exprs[0];
-                    aggregateExprs = exprs[1];
-                } else if (Array.isArray(exprs)) queryExprs = exprs;
-                else queryExprs.push(exprs);
-                var queryExpressions = queryExprs.concat(entity.getObjectQuery() || []);
-                var aggregateExpressions = aggregateExprs.concat(entity.getObjectAggregate() || []);
-                if (aggregateExpressions.length > 0) throw new Error('This feature is implemented yet');
+                if (aggregateExpressions.length > 0 || (typeof features.aggregate === 'object' &&
+                        Object(features.aggregate).length > 0)) throw new Error('This feature is not implemented yet');
                 else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
             }
         });

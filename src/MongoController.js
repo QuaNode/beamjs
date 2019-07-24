@@ -1,16 +1,17 @@
 /*jslint node: true */
+/*jshint esversion: 6 */
 /*global emit*/
 /*global _*/
 'use strict';
 
-var backend = require('backend-js');
-var ModelEntity = backend.ModelEntity;
-var QueryExpression = backend.QueryExpression;
-var AggregateExpression = backend.AggregateExpression;
-var mongoose = require('mongoose');
+let backend = require('backend-js');
+let ModelEntity = backend.ModelEntity;
+let QueryExpression = backend.QueryExpression;
+let AggregateExpression = backend.AggregateExpression;
+let mongoose = require('mongoose');
 mongoose.Promise = global.Promise;
-var Schema = mongoose.Schema;
-var autoIncrement = require('mongodb-autoincrement');
+let Schema = mongoose.Schema;
+let autoIncrement = require('mongodb-autoincrement');
 mongoose.plugin(autoIncrement.mongoosePlugin);
 require('mongoose-pagination');
 var cacheOpts = {
@@ -91,14 +92,14 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         };
     },
     ALL: '$all',
-    FOREACH: function(query) {
+    ANYMATCH: function(query) {
 
         return {
 
             $elemMatch: query
         };
     },
-    FOREACHIGNORECASE: function(query) {
+    ANYMATCHIGNORECASE: function(query) {
 
         return {
 
@@ -269,6 +270,8 @@ var ComputationOperators = module.exports.ComputationOperators = {
     },
     SOME: function(variable) {
 
+        if (typeof variable !== 'string' || variable.length === 0)
+            throw new Error('Invalid array variable name in aggregate expression');
         return function(leftValue, rightValue) {
 
             return {
@@ -380,7 +383,24 @@ var ComputationOperators = module.exports.ComputationOperators = {
     YEAR: getUnaryOperator('$year'),
     UNEMBED: '$$DESCEND',
     HIDE: '$$PRUNE',
-    SHOW: '$$KEEP'
+    SHOW: '$$KEEP',
+    CONVERT: function(type) {
+
+        if ((typeof type != 'number' || type < 1 || type > 19) && (typeof type !== 'string' ||
+                type.length === 0)) throw new Error('Invalid conversion type in aggregate expression');
+        return function(value) {
+
+            return {
+
+                $convert: {
+
+                    input: value,
+                    to: type,
+                    onError: null
+                }
+            };
+        };
+    }
 };
 
 ComputationOperators.IGNORECASE = ComputationOperators.CASEINSENSITIVECOMPARE;
@@ -454,22 +474,32 @@ var getExecuteQuery = function(session) {
 
     return function(queryExpressions, ObjectConstructor, features, callback) {
 
+        var distinct = features.distinct;
+        var include = features.include,
+            exclude = features.exclude;
+        var sort = features.sort;
+        var populate = features.populate;
+        var cache = features.cache;
+        var readonly = features.readonly;
+        var paginate = features.paginate,
+            limit = features.limit,
+            page = features.page;
         var query = ObjectConstructor.find(constructQuery(queryExpressions));
-        if (typeof features.distinct === 'string') query = query.distinct(features.distinct);
+        if (typeof distinct === 'string') query = query.distinct(distinct);
         else {
 
-            if (Array.isArray(features.include)) query = query.select(features.include.join(' '));
-            else if (Array.isArray(features.exclude)) query = query.select(features.exclude.map(function(field) {
+            if (Array.isArray(include)) query = query.select(include.join(' '));
+            else if (Array.isArray(exclude)) query = query.select(exclude.map(function(field) {
 
                 return '-' + field;
             }).join(' '));
         }
-        if (Array.isArray(features.sort)) query = query.sort(features.sort.map(function(option) {
+        if (Array.isArray(sort)) query = query.sort(sort.map(function(option) {
 
             if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
             return (option.order === 'desc' ? '-' : '') + option.by;
         }).join(' '));
-        if (Array.isArray(features.populate)) features.populate.forEach(function(option) {
+        if (Array.isArray(populate)) populate.forEach(function(option) {
 
             var opt = {};
             if (typeof option.path !== 'string') throw new Error('Invalid populate path');
@@ -490,53 +520,59 @@ var getExecuteQuery = function(session) {
             opt.model = option.model;
             query = query.populate(opt);
         });
-        if (features.cache) query = query.cache();
-        if (features.readonly) query = query.lean();
-        if (features.paginate && typeof features.limit === 'number') query.paginate(features.page, features.limit,
-            function(error, modelObjects, total) {
+        if (cache) query = query.cache();
+        if (readonly) query = query.lean();
+        if (paginate && typeof limit === 'number') query.paginate(page, limit, function(error, modelObjects, total) {
 
-                if (!features.readonly) Array.prototype.push.apply(session, modelObjects);
-                if (typeof callback === 'function') callback({
+            if (!readonly) Array.prototype.push.apply(session, modelObjects);
+            if (typeof callback === 'function') callback({
 
-                    modelObjects: modelObjects,
-                    pageCount: total / features.limit
-                }, error);
-            });
+                modelObjects: modelObjects,
+                pageCount: total / limit
+            }, error);
+        });
         else query.exec(function(error, modelObjects) {
 
-            if (!features.readonly) Array.prototype.push.apply(session, modelObjects);
+            if (!readonly) Array.prototype.push.apply(session, modelObjects);
             if (typeof callback === 'function') callback(modelObjects, error);
         });
     };
 };
 
-var getQueryUniqueArray = function(queryExpressions, features, attribute) {
+var getQueryUniqueArray = function(queryExpressions, features) {
 
     var uniqueArray = [];
-    if (!features[attribute].query && queryExpressions.length > 0) {
+    uniqueArray = [].concat(queryExpressions.map(function(queryExpression) {
 
-        uniqueArray = ['query'].concat(queryExpressions.map(function(queryExpression) {
-
-            return queryExpression.fieldValue;
-        }));
-        if (typeof features.distinct === 'string' || Array.isArray(features.include) ||
-            Array.isArray(features.exclude) || Array.isArray(features.sort) ||
-            Array.isArray(features.populate) || features.cache || features.paginate)
-            uniqueArray = uniqueArray.concat(Object.keys(features).concat(Object.values(features)));
-    }
+        return queryExpression.fieldValue;
+    }));
+    if (typeof features.distinct === 'string' || Array.isArray(features.include) ||
+        Array.isArray(features.exclude) || Array.isArray(features.sort) ||
+        Array.isArray(features.populate) || features.cache || features.paginate)
+        uniqueArray = uniqueArray.concat(Object.keys(features).concat(Object.values(features)));
     return uniqueArray;
 };
 
 var getMapReduce = function(session) {
 
-    return function(queryExpressions, ObjectConstructor, features, callback) {
+    return function(queryExpressions, filterExpressions, ObjectConstructor, features, callback) {
 
         var options = {};
-        var constructedQuery;
-        if (features.mapReduce.query && queryExpressions.length > 0)
-            options.query = constructedQuery = constructQuery(queryExpressions);
-        if (features.mapReduce.query && Array.isArray(features.sort)) options.sort = features.sort.reduce(function(sort,
-            opt) {
+        var filter = features.mapReduce.filter;
+        var sort = features.mapReduce.sort || features.sort;
+        var map = features.mapReduce.map,
+            reduce = features.mapReduce.reduce,
+            finalize = features.mapReduce.finalize;
+        var scope = features.mapReduce.scope || {};
+        var paginate = typeof features.mapReduce.paginate === 'boolean' ? features.mapReduce.paginate :
+            features.paginate,
+            limit = features.mapReduce.limit || features.limit,
+            page = features.mapReduce.page || features.page;
+        var collection, output = features.mapReduce.output;
+        if (filter && queryExpressions.length > 0 && filterExpressions.length === 0)
+            options.query = constructQuery(queryExpressions);
+        else if (filterExpressions.length > 0) options.query = constructQuery(filterExpressions);
+        if (filter && Array.isArray(sort)) options.sort = sort.reduce(function(sort, opt) {
 
             if (typeof opt.by !== 'string') throw new Error('Invalid sort by field name');
             sort[opt.by] = opt.order === 'desc' ? -1 : 1;
@@ -557,45 +593,45 @@ var getMapReduce = function(session) {
             });
             else if (emitting && emitting.key && emitting.value) emit(emitting.key, emitting.value);
         };
-        options.reduce = features.mapReduce.reduce;
-        if (typeof features.mapReduce.finalize === 'function') options.finalize = features.mapReduce.finalize;
-        options.scope = features.mapReduce.scope || {};
+        options.reduce = reduce;
+        if (typeof finalize === 'function') options.finalize = finalize;
+        options.scope = scope;
         if (options.scope._) throw new Error('Invalid use of _ it is reserved');
         options.scope._ = {};
-        options.scope._.map = features.mapReduce.map;
-        if (features.mapReduce.query && features.paginate && typeof features.limit === 'number') {
+        options.scope._.map = map;
+        if (filter && paginate && typeof limit === 'number') {
 
-            options.scope._.limit = features.limit;
-            options.scope._.skip = ((features.page || 1) - 1) * features.limit;
+            options.scope._.limit = limit;
+            options.scope._.skip = ((page || 1) - 1) * limit;
             options.scope._.count = 0;
         }
-        var queryUniqueArray = getQueryUniqueArray(queryExpressions, features, 'mapReduce');
-        if (queryUniqueArray.length > 0) options.out = {
+        if (output) {
 
-            replace: 'MapReduce' + ObjectConstructor.modelName.toUpperCase() +
-                JSON.stringify(queryUniqueArray).split('').reduce(function(number, string) {
+            var queryUniqueArray = getQueryUniqueArray(queryExpressions, features);
+            if (queryUniqueArray.length > 0) {
 
-                    return number / string.codePointAt(0);
-                }, 9999).toString().replace('e-', '').slice(-4)
-        };
+                collection = 'MapReduce' + ObjectConstructor.modelName.toUpperCase() +
+                    JSON.stringify(queryUniqueArray).split('').reduce(function(number, string) {
+
+                        return number / string.codePointAt(0);
+                    }, 9999).toString().replace('e-', '').slice(-4);
+                options.out = {
+
+                    replace: collection
+                };
+            }
+        }
         ObjectConstructor.mapReduce(options, function(error, out) {
 
-            if (!out || Array.isArray(out)) {
+            if (!out || !out.model || !collection) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === 'function') callback(paginate && typeof limit === 'number' ? {
 
-                    if (constructedQuery && features.paginate && typeof features.limit === 'number')
-                        ObjectConstructor.countDocuments(constructedQuery, function(err, total) {
-
-                            callback({
-
-                                modelObjects: out,
-                                pageCount: total / features.limit
-                            }, error || err);
-                        });
-                    else callback(out, error);
-                }
-            } else getExecuteQuery(session)(queryExpressions, out, features, callback);
+                    modelObjects: out && out.results,
+                    pageCount: out && out.stats && out.stats.counts && out.stats.counts.input / limit
+                } : out && out.results, error);
+            } else getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] : queryExpressions,
+                out.model, features, callback);
         });
     };
 };
@@ -641,7 +677,7 @@ var getAggregate = function(aggregateExpression, contextualLevel) {
     }
 };
 
-var constructAggregate = function(aggregateExpressions) {
+var constructAggregate = function(aggregateExpressions, orderOrField) {
 
     if (Array.isArray(aggregateExpressions)) aggregateExpressions.forEach(function(aggregateExpression, index) {
 
@@ -651,148 +687,194 @@ var constructAggregate = function(aggregateExpressions) {
                 return typeof contextualLevel !== 'number';
             })) throw new Error('Aggregate expression missing contextual levels');
     });
-    return aggregateExpressions.reduce(function(aggregate, aggregateExpression) {
+    var indices = [];
+    var aggregate = aggregateExpressions.reduce(function(aggregate, aggregateExpression, index) {
 
-        aggregate[aggregateExpression.fieldName] = getAggregate(aggregateExpression, 0);
+        if (aggregateExpression.computationOrder < 0) throw new Error('Invalid computation order');
+        if ((typeof orderOrField === 'number' && aggregateExpression.computationOrder === orderOrField) ||
+            (typeof orderOrField === 'string' && aggregateExpression.fieldName === orderOrField)) {
+
+            indices.push(index);
+            aggregate[aggregateExpression.fieldName] = getAggregate(aggregateExpression, 0);
+        }
         return aggregate;
     }, {});
+    indices.forEach(function(index) {
+
+        aggregateExpressions.splice(index, 1);
+    });
+    return aggregate;
 };
 
 var getExecuteAggregate = function(session) {
 
-    return function(queryExpressions, aggregateExpressions, ObjectConstructor, attributes, features, callback) {
+    return function(queryExpressions, aggregateExpressions, filterExpressions, ObjectConstructor,
+        attributes, features, callback) {
 
         if (!features.aggregate) features.aggregate = {};
+        var constructedAggregate, include = features.aggregate.include || features.include,
+            exclude = features.aggregate.exclude || features.exclude;
+        var filter = features.aggregate.filter;
+        var redact, restrict = features.aggregate.restrict;
+        var group, distinct = features.aggregate.distinct || features.distinct;
+        var flatten = features.aggregate.flatten;
+        var sort = features.aggregate.sort || features.sort;
+        var populate = features.aggregate.populate || features.populate;
+        var paginate = typeof features.aggregate.paginate === 'boolean' ? features.aggregate.paginate :
+            features.paginate,
+            limit = features.aggregate.limit || features.limit,
+            page = features.aggregate.page || features.page;
+        var collection, mapReduce = features.mapReduce,
+            output = features.aggregate.output;
         var aggregate = ObjectConstructor.aggregate();
-        if (features.aggregate.query && queryExpressions.length > 0) aggregate = aggregate.match(constructQuery(queryExpressions));
-        var constructedAggregate = constructAggregate(aggregateExpressions);
-        if (typeof features.aggregate.restrict === 'string' && constructedAggregate[features.aggregate.restrict]) {
+        if (filter && queryExpressions.length > 0 && filterExpressions.length === 0)
+            aggregate = aggregate.match(constructQuery(queryExpressions));
+        else if (filterExpressions.length > 0) aggregate = aggregate.match(constructQuery(filterExpressions));
+        if (typeof restrict === 'string') redact = constructAggregate(aggregateExpressions, restrict)[restrict];
+        if (filter && typeof distinct === 'string') {
 
-            aggregate = aggregate.redact(constructedAggregate[features.aggregate.restrict]);
-            delete constructedAggregate[features.aggregate.restrict];
+            constructedAggregate = constructAggregate(aggregateExpressions, distinct);
+            group = {
+
+                _id: constructedAggregate[distinct] ? function() {
+
+                    var _id = {};
+                    _id[distinct] = constructedAggregate[distinct];
+                    delete constructedAggregate[distinct];
+                    return _id;
+                }() : '$' + distinct
+            };
         }
-        if (features.aggregate.query && typeof features.distinct === 'string') aggregate = aggregate.group({
+        if (aggregateExpressions.length > 0) {
 
-            _id: constructedAggregate[features.distinct] ? function() {
-
-                var _id = {};
-                _id[features.distinct] = constructedAggregate[features.distinct];
-                delete constructedAggregate[features.distinct];
-                return _id;
-            }() : '$' + features.distinct
-        });
-        else if (features.aggregate.query && Array.isArray(features.include))
-            aggregate = aggregate.project(features.include.reduce(function(project, field) {
-
-                project[field] = 1;
-                return project;
-            }, constructedAggregate));
-        else if (features.aggregate.query && Array.isArray(features.exclude))
-            aggregate = aggregate.project(Object.keys(attributes).reduce(function(project, field) {
-
-                if (features.exclude.indexOf(field) === -1) project[field] = 1;
-                return project;
-            }, constructedAggregate));
-        else aggregate = aggregate.addFields(constructedAggregate);
-        if (typeof features.aggregate.flatten === 'string') aggregate = aggregate.unwind('$' + features.aggregate.flatten);
-        if (features.aggregate.query && Array.isArray(features.sort))
-            aggregate = aggregate.sort(features.sort.map(function(option) {
-
-                if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
-                return (option.order === 'desc' ? '-' : '') + option.by;
-            }).join(' '));
-        if (Array.isArray(features.populate)) {
-
-            features.populate.forEach(function(option) {
-
-                var opt = {
-
-                    pipeline: []
-                };
-                if (typeof option.path !== 'string') throw new Error('Invalid populate path');
-                if (typeof option.ref !== 'string') throw new Error('Invalid populate ref');
-                var match = {};
-                match[option.ref] = '$$ref';
-                opt.let = {
-
-                    ref: '$' + option.path
-                };
-                var project;
-                if (Array.isArray(option.include)) project = option.include.reduce(function(project, field) {
+            var ordering = 0;
+            constructedAggregate = constructAggregate(aggregateExpressions, ordering);
+            if (filter && Array.isArray(include)) aggregate = aggregate.project(include
+                .reduce(function(project, field) {
 
                     project[field] = 1;
                     return project;
-                }, {});
-                else if (Array.isArray(option.exclude)) project = Object.keys(attributes).reduce(function(project, field) {
+                }, constructedAggregate));
+            else if (filter && Array.isArray(exclude)) aggregate = aggregate.project(Object.keys(attributes)
+                .concat(exclude).reduce(function(project, field) {
 
-                    if (features.exclude.indexOf(field) === -1) project[field] = 1;
+                    project[field] = exclude.indexOf(field) === -1;
                     return project;
-                }, {});
-                opt.pipeline.push({
+                }, constructedAggregate));
+            else aggregate = aggregate.addFields(constructedAggregate);
+            while (aggregateExpressions.length > 0) {
 
-                    $match: match,
-                    $project: project
-                });
-                if (typeof option.model !== 'string') throw new Error('Invalid populate model');
-                opt.from = option.model;
-                opt.as = option.path;
-                aggregate = aggregate.append({
-
-                    $lookup: opt
-                });
-            });
-            delete features.populate;
+                constructedAggregate = constructAggregate(aggregateExpressions, ordering++);
+                if (Object.keys(constructedAggregate).length > 0)
+                    aggregate = aggregate.addFields(constructedAggregate);
+            }
         }
-        if (features.aggregate.query && features.paginate && typeof features.limit === 'number')
-            aggregate = aggregate.facet({
+        if (redact) aggregate = aggregate.redact(redact);
+        if (group) aggregate = aggregate.group(group);
+        if (Array.isArray(flatten)) flatten.forEach(function(path) {
 
-                modelObjects: [{
+            aggregate = aggregate.unwind({
 
-                    $skip: ((features.page || 1) - 1) * features.limit
-                }, {
-
-                    $limit: features.limit
-                }],
-                pagination: [{
-
-                    $count: 'total'
-                }]
+                path: '$' + path,
+                preserveNullAndEmptyArrays: true
             });
-        var collection;
-        var queryUniqueArray = getQueryUniqueArray(queryExpressions, features, 'aggregate');
-        if (queryUniqueArray.length > 0) {
+        });
+        if (filter && Array.isArray(sort)) aggregate = aggregate.sort(sort.map(function(option) {
 
-            collection = 'Aggregate' + ObjectConstructor.modelName.toUpperCase() +
-                JSON.stringify(queryUniqueArray).split('').reduce(function(number, string) {
+            if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
+            return (option.order === 'desc' ? '-' : '') + option.by;
+        }).join(' '));
+        if (Array.isArray(populate)) populate.forEach(function(option) {
 
-                    return number / string.codePointAt(0);
-                }, 9999).toString().replace('e-', '').slice(-4);
+            var opt = {
+
+                pipeline: []
+            };
+            if (typeof option.path !== 'string') throw new Error('Invalid populate path');
+            if (typeof option.ref !== 'string') throw new Error('Invalid populate ref');
+            var match = {};
+            match[option.ref] = '$$ref';
+            opt.let = {
+
+                ref: '$' + option.path
+            };
+            var project;
+            if (Array.isArray(option.include)) project = option.include.reduce(function(project, field) {
+
+                project[field] = 1;
+                return project;
+            }, {});
+            else if (Array.isArray(option.exclude)) project = option.exclude.reduce(function(project, field) {
+
+                project[field] = 0;
+                return project;
+            }, {});
+            opt.pipeline.push({
+
+                $match: match,
+                $project: project
+            });
+            if (typeof option.model !== 'string') throw new Error('Invalid populate model');
+            opt.from = option.model;
+            opt.as = option.path;
             aggregate = aggregate.append({
 
-                $merge: {
-
-                    into: collection,
-                    whenMatched: 'replace',
-                    whenNotMatched: 'insert'
-                }
+                $lookup: opt
             });
+        });
+        if (filter && paginate && typeof limit === 'number') aggregate = aggregate.facet({
+
+            modelObjects: [{
+
+                $skip: ((page || 1) - 1) * limit
+            }, {
+
+                $limit: limit
+            }],
+            pagination: [{
+
+                $count: 'total'
+            }]
+        });
+        if (output) {
+
+            var queryUniqueArray = getQueryUniqueArray(queryExpressions, features);
+            if (queryUniqueArray.length > 0) {
+
+                collection = 'Aggregate' + ObjectConstructor.modelName.toUpperCase() +
+                    JSON.stringify(queryUniqueArray).split('').reduce(function(number, string) {
+
+                        return number / string.codePointAt(0);
+                    }, 9999).toString().replace('e-', '').slice(-4);
+                aggregate = aggregate.append({
+
+                    $out: collection
+                });
+            }
         }
         aggregate.exec(function(error, result) {
 
-            if (!collection) {
+            if (!result || !collection) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === 'function') callback(paginate && typeof limit === 'number' ? {
 
-                    callback(result && features.paginate && typeof features.limit === 'number' ? {
+                    modelObjects: result && result[0] && result[0].modelObjects,
+                    pageCount: result && result[0] && result[0].pagination[0] && result[0].pagination[0].total / limit
+                } : result, error);
+            } else {
 
-                        modelObjects: result[0] && result[0].modelObjects,
-                        pageCount: result[0] && result[0].pagination[0] && result[0].pagination[0].total / features.limit
-                    } : result, error);
-                }
-            } else getExecuteQuery(session)(queryExpressions, mongoose.model(collection, new Schema({}, {
+                var entityModel = mongoose.models[collection] || mongoose.model(collection, new Schema({}, {
 
-                strict: false
-            })), features, callback);
+                    autoIndex: false,
+                    strict: false,
+                    collection: collection
+                }));
+                if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
+                    typeof mapReduce.reduce === 'function') getMapReduce(session)(filter && filterExpressions.length === 0 ? [] :
+                    queryExpressions, [], entityModel, features, callback);
+                else getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] : queryExpressions, entityModel,
+                    features, callback);
+            }
         });
     };
 };
@@ -803,7 +885,7 @@ var openConnection = function(defaultURI, callback) {
 
         var options = {
 
-            useMongoClient: true,
+            useNewUrlParser: true,
             keepAlive: true,
             connectTimeoutMS: 30000,
             reconnectTries: Number.MAX_VALUE
@@ -900,7 +982,7 @@ var ModelController = function(defaultURI, cb) {
         if (typeof callback === 'function') callback(modelObjects);
         return (modelObjects.length === 1 && modelObjects[0]) || modelObjects;
     };
-    self.getObjects = function(exprs, entity, callback) {
+    self.getObjects = function(objWrapper, entity, callback) {
 
         if (!checkConnection(defaultURI, callback)) return;
         if (!entity || !(entity instanceof ModelEntity)) {
@@ -914,25 +996,21 @@ var ModelController = function(defaultURI, cb) {
                 if (typeof callback === 'function') callback(null, error);
             } else {
 
+                var queryExpressions = (objWrapper.getObjectQuery() || []).concat(entity.getObjectQuery() || []);
+                var aggregateExpressions = (objWrapper.getObjectAggregate() || []).concat(entity.getObjectAggregate() || []);
+                var filterExpressions = objWrapper.getObjectFilter() || [];
                 var features = entity.getObjectFeatures() || {};
-                var queryExprs = [];
-                var aggregateExprs = [];
-                if (Array.isArray(exprs) && exprs.length == 2 && Array.isArray(exprs[0]) && Array.isArray(exprs[1])) {
-
-                    queryExprs = exprs[0];
-                    aggregateExprs = exprs[1];
-                } else if (Array.isArray(exprs)) queryExprs = exprs;
-                else queryExprs.push(exprs);
-                var queryExpressions = queryExprs.concat(entity.getObjectQuery() || []);
-                var aggregateExpressions = aggregateExprs.concat(entity.getObjectAggregate() || []);
-                if (aggregateExpressions.length > 0) getExecuteAggregate(session)(queryExpressions, aggregateExpressions,
-                    entity.getObjectConstructor(), entity.getObjectAttributes(), features, callback);
+                var aggregate = features.aggregate,
+                    mapReduce = features.mapReduce;
+                if (aggregateExpressions.length > 0 || (typeof aggregate === 'object' && Object.keys(aggregate).length > 0))
+                    getExecuteAggregate(session)(queryExpressions, aggregateExpressions, filterExpressions,
+                        entity.getObjectConstructor(), entity.getObjectAttributes(), features, callback);
                 else {
 
-                    var execute = typeof features.mapReduce === 'object' &&
-                        typeof features.mapReduce.map === 'function' &&
-                        typeof features.mapReduce.reduce === 'function' ? getMapReduce : getExecuteQuery;
-                    execute(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
+                    if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
+                        typeof mapReduce.reduce === 'function') getMapReduce(session)(queryExpressions, filterExpressions,
+                        entity.getObjectConstructor(), features, callback);
+                    else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
                 }
             }
         });
@@ -947,9 +1025,7 @@ var ModelController = function(defaultURI, cb) {
 
             setTimeout(function() {
 
-                if (workingSession[index] instanceof mongoose.Model) workingSession[index].save(function(error, modelObject
-                    /*, count*/
-                ) {
+                if (workingSession[index] instanceof mongoose.Model) workingSession[index].save(function(error, modelObject) {
 
                     if (error) console.log(error);
                     if (error || !modelObject) {

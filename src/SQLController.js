@@ -302,7 +302,7 @@ var ModelController = function(defaultURI, cb, options) {
             if (typeof hookHandlers[name + hook] === 'function') hookHandlers[name + hook](attributes, options);
         });
     });
-    self.removeObjects = function(queryExprs, entity, callback) {
+    self.removeObjects = function(objWrapper, entity, callback) {
 
         var self = this;
         if (!entity || !(entity instanceof ModelEntity)) {
@@ -316,9 +316,8 @@ var ModelController = function(defaultURI, cb, options) {
                 if (typeof callback === 'function') callback(null, err);
             } else {
 
+                var queryExpressions = (objWrapper.getObjectQuery() || []).concat(entity.getObjectQuery() || []);
                 var features = entity.getObjectFeatures() || {};
-                var queryExpressions = ((!Array.isArray(queryExprs) && [queryExprs]) ||
-                    queryExprs).concat(entity.getObjectQuery() || []);
                 entity.getObjectConstructor().destroy(adapter.constructQuery(queryExpressions, features)).
                 then(function(modelObjects) {
 

@@ -932,7 +932,7 @@ var ModelController = function(defaultURI, cb) {
     var self = this;
     var session = [];
     openConnection(defaultURI, cb);
-    self.removeObjects = function(queryExprs, entity, callback) {
+    self.removeObjects = function(objWrapper, entity, callback) {
 
         var self = this;
         if (!entity || !(entity instanceof ModelEntity)) {
@@ -947,8 +947,7 @@ var ModelController = function(defaultURI, cb) {
                 if (typeof callback === 'function') callback(null, err);
             } else {
 
-                var queryExpressions = ((!Array.isArray(queryExprs) && [queryExprs]) ||
-                    queryExprs).concat(entity.getObjectQuery() || []);
+                var queryExpressions = (objWrapper.getObjectQuery() || []).concat(entity.getObjectQuery() || []);
                 entity.getObjectConstructor().remove(constructQuery(queryExpressions), function(error) {
 
                     if (typeof callback === 'function') callback(null, error);

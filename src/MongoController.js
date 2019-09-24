@@ -953,7 +953,10 @@ var ModelController = function(defaultURI, cb) {
                     if (typeof callback === 'function') callback(null, error);
                 });
             }
-        });
+        }, session.filter(function(modelObject) {
+
+            return modelObject instanceof entity.getObjectConstructor();
+        }));
     };
     self.newObjects = function(objsAttributes, entity, callback) {
 
@@ -1012,35 +1015,42 @@ var ModelController = function(defaultURI, cb) {
                     else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
                 }
             }
-        });
+        }, session.filter(function(modelObject) {
+
+            return modelObject instanceof entity.getObjectConstructor();
+        }));
     };
     self.save = function(callback, oldSession) {
 
         if (!checkConnection(defaultURI, callback)) return;
-        var workingSession = (Array.isArray(oldSession) && oldSession) || session;
+        var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice(0);
         if (workingSession.length === 0) console.log('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function(index) {
 
             setTimeout(function() {
 
-                if (workingSession[index] instanceof mongoose.Model) workingSession[index].save(function(error, modelObject) {
+                if (workingSession[index] instanceof mongoose.Model) {
 
-                    if (error) console.log(error);
-                    if (error || !modelObject) {
+                    var i = session.indexOf(workingSession[index]);
+                    if (i > -1) session.splice(i, 1);
+                    workingSession[index].save(function(error, modelObject) {
 
-                        var i = session.indexOf(workingSession[index]);
-                        if (i > -1) session.splice(i, 1);
-                        if (typeof callback === 'function') callback(error, currentSession);
-                    } else {
+                        if (error) console.log(error);
+                        if (error || !modelObject) {
 
-                        currentSession.push(modelObject);
-                        save(index + 1);
-                    }
-                });
-                else {
+                            if (typeof callback === 'function') callback(error, currentSession);
+                        } else {
 
-                    if (!Array.isArray(oldSession)) session = [];
+                            currentSession.push(modelObject);
+                            save(index + 1);
+                        }
+                    });
+                } else if (workingSession.length > index + 1) {
+
+                    save(index + 1);
+                } else {
+
                     if (typeof callback === 'function') callback(null, currentSession);
                 }
             }, 0);

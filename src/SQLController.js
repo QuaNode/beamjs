@@ -328,7 +328,10 @@ var ModelController = function(defaultURI, cb, options) {
                     if (typeof callback === 'function') callback(null, error);
                 });
             }
-        });
+        }, session.filter(function(modelObject) {
+
+            return modelObject instanceof entity.getObjectConstructor();
+        }));
     };
     self.newObjects = function(objsAttributes, entity, callback) {
 
@@ -375,29 +378,37 @@ var ModelController = function(defaultURI, cb, options) {
                         Object(features.aggregate).length > 0)) throw new Error('This feature is not implemented yet');
                 else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(), features, callback);
             }
-        });
+        }, session.filter(function(modelObject) {
+
+            return modelObject instanceof entity.getObjectConstructor();
+        }));
     };
     self.save = function(callback, oldSession) {
 
-        var workingSession = (Array.isArray(oldSession) && oldSession) || session;
+        var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice(0);
         if (workingSession.length === 0) console.log('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function(index) {
 
             setTimeout(function() {
 
-                if (workingSession[index] instanceof sequelize.Model) workingSession[index].save().then(function(modelObject) {
+                if (workingSession[index] instanceof sequelize.Model) {
 
-                    currentSession.push(modelObject);
+                    var i = session.indexOf(workingSession[index]);
+                    if (i > -1) session.splice(i, 1);
+                    workingSession[index].save().then(function(modelObject) {
+
+                        currentSession.push(modelObject);
+                        save(index + 1);
+                    }).catch(function(error) {
+
+                        if (typeof callback === 'function') callback(error, currentSession);
+                    });
+                } else if (workingSession.length > index + 1) {
+
                     save(index + 1);
-                }).
-                catch(function(error) {
+                } else {
 
-                    if (typeof callback === 'function') callback(error, currentSession);
-                });
-                else {
-
-                    if (!Array.isArray(oldSession)) session = [];
                     if (typeof callback === 'function') callback(null, currentSession);
                 }
             }, 0);

@@ -939,6 +939,10 @@ var ModelController = function(defaultURI, cb) {
 
             throw new Error('Invalid entity');
         }
+        if (typeof objWrapper !== 'object') {
+
+            throw new Error('Invalid query expressions wrapper');
+        }
         if (!checkConnection(defaultURI, callback)) return;
         self.save(function(err) {
 
@@ -990,6 +994,10 @@ var ModelController = function(defaultURI, cb) {
         if (!entity || !(entity instanceof ModelEntity)) {
 
             throw new Error('Invalid entity');
+        }
+        if (typeof objWrapper !== 'object') {
+
+            throw new Error('Invalid query expressions wrapper');
         }
         self.save(function(error) {
 

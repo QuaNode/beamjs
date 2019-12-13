@@ -9,7 +9,7 @@
     "prepare": "npm run snyk-protect"
   },
   "dependencies": {
-    "backend-js": "latest",
+    "backend-js": "0.9.9",
     "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
     "mongoose": "^5.7.5",
     "mongoose-cache": "quaNode/mongoose-cache",

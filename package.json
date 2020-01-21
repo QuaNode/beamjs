@@ -18,7 +18,7 @@
         "sequelize": "5.15.1",
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
-        "snyk": "^1.230.5"
+        "snyk": "^1.278.2"
     },
     "repository": {
         "type": "git",

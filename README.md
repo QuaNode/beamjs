@@ -1,6 +1,6 @@
 
 # beamjs [![Known Vulnerabilities](https://snyk.io/test/github/QuaNode/beamjs/badge.svg?targetFile=package.json)](https://snyk.io/test/github/QuaNode/beamjs?targetFile=package.json) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/518c2b67f61142ca833c75c6c07ccd43)](https://www.codacy.com/project/quanode/beamjs/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=QuaNode/beamjs&amp;utm_campaign=Badge_Grade_Dashboard) [![NPM](https://nodei.co/npm/beamjs.png)](https://npmjs.org/package/beamjs)
-A new full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)
+Full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)
 
 ## Installation
 

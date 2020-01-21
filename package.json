@@ -9,7 +9,7 @@
         "prepare": "npm run snyk-protect"
     },
     "dependencies": {
-        "backend-js": "latest",
+        "backend-js": "0.9.9",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
         "mongoose": "5.8.2",
         "mongoose-cache": "quaNode/mongoose-cache",
@@ -18,7 +18,7 @@
         "sequelize": "5.15.1",
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
-        "snyk": "^1.230.5"
+        "snyk": "^1.278.2"
     },
     "repository": {
         "type": "git",

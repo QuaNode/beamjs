@@ -4,6 +4,7 @@
 /*global _*/
 'use strict';
 
+let define = require('define-js');
 let backend = require('backend-js');
 let ModelEntity = backend.ModelEntity;
 let QueryExpression = backend.QueryExpression;
@@ -20,8 +21,6 @@ var cacheOpts = {
     maxAge: 1000 * 60 * 2
 };
 require('mongoose-cache').install(mongoose, cacheOpts);
-
-const MAX_LATENCY = 5000;
 
 module.exports.LogicalOperators = {
 
@@ -480,7 +479,7 @@ var constructQuery = function (queryExpressions) {
     return query || {};
 };
 
-var getExecuteQuery = function (defaultURI, session) {
+var getExecuteQuery = function (session) {
 
     return function (queryExpressions, ObjectConstructor, features, callback) {
 
@@ -532,7 +531,7 @@ var getExecuteQuery = function (defaultURI, session) {
         });
         if (cache) query = query.cache();
         if (readonly) query = query.lean();
-        var time = new Date().getTime();
+        var time = session.busy();
         if (paginate && typeof limit === 'number') query.paginate(page, limit,
             function (error, modelObjects, total) {
 
@@ -542,13 +541,13 @@ var getExecuteQuery = function (defaultURI, session) {
                     modelObjects: modelObjects,
                     pageCount: total / limit
                 }, error);
-                if (new Date().getTime() - time > MAX_LATENCY) openConnection(defaultURI);
+                session.idle(time);
             });
         else query.exec(function (error, modelObjects) {
 
             if (!readonly) Array.prototype.push.apply(session, modelObjects);
             if (typeof callback === 'function') callback(modelObjects, error);
-            if (new Date().getTime() - time > MAX_LATENCY) openConnection(defaultURI);
+            session.idle(time);
         });
     };
 };
@@ -567,7 +566,7 @@ var getQueryUniqueArray = function (queryExpressions, features) {
     return uniqueArray;
 };
 
-var getMapReduce = function (defaultURI, session) {
+var getMapReduce = function (session) {
 
     return function (queryExpressions, filterExpressions, ObjectConstructor, features, callback) {
 
@@ -635,7 +634,7 @@ var getMapReduce = function (defaultURI, session) {
                 };
             }
         }
-        var time = new Date().getTime();
+        var time = session.busy();
         ObjectConstructor.mapReduce(options, function (error, out) {
 
             if (!out || !out.model || !collection) {
@@ -645,17 +644,12 @@ var getMapReduce = function (defaultURI, session) {
                     modelObjects: out && out.results,
                     pageCount: out && out.stats && out.stats.counts && out.stats.counts.input / limit
                 } : out && out.results, error);
-                if (new Date().getTime() - time > MAX_LATENCY) openConnection(defaultURI);
-            } else {
+                session.idle(time);
+            } else session.idle(time, function () {
 
-                var next = function () {
-
-                    getExecuteQuery(defaultURI, session)(filter && filterExpressions.length === 0 ? [] :
-                        queryExpressions, out.model, features, callback);
-                };
-                if (new Date().getTime() - time < MAX_LATENCY) next();
-                else openConnection(defaultURI, next);
-            }
+                getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] : queryExpressions,
+                    out.model, features, callback);
+            });
         });
     };
 };
@@ -733,7 +727,7 @@ var constructAggregate = function (aggregateExpressions, orderOrField) {
     return aggregate;
 };
 
-var getExecuteAggregate = function (defaultURI, session) {
+var getExecuteAggregate = function (session) {
 
     return function (queryExpressions, aggregateExpressions, filterExpressions, ObjectConstructor,
         attributes, features, callback) {
@@ -879,7 +873,7 @@ var getExecuteAggregate = function (defaultURI, session) {
                 });
             }
         }
-        var time = new Date().getTime();
+        var time = session.busy();
         aggregate.exec(function (error, result) {
 
             if (!result || !collection) {
@@ -890,26 +884,22 @@ var getExecuteAggregate = function (defaultURI, session) {
                     pageCount: result && result[0] && result[0].pagination[0] &&
                         result[0].pagination[0].total / limit
                 } : result, error);
-                if (new Date().getTime() - time > MAX_LATENCY) openConnection(defaultURI);
-            } else {
+                session.idle(time);
+            } else session.idle(time, function () {
 
-                var next = function () {
+                var entityModel = mongoose.models[collection] || mongoose.model(collection, new Schema({}, {
 
-                    var entityModel = mongoose.models[collection] || mongoose.model(collection, new Schema({}, {
-
-                        autoIndex: false,
-                        strict: false,
-                        collection: collection
-                    }));
-                    if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
-                        typeof mapReduce.reduce === 'function') getMapReduce(defaultURI, session)(filter &&
-                            filterExpressions.length === 0 ? [] : queryExpressions, [], entityModel, features, callback);
-                    else getExecuteQuery(defaultURI, session)(filter && filterExpressions.length === 0 ? [] :
-                        ueryExpressions, entityModel, features, callback);
-                };
-                if (new Date().getTime() - time < MAX_LATENCY) next();
-                else openConnection(defaultURI, next);
-            }
+                    autoIndex: false,
+                    strict: false,
+                    collection: collection
+                }));
+                if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
+                    typeof mapReduce.reduce === 'function') getMapReduce(session)(filter &&
+                        filterExpressions.length === 0 ? [] : queryExpressions, [], entityModel,
+                        features, callback);
+                else getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] :
+                    queryExpressions, entityModel, features, callback);
+            });
         });
     };
 };
@@ -923,7 +913,8 @@ var openConnection = function (defaultURI, callback) {
             useNewUrlParser: true,
             keepAlive: true,
             connectTimeoutMS: 30000,
-            reconnectTries: Number.MAX_VALUE
+            reconnectTries: Number.MAX_VALUE,
+            poolSize: 25
         };
         try {
 
@@ -965,7 +956,7 @@ var openConnection = function (defaultURI, callback) {
 
 var checkConnection = function (defaultURI, callback) {
 
-    if (mongoose.connection.readyState === 0) {
+    if (mongoose.connection.readyState !== 1) {
 
         openConnection(defaultURI, function (error, response) {
 
@@ -980,7 +971,41 @@ var checkConnection = function (defaultURI, callback) {
 var ModelController = function (defaultURI, cb) {
 
     var self = this;
-    var session = [];
+    var Session = define(function (init) {
+
+        return function () {
+
+            var self = init.apply(this, arguments).self();
+            var busy = 0;
+            var reconnect = false;
+            var MAX_LATENCY = 5000;
+            self.busy = function () {
+
+                busy++;
+                return new Date();
+            };
+            self.idle = function (time, next) {
+
+                if (!(time instanceof Date)) {
+
+                    if (typeof next === 'function') next();
+                    return;
+                }
+                if (busy > 0) busy--;
+                if (reconnect || (new Date().getTime() - time.getTime()) > MAX_LATENCY) {
+
+                    if (busy === 0) {
+
+                        reconnect = false;
+                        openConnection(defaultURI, next);
+                        return;
+                    } else reconnect = true;
+                }
+                if (typeof next === 'function') next();
+            };
+        };
+    }).extend(Array).parameters();
+    var session = new Session();
     openConnection(defaultURI, cb);
     self.removeObjects = function (objWrapper, entity, callback) {
 
@@ -1064,17 +1089,15 @@ var ModelController = function (defaultURI, cb) {
                     mapReduce = features.mapReduce;
                 if (aggregateExpressions.length > 0 || (typeof aggregate === 'object' &&
                     Object.keys(aggregate).length > 0))
-                    getExecuteAggregate(defaultURI, session)(queryExpressions, aggregateExpressions,
-                        filterExpressions, entity.getObjectConstructor(), entity.getObjectAttributes(),
-                        features, callback);
+                    getExecuteAggregate(session)(queryExpressions, aggregateExpressions, filterExpressions,
+                        entity.getObjectConstructor(), entity.getObjectAttributes(), features, callback);
                 else {
 
                     if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
-                        typeof mapReduce.reduce === 'function') getMapReduce(defaultURI,
-                            session)(queryExpressions, filterExpressions, entity.getObjectConstructor(),
-                                features, callback);
-                    else getExecuteQuery(defaultURI, session)(queryExpressions,
-                        entity.getObjectConstructor(), features, callback);
+                        typeof mapReduce.reduce === 'function') getMapReduce(session)(queryExpressions,
+                            filterExpressions, entity.getObjectConstructor(), features, callback);
+                    else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(),
+                        features, callback);
                 }
             }
         }, session.filter(function (modelObject) {
@@ -1085,7 +1108,7 @@ var ModelController = function (defaultURI, cb) {
     };
     self.save = function (callback, oldSession) {
 
-        var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice(0);
+        var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice();
         if (workingSession.length === 0) console.log('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function (index) {
@@ -1096,19 +1119,18 @@ var ModelController = function (defaultURI, cb) {
 
                     var i = session.indexOf(workingSession[index]);
                     if (i > -1) session.splice(i, 1);
-                    var time = new Date().getTime();
+                    var time = session.busy();
                     workingSession[index].save(function (error, modelObject) {
 
                         if (error) console.log(error);
                         if (error || !modelObject) {
 
                             if (typeof callback === 'function') callback(error, currentSession);
-                            if (new Date().getTime() - time > MAX_LATENCY) openConnection(defaultURI);
+                            session.idle(time);
                         } else {
 
                             currentSession.push(modelObject);
-                            if (new Date().getTime() - time < MAX_LATENCY) save(index + 1);
-                            else openConnection(defaultURI, save.bind(self, index + 1));
+                            session.idle(time, save.bind(self, index + 1));
                         }
                     });
                 } else if (workingSession.length > index + 1) {

@@ -1113,14 +1113,16 @@ var ModelController = function (defaultURI, cb) {
         var currentSession = [];
         var save = function (index) {
 
+            var workingModelObject = workingSession[index];
+            var i = session.indexOf(workingModelObject);
+            if (i > -1) session.splice(i, 1);
             setTimeout(function () {
 
-                if (workingSession[index] instanceof mongoose.Model) {
+                if (workingModelObject instanceof mongoose.Model && (workingModelObject.isNew ||
+                    workingModelObject.isModified())) {
 
-                    var i = session.indexOf(workingSession[index]);
-                    if (i > -1) session.splice(i, 1);
                     var time = session.busy();
-                    workingSession[index].save(function (error, modelObject) {
+                    workingModelObject.save(function (error, modelObject) {
 
                         if (error) console.log(error);
                         if (error || !modelObject) {

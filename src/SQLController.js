@@ -398,18 +398,21 @@ var ModelController = function (defaultURI, cb, options) {
         var currentSession = [];
         var save = function (index) {
 
+            var workingModelObject = workingSession[index];
+            var i = session.indexOf(workingModelObject);
+            if (i > -1) session.splice(i, 1);
             setTimeout(function () {
 
-                if (workingSession[index] instanceof sequelize.Model) {
+                if (workingModelObject instanceof sequelize.Model && (workingModelObject.isNewRecord ||
+                    workingModelObject.changed())) {
 
-                    var i = session.indexOf(workingSession[index]);
-                    if (i > -1) session.splice(i, 1);
-                    workingSession[index].save().then(function (modelObject) {
+                    workingModelObject.save().then(function (modelObject) {
 
                         currentSession.push(modelObject);
                         save(index + 1);
                     }).catch(function (error) {
 
+                        if (error) console.log(error);
                         if (typeof callback === 'function') callback(error, currentSession);
                     });
                 } else if (workingSession.length > index + 1) {

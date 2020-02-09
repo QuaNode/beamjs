@@ -12,8 +12,8 @@ let QueryExpression = backend.QueryExpression;
 let AggregateExpression = backend.AggregateExpression;
 let mongoose = require('mongoose');
 let autoIncrement = require('mongodb-autoincrement');
+
 require('mongoose-pagination');
-require('mongoose-cache').install(mongoose, cacheOpts);
 
 debug.enable('beam:MongoController');
 debug = debug('beam:MongoController');
@@ -27,6 +27,8 @@ var cacheOpts = {
     max: 50,
     maxAge: 1000 * 60 * 2
 };
+
+require('mongoose-cache').install(mongoose, cacheOpts);
 
 module.exports.LogicalOperators = {
 

@@ -4,12 +4,16 @@
 'use strict';
 
 let backend = require('backend-js');
+let debug = require('debug');
 let ModelEntity = backend.ModelEntity;
 let QueryExpression = backend.QueryExpression;
 let Sequelize = require('sequelize');
 require('sequelize-values')(Sequelize);
 let VariableAdaptor = require('sequelize-transparent-cache-variable');
 let withCache = require('sequelize-transparent-cache')(new VariableAdaptor()).withCache;
+
+debug.enable('beam:SQLController');
+debug = debug('beam:SQLController');
 
 let Op = Sequelize.Op;
 
@@ -394,7 +398,7 @@ var ModelController = function (defaultURI, cb, options) {
     self.save = function (callback, oldSession) {
 
         var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice();
-        if (workingSession.length === 0) console.log('Model controller session has no objects to be saved!');
+        if (workingSession.length === 0) debug('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function (index) {
 
@@ -412,7 +416,7 @@ var ModelController = function (defaultURI, cb, options) {
                         save(index + 1);
                     }).catch(function (error) {
 
-                        if (error) console.log(error);
+                        if (error) debug(error);
                         if (typeof callback === 'function') callback(error, currentSession);
                     });
                 } else if (workingSession.length > index + 1) {

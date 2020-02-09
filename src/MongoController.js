@@ -6,21 +6,27 @@
 
 let define = require('define-js');
 let backend = require('backend-js');
+let debug = require('debug');
 let ModelEntity = backend.ModelEntity;
 let QueryExpression = backend.QueryExpression;
 let AggregateExpression = backend.AggregateExpression;
 let mongoose = require('mongoose');
+let autoIncrement = require('mongodb-autoincrement');
+require('mongoose-pagination');
+require('mongoose-cache').install(mongoose, cacheOpts);
+
+debug.enable('beam:MongoController');
+debug = debug('beam:MongoController');
+
 mongoose.Promise = global.Promise;
 let Schema = mongoose.Schema;
-let autoIncrement = require('mongodb-autoincrement');
 mongoose.plugin(autoIncrement.mongoosePlugin);
-require('mongoose-pagination');
+
 var cacheOpts = {
 
     max: 50,
     maxAge: 1000 * 60 * 2
 };
-require('mongoose-cache').install(mongoose, cacheOpts);
 
 module.exports.LogicalOperators = {
 
@@ -935,7 +941,7 @@ var openConnection = function (defaultURI, callback) {
         case 1:
             try {
 
-                console.log('disconnecting mongodb');
+                debug('disconnecting mongodb');
                 mongoose.disconnect(connect);
             } catch (error) {
 
@@ -960,7 +966,7 @@ var checkConnection = function (defaultURI, callback) {
 
         openConnection(defaultURI, function (error, response) {
 
-            if (response) console.log(response);
+            if (response) debug(response);
             if (typeof callback === 'function') callback(error);
         });
         return false;
@@ -1109,7 +1115,7 @@ var ModelController = function (defaultURI, cb) {
     self.save = function (callback, oldSession) {
 
         var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice();
-        if (workingSession.length === 0) console.log('Model controller session has no objects to be saved!');
+        if (workingSession.length === 0) debug('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function (index) {
 
@@ -1124,7 +1130,7 @@ var ModelController = function (defaultURI, cb) {
                     var time = session.busy();
                     workingModelObject.save(function (error, modelObject) {
 
-                        if (error) console.log(error);
+                        if (error) debug(error);
                         if (error || !modelObject) {
 
                             if (typeof callback === 'function') callback(error, currentSession);

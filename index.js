@@ -4,6 +4,8 @@
 var backend = require('backend-js');
 var crypto = require('crypto');
 
+require('debug').enable('beam:*,backend:*');
+
 var beam = module.exports;
 var started = false;
 var ModelControllerPath = {

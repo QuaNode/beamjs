@@ -4,16 +4,13 @@
 'use strict';
 
 let backend = require('backend-js');
-let debug = require('debug');
+let debug = require('debug')('beam:SQLController');
 let ModelEntity = backend.ModelEntity;
 let QueryExpression = backend.QueryExpression;
 let Sequelize = require('sequelize');
 require('sequelize-values')(Sequelize);
 let VariableAdaptor = require('sequelize-transparent-cache-variable');
 let withCache = require('sequelize-transparent-cache')(new VariableAdaptor()).withCache;
-
-debug.enable('beam:SQLController');
-debug = debug('beam:SQLController');
 
 let Op = Sequelize.Op;
 

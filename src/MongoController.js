@@ -6,7 +6,7 @@
 
 let define = require('define-js');
 let backend = require('backend-js');
-let debug = require('debug');
+let debug = require('debug')('beam:MongoController');
 let ModelEntity = backend.ModelEntity;
 let QueryExpression = backend.QueryExpression;
 let AggregateExpression = backend.AggregateExpression;
@@ -14,9 +14,6 @@ let mongoose = require('mongoose');
 let autoIncrement = require('mongodb-autoincrement');
 
 require('mongoose-pagination');
-
-debug.enable('beam:MongoController');
-debug = debug('beam:MongoController');
 
 mongoose.Promise = global.Promise;
 let Schema = mongoose.Schema;

@@ -67,7 +67,8 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 
             $in: value.map(function (value) {
 
-                return value instanceof RegExp ? new RegExp(value, 'i') : new RegExp('^' + value + '$', 'i');
+                return value instanceof RegExp ? new RegExp(value, 'i') :
+                    new RegExp('^' + value + '$', 'i');
             })
         };
         if (typeof options === 'function') query = options.apply(this, [query, expression]);
@@ -433,12 +434,10 @@ var getQuery = function (queryExpressions, contextualLevel) {
             } else if (typeof queryExpressions[0].comparisonOperator === 'function')
                 subFilter = queryExpressions[0].comparisonOperator.apply(ComparisonOperators,
                     [queryExpressions[0].fieldValue, queryExpressions[0].comparisonOperatorOptions,
-                    queryExpressions[0]
-                    ]);
-            if (Object.keys(subFilter).length > 0 &&
-                Object.keys(subFilter).indexOf(ComparisonOperators.EQUAL) === -1) {
+                    queryExpressions[0]]);
+            if (Object.keys(subFilter).length > 0 && !(ComparisonOperators.EQUAL in subFilter)) {
 
-                if (Object.keys(filter).indexOf(queryExpressions[0].fieldName) > -1)
+                if (queryExpressions[0].fieldName in filter)
                     filter[queryExpressions[0].fieldName] = subFilter;
                 else filter = subFilter;
             }
@@ -642,6 +641,7 @@ var getMapReduce = function (session) {
         var time = session.busy();
         ObjectConstructor.mapReduce(options, function (error, out) {
 
+            delete options.scope._;
             if (!out || !out.model || !collection) {
 
                 if (typeof callback === 'function') callback(paginate && typeof limit === 'number' ? {
@@ -652,8 +652,8 @@ var getMapReduce = function (session) {
                 session.idle(time);
             } else session.idle(time, function () {
 
-                getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] : queryExpressions,
-                    out.model, features, callback);
+                getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] :
+                    queryExpressions, out.model, features, callback);
             });
         });
     };
@@ -664,7 +664,8 @@ var getAggregate = function (aggregateExpression, contextualLevel) {
     if (contextualLevel < 0) throw new Error('Invalid contextual level');
     if (!Array.isArray(aggregateExpression.fieldValue)) return aggregateExpression.fieldValue;
     if (aggregateExpression.fieldValue.length === 1) return aggregateExpression.fieldValue[0];
-    if (aggregateExpression.contextualLevels.length > 0 && aggregateExpression.contextualLevels.length !==
+    if (aggregateExpression.contextualLevels.length > 0 &&
+        aggregateExpression.contextualLevels.length !==
         aggregateExpression.fieldValue.filter(function (value) {
 
             return typeof value === 'function';
@@ -717,8 +718,10 @@ var constructAggregate = function (aggregateExpressions, orderOrField) {
     var aggregate = aggregateExpressions.reduce(function (aggregate, aggregateExpression, index) {
 
         if (aggregateExpression.computationOrder < 0) throw new Error('Invalid computation order');
-        if ((typeof orderOrField === 'number' && aggregateExpression.computationOrder === orderOrField) ||
-            (typeof orderOrField === 'string' && aggregateExpression.fieldName === orderOrField)) {
+        if ((typeof orderOrField === 'number' &&
+            aggregateExpression.computationOrder === orderOrField) ||
+            (typeof orderOrField === 'string' &&
+                aggregateExpression.fieldName === orderOrField)) {
 
             indices.push(index);
             aggregate[aggregateExpression.fieldName] = getAggregate(aggregateExpression, 0);
@@ -755,8 +758,10 @@ var getExecuteAggregate = function (session) {
         var aggregate = ObjectConstructor.aggregate();
         if (filter && queryExpressions.length > 0 && filterExpressions.length === 0)
             aggregate = aggregate.match(constructQuery(queryExpressions));
-        else if (filterExpressions.length > 0) aggregate = aggregate.match(constructQuery(filterExpressions));
-        if (typeof restrict === 'string') redact = constructAggregate(aggregateExpressions, restrict)[restrict];
+        else if (filterExpressions.length > 0)
+            aggregate = aggregate.match(constructQuery(filterExpressions));
+        if (typeof restrict === 'string')
+            redact = constructAggregate(aggregateExpressions, restrict)[restrict];
         if (filter && typeof distinct === 'string') {
 
             constructedAggregate = constructAggregate(aggregateExpressions, distinct);
@@ -781,8 +786,8 @@ var getExecuteAggregate = function (session) {
                     project[field] = 1;
                     return project;
                 }, constructedAggregate));
-            else if (filter && Array.isArray(exclude)) aggregate = aggregate.project(Object.keys(attributes)
-                .concat(exclude).reduce(function (project, field) {
+            else if (filter && Array.isArray(exclude)) aggregate = aggregate
+                .project(Object.keys(attributes).concat(exclude).reduce(function (project, field) {
 
                     project[field] = exclude.indexOf(field) === -1;
                     return project;
@@ -825,16 +830,18 @@ var getExecuteAggregate = function (session) {
                 ref: '$' + option.path
             };
             var project;
-            if (Array.isArray(option.include)) project = option.include.reduce(function (project, field) {
+            if (Array.isArray(option.include))
+                project = option.include.reduce(function (project, field) {
 
-                project[field] = 1;
-                return project;
-            }, {});
-            else if (Array.isArray(option.exclude)) project = option.exclude.reduce(function (project, field) {
+                    project[field] = 1;
+                    return project;
+                }, {});
+            else if (Array.isArray(option.exclude))
+                project = option.exclude.reduce(function (project, field) {
 
-                project[field] = 0;
-                return project;
-            }, {});
+                    project[field] = 0;
+                    return project;
+                }, {});
             opt.pipeline.push({
 
                 $match: match,
@@ -892,12 +899,13 @@ var getExecuteAggregate = function (session) {
                 session.idle(time);
             } else session.idle(time, function () {
 
-                var entityModel = mongoose.models[collection] || mongoose.model(collection, new Schema({}, {
+                var entityModel = mongoose.models[collection] ||
+                    mongoose.model(collection, new Schema({}, {
 
-                    autoIndex: false,
-                    strict: false,
-                    collection: collection
-                }));
+                        autoIndex: false,
+                        strict: false,
+                        collection: collection
+                    }));
                 if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
                     typeof mapReduce.reduce === 'function') getMapReduce(session)(filter &&
                         filterExpressions.length === 0 ? [] : queryExpressions, [], entityModel,
@@ -908,6 +916,32 @@ var getExecuteAggregate = function (session) {
         });
     };
 };
+
+var connection = {
+
+    disconnecting: false,
+    callbacks: [],
+    callback: function () {
+
+        var self = this;
+        if (!self.callbacks[0]) return;
+        else setTimeout(function () {
+
+            self.callbacks[0]();
+            self.callbacks.shift();
+            self.callback();
+        }, 0);
+    },
+    once: function (event, callback) {
+
+        switch (event) {
+
+            case 'connected':
+                this.callbacks.push(callback);
+                break;
+        }
+    }
+}
 
 var openConnection = function (defaultURI, callback) {
 
@@ -925,7 +959,9 @@ var openConnection = function (defaultURI, callback) {
 
             mongoose.connect(defaultURI, options, function (error, response) {
 
+                connection.disconnecting = false;
                 if (typeof callback === 'function') callback(error, response);
+                if (mongoose.connection.readyState === 1) connection.callback();
             });
         } catch (error) {
 
@@ -935,27 +971,27 @@ var openConnection = function (defaultURI, callback) {
     switch (mongoose.connection.readyState) {
 
         case 0:
-            connect();
+            if (!connection.disconnecting) connect();
+            else connection.once('connected', callback);
             break;
         case 1:
             try {
 
                 debug('disconnecting mongodb');
+                connection.disconnecting = true;
                 mongoose.disconnect(connect);
             } catch (error) {
 
                 if (typeof callback === 'function') callback(error);
+                connection.disconnecting = false;
             }
             break;
         case 2:
-            if (typeof callback === 'function') mongoose.connection.on('connected', callback);
-            break;
         case 3:
-            if (typeof callback === 'function') mongoose.connection.on('disconnected', connect);
+            if (typeof callback === 'function') connection.once('connected', callback);
             break;
         default:
             if (typeof callback === 'function') callback(new Error('Invalid DB connection state'));
-
     }
 };
 
@@ -983,7 +1019,7 @@ var ModelController = function (defaultURI, cb) {
             var self = init.apply(this, arguments).self();
             var busy = 0;
             var reconnect = false;
-            var MAX_LATENCY = 5000;
+            var MAX_LATENCY = 30000;
             self.busy = function () {
 
                 busy++;
@@ -1003,7 +1039,7 @@ var ModelController = function (defaultURI, cb) {
 
                         reconnect = false;
                         openConnection(defaultURI, next);
-                        return;
+                        return new Error('Reconnecting');
                     } else reconnect = true;
                 }
                 if (typeof next === 'function') next();
@@ -1023,24 +1059,25 @@ var ModelController = function (defaultURI, cb) {
 
             throw new Error('Invalid query expressions wrapper');
         }
-        var save = self.save.bind(self, function (err) {
+        self.save(function (err) {
 
             if (err) {
 
                 if (typeof callback === 'function') callback(null, err);
             } else {
 
-                var queryExpressions = (objWrapper.getObjectQuery() || []).concat(entity.getObjectQuery() || []);
-                entity.getObjectConstructor().remove(constructQuery(queryExpressions), function (error) {
+                var queryExpressions = (objWrapper.getObjectQuery() || [])
+                    .concat(entity.getObjectQuery() || []);
+                entity.getObjectConstructor()
+                    .remove(constructQuery(queryExpressions), function (error) {
 
-                    if (typeof callback === 'function') callback(null, error);
-                });
+                        if (typeof callback === 'function') callback(null, error);
+                    });
             }
         }, session.filter(function (modelObject) {
 
             return modelObject instanceof entity.getObjectConstructor();
         }));
-        if (checkConnection(defaultURI, save)) save();
     };
     self.newObjects = function (objsAttributes, entity, callback) {
 
@@ -1077,7 +1114,7 @@ var ModelController = function (defaultURI, cb) {
 
             throw new Error('Invalid query expressions wrapper');
         }
-        var save = self.save.bind(self, function (error) {
+        self.save(function (error) {
 
             if (error) {
 
@@ -1093,9 +1130,9 @@ var ModelController = function (defaultURI, cb) {
                 var aggregate = features.aggregate,
                     mapReduce = features.mapReduce;
                 if (aggregateExpressions.length > 0 || (typeof aggregate === 'object' &&
-                    Object.keys(aggregate).length > 0))
-                    getExecuteAggregate(session)(queryExpressions, aggregateExpressions, filterExpressions,
-                        entity.getObjectConstructor(), entity.getObjectAttributes(), features, callback);
+                    Object.keys(aggregate).length > 0)) getExecuteAggregate(session)(queryExpressions,
+                        aggregateExpressions, filterExpressions, entity.getObjectConstructor(),
+                        entity.getObjectAttributes(), features, callback);
                 else {
 
                     if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
@@ -1109,7 +1146,6 @@ var ModelController = function (defaultURI, cb) {
 
             return modelObject instanceof entity.getObjectConstructor();
         }));
-        if (checkConnection(defaultURI, save)) save();
     };
     self.save = function (callback, oldSession) {
 
@@ -1132,21 +1168,23 @@ var ModelController = function (defaultURI, cb) {
                         if (error) debug(error);
                         if (error || !modelObject) {
 
-                            if (typeof callback === 'function') callback(error, currentSession);
-                            session.idle(time);
+                            session.idle(time, typeof callback === 'function' ?
+                                callback.bind(self, error, currentSession) : undefined);
                         } else {
 
                             currentSession.push(modelObject);
-                            session.idle(time, save.bind(self, index + 1));
+                            session.idle(time, function () {
+
+                                if (checkConnection(defaultURI, save.bind(self, index + 1)))
+                                    save(index + 1);
+                            });
                         }
                     });
                 } else if (workingSession.length > index + 1) {
 
-                    save(index + 1);
-                } else {
-
-                    if (typeof callback === 'function') callback(null, currentSession);
-                }
+                    if (checkConnection(defaultURI, save.bind(self, index + 1))) save(index + 1);
+                } else if (typeof callback === 'function' && checkConnection(defaultURI,
+                    callback.bind(self, null, currentSession))) callback(null, currentSession);
             }, 0);
         };
         if (checkConnection(defaultURI, save.bind(self, 0))) save(0);
@@ -1154,30 +1192,111 @@ var ModelController = function (defaultURI, cb) {
     };
 };
 
-var resovleTypeAttribute = function (attributes) {
+var DataType = function (datatype, options, resolve) {
 
-    Object.keys(attributes).forEach(function (key) {
+    var Generator = Object.getPrototypeOf(function* () { }).constructor;
+    switch (datatype) {
 
-        var object = Array.isArray(attributes[key]) ? attributes[key][0] :
-            typeof attributes[key] === 'object' ? attributes[key] : null;
-        if (object) {
+        case String:
+        case Number:
+        case Boolean:
+        case Date:
+        case Buffer:
+            return datatype;
+        case Map:
+            var [ValueType] = options;
+            var value = {
 
-            switch (Object.keys(object).length) {
+                datatype: options.length > 1 ? options : ValueType
+            };
+            if (ValueType !== undefined) resolve(value);
+            return {
 
-                case 2:
-                    if (Object.keys(object).indexOf('ref') === -1) break;
-                /* falls through */
-                case 1:
-                    if (Object.keys(object).indexOf('type') > -1) {
+                type: Map,
+                of: value.datatype || String
+            };
+        default:
+            if (datatype instanceof Generator) {
 
-                        attributes[key] = object.type;
-                        return;
-                    }
+                var [type, ...otherOptions] = datatype();
+                if (typeof type === 'function')
+                    return DataType(type, options.concat(otherOptions), resolve);
+                if (typeof otherOptions[0] === 'function')
+                    return DataType(otherOptions[0],
+                        options.concat([type].concat(otherOptions.slice(1))), resolve);
+                resolve(type);
+                return type;
             }
-            resovleTypeAttribute(object);
-        } else if (key === 'type')
-            throw new Error('type is reserved word if it is used as an attribute so it should be an object');
-    });
+            if (datatype instanceof Function) {
+
+                var [typeName] = options;
+                if (typeof typeName !== 'string' || typeName.length === 0)
+                    throw new Error('Invalid attribute custom data type name');
+                var Type = function (key, options) {
+
+                    mongoose.SchemaType.call(this, key, options, typeName);
+                };
+                Type.prototype = Object.create(mongoose.SchemaType.prototype);
+                Type.prototype.cast = datatype;
+                mongoose.Schema.Types[typeName] = Type;
+                return Type;
+            }
+            break;
+    }
+};
+
+var resolveAttributes = function (attributes) {
+
+    var resolveAttribute = function (attribute) {
+
+        var value = attribute === undefined ? attributes : attributes[attribute];
+        var isArray = Array.isArray(value);
+        var [, ...options] = isArray ? value : [];
+        var Type = isArray ? value[0] : value;
+        var type = typeof Type;
+        var setAttributeType = function (AttributeType, noExtra) {
+
+            if (typeof AttributeType !== 'function') return false;
+            AttributeType = DataType(AttributeType, options, resolveAttributes);
+            if (attribute === undefined) {
+
+                Type = AttributeType
+                return false;
+            }
+            if (isArray && noExtra) attributes[attribute] = [AttributeType];
+            else attributes[attribute] = AttributeType;
+            return true;
+        };
+        switch (type) {
+
+            case 'object':
+                if (Type instanceof Date) throw new Error('Invalid attribute data type');
+                if (!Array.isArray(Type)) switch (Object.keys(Type).length) {
+
+                    case 2:
+                        if (!('ref' in Type)) break;
+                    case 1:
+                        if (('type' in Type) && setAttributeType(Type.type, true)) return;
+                }
+                setAttributeType(resolveAttributes(Type), false);
+                break;
+            case 'string':
+                if (typeof options[0] !== 'function')
+                    throw new Error('Custom attribute data type needs cast function');
+                Type = options[0];
+                options = [Type].concat(options.slice(1));
+            case 'function':
+                setAttributeType(Type, isArray && value.length === 1);
+            default:
+                if (attribute === 'type') throw new Error('type is a reserved word if it is used as an' +
+                    ' attribute so it\'s data type should be object');
+                break;
+        };
+        return Type;
+    };
+    if (Array.isArray(attributes) || (attributes instanceof Date) || typeof attributes !== 'object')
+        return resolveAttribute();
+    else Object.keys(attributes).forEach(resolveAttribute);
 };
 
 ModelController.defineEntity = function (name, attributes, plugins) {
@@ -1194,7 +1313,7 @@ ModelController.defineEntity = function (name, attributes, plugins) {
         entitySchema.plugin(plugins[i]);
     }
     var entityModel = mongoose.model(name, entitySchema);
-    resovleTypeAttribute(attributes);
+    resolveAttributes(attributes);
     return entityModel;
 };
 

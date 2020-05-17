@@ -979,7 +979,7 @@ var openConnection = function (defaultURI, callback) {
 
                 debug('disconnecting mongodb');
                 connection.disconnecting = true;
-                mongoose.disconnect(connect);
+                mongoose.disconnect();
             } catch (error) {
 
                 if (typeof callback === 'function') callback(error);

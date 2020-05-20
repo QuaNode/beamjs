@@ -1,6 +1,6 @@
 {
     "name": "beamjs",
-    "version": "0.9.1-43",
+    "version": "0.9.1-44",
     "description": "Full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
@@ -11,6 +11,7 @@
     "dependencies": {
         "backend-js": "latest",
         "debug": "latest",
+        "bunyan": "latest",
         "define-js": "latest",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
         "mongoose": "5.8.2",

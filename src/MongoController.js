@@ -4,14 +4,33 @@
 /*global _*/
 'use strict';
 
+let fs = require('fs');
 let define = require('define-js');
 let backend = require('backend-js');
 let debug = require('debug')('beam:MongoController');
+let bunyan = require('bunyan');
 let ModelEntity = backend.ModelEntity;
 let QueryExpression = backend.QueryExpression;
 let AggregateExpression = backend.AggregateExpression;
 let mongoose = require('mongoose');
 let autoIncrement = require('mongodb-autoincrement');
+
+if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
+
+var log = bunyan.createLogger({
+
+    name: 'backend',
+    streams: [{
+
+        path: './logs/error.log',
+        level: 'error',
+    }, {
+
+        path: './logs/trace.log',
+        level: 'trace',
+    }],
+    serializers: bunyan.stdSerializers
+});
 
 require('mongoose-pagination');
 
@@ -917,32 +936,6 @@ var getExecuteAggregate = function (session) {
     };
 };
 
-var connection = {
-
-    disconnecting: false,
-    callbacks: [],
-    callback: function () {
-
-        var self = this;
-        if (!self.callbacks[0]) return;
-        else setTimeout(function () {
-
-            self.callbacks[0]();
-            self.callbacks.shift();
-            self.callback();
-        }, 0);
-    },
-    once: function (event, callback) {
-
-        switch (event) {
-
-            case 'connected':
-                this.callbacks.push(callback);
-                break;
-        }
-    }
-}
-
 var openConnection = function (defaultURI, callback) {
 
     var connect = function () {
@@ -959,9 +952,7 @@ var openConnection = function (defaultURI, callback) {
 
             mongoose.connect(defaultURI, options, function (error, response) {
 
-                connection.disconnecting = false;
                 if (typeof callback === 'function') callback(error, response);
-                if (mongoose.connection.readyState === 1) connection.callback();
             });
         } catch (error) {
 
@@ -971,24 +962,34 @@ var openConnection = function (defaultURI, callback) {
     switch (mongoose.connection.readyState) {
 
         case 0:
-            if (!connection.disconnecting) connect();
-            else connection.once('connected', callback);
+            connect();
             break;
         case 1:
-            try {
+            log.error({
 
-                debug('disconnecting mongodb');
-                connection.disconnecting = true;
-                mongoose.disconnect();
-            } catch (error) {
+                database: 'mongodb',
+                err: {
 
-                if (typeof callback === 'function') callback(error);
-                connection.disconnecting = false;
-            }
+                    message: 'DB needs disconnecting due to a load',
+                    name: 'ReadyState',
+                    code: 1
+                }
+            });
+            if (typeof callback === 'function') callback();
             break;
         case 2:
         case 3:
-            if (typeof callback === 'function') connection.once('connected', callback);
+            log.error({
+
+                database: 'mongodb',
+                err: {
+
+                    message: 'DB waits connecting',
+                    name: 'ReadyState',
+                    code: mongoose.connection.readyState
+                }
+            });
+            if (typeof callback === 'function') mongoose.connection.once('connected', callback)
             break;
         default:
             if (typeof callback === 'function') callback(new Error('Invalid DB connection state'));

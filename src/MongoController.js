@@ -24,10 +24,6 @@ var log = bunyan.createLogger({
 
         path: './logs/error.log',
         level: 'error',
-    }, {
-
-        path: './logs/trace.log',
-        level: 'trace',
     }],
     serializers: bunyan.stdSerializers
 });
@@ -1166,7 +1162,15 @@ var ModelController = function (defaultURI, cb) {
                     var time = session.busy();
                     workingModelObject.save(function (error, modelObject) {
 
-                        if (error) debug(error);
+                        if (error) {
+
+                            debug(error);
+                            log.error({
+
+                                database: 'mongodb',
+                                err: error
+                            });
+                        }
                         if (error || !modelObject) {
 
                             session.idle(time, typeof callback === 'function' ?

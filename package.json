@@ -9,7 +9,7 @@
         "prepare": "npm run snyk-protect"
     },
     "dependencies": {
-        "backend-js": "latest",
+        "backend-js": "0.9.9",
         "debug": "latest",
         "bunyan": "latest",
         "define-js": "latest",

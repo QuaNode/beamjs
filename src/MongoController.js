@@ -9,7 +9,7 @@ let define = require('define-js');
 let backend = require('backend-js');
 let debug = require('debug')('beam:MongoController');
 let bunyan = require('bunyan');
-let ModelEntity = backend.ModelEntity;
+let Entity = backend.ModelEntity;
 let QueryExpression = backend.QueryExpression;
 let AggregateExpression = backend.AggregateExpression;
 let mongoose = require('mongoose');
@@ -137,7 +137,8 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         else if (query.$ne) return this.NEIGNORECASE(query.$ne);
         else if (query.$regex) {
 
-            query.$regex = query.$regex instanceof RegExp ? query.$regex : new RegExp(query.$regex);
+            query.$regex = query.$regex instanceof RegExp ? query.$regex :
+                new RegExp(query.$regex);
             query.$options = 'i';
         }
         return query;
@@ -147,7 +148,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         var attributes = expression.fieldName.split('.');
         if (!Array.isArray(attributes) || attributes.length < 2)
             throw new Error('Invalid field name in a query expression');
-        var attribute = attributes.splice(-1, 1)[0];
+        var property = attributes.splice(-1, 1)[0];
         expression.fieldName = attributes.join('.');
         var newQuery = {
 
@@ -157,16 +158,16 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         };
         if (query['=']) newQuery.cond = {
 
-            $eq: ['$$item.' + attribute, query['=']]
+            $eq: ['$$item.' + property, query['=']]
         };
         else if (query.$regex) query.$regex = [
-            '$$item.' + attribute,
+            '$$item.' + property,
             query.$regex instanceof RegExp ? new RegExp(query.$regex, query.$options) :
                 new RegExp('^' + query.$regex + '$', query.$options)
         ];
         else if (Object.keys[query].length === 1) {
 
-            query[Object.keys[query][0]] = ['$$item.' + attribute, query[Object.keys[query][0]]];
+            query[Object.keys[query][0]] = ['$$item.' + property, query[Object.keys[query][0]]];
         } else throw new Error('Invalid filter condition');
         return {
 
@@ -194,9 +195,10 @@ var getBinaryOperator = function (operator, acceptArray) {
                 throw new Error('Invalid values in aggregate expression');
         }
         var operation = {};
-        operation[operator] = acceptArray || passingArray ? (leftValue || []).concat(rightValue || []) :
-            leftValue !== undefined && rightValue !== undefined ? [leftValue, rightValue] :
-                [leftValue || rightValue];
+        operation[operator] =
+            acceptArray || passingArray ? (leftValue || []).concat(rightValue || []) :
+                leftValue !== undefined && rightValue !== undefined ? [leftValue, rightValue] :
+                    [leftValue || rightValue];
         return operation;
     };
 };
@@ -442,10 +444,12 @@ var getQuery = function (queryExpressions, contextualLevel) {
             filter[queryExpressions[0].fieldName] = queryExpressions[0].fieldValue;
             if (typeof queryExpressions[0].comparisonOperator === 'string') {
 
-                subFilter[queryExpressions[0].comparisonOperator] = queryExpressions[0].fieldValue;
+                subFilter[queryExpressions[0].comparisonOperator] =
+                    queryExpressions[0].fieldValue;
                 if (typeof queryExpressions[0].comparisonOperatorOptions === 'function')
-                    subFilter = queryExpressions[0].comparisonOperatorOptions.apply(ComparisonOperators,
-                        [subFilter, queryExpressions[0]]);
+                    subFilter =
+                        queryExpressions[0].comparisonOperatorOptions.apply(ComparisonOperators,
+                            [subFilter, queryExpressions[0]]);
             } else if (typeof queryExpressions[0].comparisonOperator === 'function')
                 subFilter = queryExpressions[0].comparisonOperator.apply(ComparisonOperators,
                     [queryExpressions[0].fieldValue, queryExpressions[0].comparisonOperatorOptions,
@@ -473,10 +477,7 @@ var getQuery = function (queryExpressions, contextualLevel) {
                         var superFilter = {};
                         superFilter[logicalOperator] = [leftFilter, rightFilter];
                         return superFilter;
-                    } else {
-
-                        return leftFilter || rightFilter || null;
-                    }
+                    } else return leftFilter || rightFilter || null;
                 }
             }
         }
@@ -486,14 +487,16 @@ var getQuery = function (queryExpressions, contextualLevel) {
 
 var constructQuery = function (queryExpressions) {
 
-    if (Array.isArray(queryExpressions)) queryExpressions.forEach(function (queryExpression, index) {
+    if (Array.isArray(queryExpressions))
+        queryExpressions.forEach(function (queryExpression, index) {
 
-        if (!(queryExpression instanceof QueryExpression)) throw new Error('Invalid query expressions');
-        if (index > 0 && !queryExpression.logicalOperator)
-            throw new Error('Query expression missing logical operator');
-        if (index > 0 && typeof queryExpression.contextualLevel !== 'number')
-            throw new Error('Query expression missing contextual level');
-    });
+            if (!(queryExpression instanceof QueryExpression))
+                throw new Error('Invalid query expressions');
+            if (index > 0 && !queryExpression.logicalOperator)
+                throw new Error('Query expression missing logical operator');
+            if (index > 0 && typeof queryExpression.contextualLevel !== 'number')
+                throw new Error('Query expression missing contextual level');
+        });
     var query = getQuery(queryExpressions, 0);
     return query || {};
 };
@@ -596,8 +599,8 @@ var getMapReduce = function (session) {
             reduce = features.mapReduce.reduce,
             finalize = features.mapReduce.finalize;
         var scope = features.mapReduce.scope || {};
-        var paginate = typeof features.mapReduce.paginate === 'boolean' ? features.mapReduce.paginate :
-            features.paginate,
+        var paginate = typeof features.mapReduce.paginate === 'boolean' ?
+            features.mapReduce.paginate : features.paginate,
             limit = features.mapReduce.limit || features.limit,
             page = features.mapReduce.page || features.page;
         var collection, output = features.mapReduce.output;
@@ -622,8 +625,8 @@ var getMapReduce = function (session) {
             if (typeof emitting === 'function') emitting(function (data) {
 
                 if (data && data.key && data.value) emit(data.key, data.value);
-            });
-            else if (emitting && emitting.key && emitting.value) emit(emitting.key, emitting.value);
+            }); else if (emitting && emitting.key && emitting.value)
+                emit(emitting.key, emitting.value);
         };
         options.reduce = reduce;
         if (typeof finalize === 'function') options.finalize = finalize;
@@ -659,11 +662,13 @@ var getMapReduce = function (session) {
             delete options.scope._;
             if (!out || !out.model || !collection) {
 
-                if (typeof callback === 'function') callback(paginate && typeof limit === 'number' ? {
+                if (typeof callback === 'function')
+                    callback(paginate && typeof limit === 'number' ? {
 
-                    modelObjects: out && out.results,
-                    pageCount: out && out.stats && out.stats.counts && out.stats.counts.input / limit
-                } : out && out.results, error);
+                        modelObjects: out && out.results,
+                        pageCount: out && out.stats && out.stats.counts &&
+                            out.stats.counts.input / limit
+                    } : out && out.results, error);
                 session.idle(time);
             } else session.idle(time, function () {
 
@@ -707,7 +712,8 @@ var getAggregate = function (aggregateExpression, contextualLevel) {
                         fieldValue: aggregateExpression.fieldValue,
                         contextualLevels: aggregateExpression.contextualLevels
                     }), contextualLevel + 1);
-                    if (leftValue !== undefined) return computationOperator(leftValue, rightValue);
+                    if (leftValue !== undefined)
+                        return computationOperator(leftValue, rightValue);
                     else return computationOperator(rightValue);
                 }
                 k++;
@@ -732,7 +738,8 @@ var constructAggregate = function (aggregateExpressions, orderOrField) {
     var indices = [];
     var aggregate = aggregateExpressions.reduce(function (aggregate, aggregateExpression, index) {
 
-        if (aggregateExpression.computationOrder < 0) throw new Error('Invalid computation order');
+        if (aggregateExpression.computationOrder < 0)
+            throw new Error('Invalid computation order');
         if ((typeof orderOrField === 'number' &&
             aggregateExpression.computationOrder === orderOrField) ||
             (typeof orderOrField === 'string' &&
@@ -752,8 +759,8 @@ var constructAggregate = function (aggregateExpressions, orderOrField) {
 
 var getExecuteAggregate = function (session) {
 
-    return function (queryExpressions, aggregateExpressions, filterExpressions, ObjectConstructor,
-        attributes, features, callback) {
+    return function (queryExpressions, aggregateExpressions, filterExpressions,
+        ObjectConstructor, attributes, features, callback) {
 
         if (!features.aggregate) features.aggregate = {};
         var constructedAggregate, include = features.aggregate.include || features.include,
@@ -764,8 +771,8 @@ var getExecuteAggregate = function (session) {
         var flatten = features.aggregate.flatten;
         var sort = features.aggregate.sort || features.sort;
         var populate = features.aggregate.populate || features.populate;
-        var paginate = typeof features.aggregate.paginate === 'boolean' ? features.aggregate.paginate :
-            features.paginate,
+        var paginate = typeof features.aggregate.paginate === 'boolean' ?
+            features.aggregate.paginate : features.paginate,
             limit = features.aggregate.limit || features.limit,
             page = features.aggregate.page || features.page;
         var collection, mapReduce = features.mapReduce,
@@ -795,18 +802,19 @@ var getExecuteAggregate = function (session) {
 
             var ordering = 0;
             constructedAggregate = constructAggregate(aggregateExpressions, ordering);
-            if (filter && Array.isArray(include)) aggregate = aggregate.project(include
-                .reduce(function (project, field) {
+            if (filter && Array.isArray(include))
+                aggregate = aggregate.project(include.reduce(function (project, field) {
 
                     project[field] = 1;
                     return project;
                 }, constructedAggregate));
-            else if (filter && Array.isArray(exclude)) aggregate = aggregate
-                .project(Object.keys(attributes).concat(exclude).reduce(function (project, field) {
+            else if (filter && Array.isArray(exclude))
+                aggregate = aggregate.project(Object.keys(attributes).concat(exclude)
+                    .reduce(function (project, field) {
 
-                    project[field] = exclude.indexOf(field) === -1;
-                    return project;
-                }, constructedAggregate));
+                        project[field] = exclude.indexOf(field) === -1;
+                        return project;
+                    }, constructedAggregate));
             else aggregate = aggregate.addFields(constructedAggregate);
             while (aggregateExpressions.length > 0) {
 
@@ -825,11 +833,12 @@ var getExecuteAggregate = function (session) {
                 preserveNullAndEmptyArrays: true
             });
         });
-        if (filter && Array.isArray(sort)) aggregate = aggregate.sort(sort.map(function (option) {
+        if (filter && Array.isArray(sort))
+            aggregate = aggregate.sort(sort.map(function (option) {
 
-            if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
-            return (option.order === 'desc' ? '-' : '') + option.by;
-        }).join(' '));
+                if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
+                return (option.order === 'desc' ? '-' : '') + option.by;
+            }).join(' '));
         if (Array.isArray(populate)) populate.forEach(function (option) {
 
             var opt = {
@@ -905,16 +914,17 @@ var getExecuteAggregate = function (session) {
 
             if (!result || !collection) {
 
-                if (typeof callback === 'function') callback(paginate && typeof limit === 'number' ? {
+                if (typeof callback === 'function')
+                    callback(paginate && typeof limit === 'number' ? {
 
-                    modelObjects: result && result[0] && result[0].modelObjects,
-                    pageCount: result && result[0] && result[0].pagination[0] &&
-                        result[0].pagination[0].total / limit
-                } : result, error);
+                        modelObjects: result && result[0] && result[0].modelObjects,
+                        pageCount: result && result[0] && result[0].pagination[0] &&
+                            result[0].pagination[0].total / limit
+                    } : result, error);
                 session.idle(time);
             } else session.idle(time, function () {
 
-                var entityModel = mongoose.models[collection] ||
+                var Model = mongoose.models[collection] ||
                     mongoose.model(collection, new Schema({}, {
 
                         autoIndex: false,
@@ -923,10 +933,10 @@ var getExecuteAggregate = function (session) {
                     }));
                 if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
                     typeof mapReduce.reduce === 'function') getMapReduce(session)(filter &&
-                        filterExpressions.length === 0 ? [] : queryExpressions, [], entityModel,
+                        filterExpressions.length === 0 ? [] : queryExpressions, [], Model,
                         features, callback);
                 else getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] :
-                    queryExpressions, entityModel, features, callback);
+                    queryExpressions, Model, features, callback);
             });
         });
     };
@@ -1048,7 +1058,7 @@ var ModelController = function (defaultURI, cb) {
     self.removeObjects = function (objWrapper, entity, callback) {
 
         var self = this;
-        if (!entity || !(entity instanceof ModelEntity)) {
+        if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');
         }
@@ -1078,7 +1088,7 @@ var ModelController = function (defaultURI, cb) {
     };
     self.newObjects = function (objsAttributes, entity, callback) {
 
-        if (!entity || !(entity instanceof ModelEntity)) {
+        if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');
         }
@@ -1103,7 +1113,7 @@ var ModelController = function (defaultURI, cb) {
     };
     self.getObjects = function (objWrapper, entity, callback) {
 
-        if (!entity || !(entity instanceof ModelEntity)) {
+        if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');
         }
@@ -1127,14 +1137,16 @@ var ModelController = function (defaultURI, cb) {
                 var aggregate = features.aggregate,
                     mapReduce = features.mapReduce;
                 if (aggregateExpressions.length > 0 || (typeof aggregate === 'object' &&
-                    Object.keys(aggregate).length > 0)) getExecuteAggregate(session)(queryExpressions,
-                        aggregateExpressions, filterExpressions, entity.getObjectConstructor(),
+                    Object.keys(aggregate).length > 0))
+                    getExecuteAggregate(session)(queryExpressions, aggregateExpressions,
+                        filterExpressions, entity.getObjectConstructor(),
                         entity.getObjectAttributes(), features, callback);
                 else {
 
                     if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
-                        typeof mapReduce.reduce === 'function') getMapReduce(session)(queryExpressions,
-                            filterExpressions, entity.getObjectConstructor(), features, callback);
+                        typeof mapReduce.reduce === 'function')
+                        getMapReduce(session)(queryExpressions, filterExpressions,
+                            entity.getObjectConstructor(), features, callback);
                     else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(),
                         features, callback);
                 }
@@ -1147,7 +1159,8 @@ var ModelController = function (defaultURI, cb) {
     self.save = function (callback, oldSession) {
 
         var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice();
-        if (workingSession.length === 0) debug('Model controller session has no objects to be saved!');
+        if (workingSession.length === 0)
+            debug('Model controller session has no objects to be saved!');
         var currentSession = [];
         var save = function (index) {
 
@@ -1236,7 +1249,7 @@ var DataType = function (datatype, options, resolve) {
 
                 var [typeName] = options;
                 if (typeof typeName !== 'string' || typeName.length === 0)
-                    throw new Error('Invalid attribute custom data type name');
+                    throw new Error('Invalid field custom data type name');
                 var Type = function (key, options) {
 
                     mongoose.SchemaType.call(this, key, options, typeName);
@@ -1252,74 +1265,136 @@ var DataType = function (datatype, options, resolve) {
 
 var resolveAttributes = function (attributes) {
 
-    var resolveAttribute = function (attribute) {
+    var resolveType = function (property) {
 
-        var value = attribute === undefined ? attributes : attributes[attribute];
+        var value = property === undefined ? attributes : attributes[property];
         var isArray = Array.isArray(value);
         var [, ...options] = isArray ? value : [];
         var Type = isArray ? value[0] : value;
         var type = typeof Type;
-        var setAttributeType = function (AttributeType, noExtra) {
+        var setType = function (PropertyType, noExtra) {
 
-            if (typeof AttributeType !== 'function') return false;
-            AttributeType = DataType(AttributeType, options, resolveAttributes);
-            if (attribute === undefined) {
+            if (typeof PropertyType !== 'function') return false;
+            PropertyType = DataType(PropertyType, options, resolveAttributes);
+            if (property === undefined) {
 
-                Type = AttributeType
+                Type = PropertyType
                 return false;
             }
-            if (isArray && noExtra) attributes[attribute] = [AttributeType];
-            else attributes[attribute] = AttributeType;
+            if (isArray && noExtra) attributes[property] = [PropertyType];
+            else attributes[property] = PropertyType;
             return true;
         };
         switch (type) {
 
             case 'object':
-                if (Type instanceof Date) throw new Error('Invalid attribute data type');
+                if (Type instanceof Date) throw new Error('Invalid field data type');
                 if (!Array.isArray(Type)) switch (Object.keys(Type).length) {
 
                     case 2:
                         if (!('ref' in Type)) break;
                     case 1:
-                        if (('type' in Type) && setAttributeType(Type.type, true)) return;
+                        if (('type' in Type) && setType(Type.type, true)) return;
                 }
-                setAttributeType(resolveAttributes(Type), false);
+                setType(resolveAttributes(Type), false);
                 break;
             case 'string':
                 if (typeof options[0] !== 'function')
-                    throw new Error('Custom attribute data type needs cast function');
+                    throw new Error('Custom field data type needs cast function');
                 Type = options[0];
                 options = [Type].concat(options.slice(1));
             case 'function':
-                setAttributeType(Type, isArray && value.length === 1);
+                setType(Type, isArray && value.length === 1);
             default:
-                if (attribute === 'type') throw new Error('type is a reserved word if it is used as an' +
-                    ' attribute so it\'s data type should be object');
+                if (property === 'type')
+                    throw new Error('type is a reserved word if it is used as an field so ' +
+                        'it\'s data type should be object');
+                if (property === 'self')
+                    throw new Error('self is a reserved word, it should not be an field');
                 break;
         };
         return Type;
     };
-    if (Array.isArray(attributes) || (attributes instanceof Date) || typeof attributes !== 'object')
-        return resolveAttribute();
-    else Object.keys(attributes).forEach(resolveAttribute);
+    if (Array.isArray(attributes) || (attributes instanceof Date) ||
+        typeof attributes !== 'object') return resolveType();
+    else Object.keys(attributes).forEach(resolveType);
 };
 
 ModelController.defineEntity = function (name, attributes, plugins) {
 
     if (typeof name !== 'string') throw new Error('Invalid entity name');
     if (typeof attributes !== 'object') throw new Error('Invalid entity schema');
-    var entitySchema = new Schema(attributes, {
+    var schema = new Schema(attributes, {
 
         autoIndex: false,
         usePushEach: true
     });
-    for (var i = 0; Array.isArray(plugins) && i < plugins.length && typeof plugins[i] === 'function'; i++) {
+    for (var i = 0; Array.isArray(plugins) && i < plugins.length &&
+        typeof plugins[i] === 'function'; i++) {
 
-        entitySchema.plugin(plugins[i]);
+        schema.plugin(plugins[i]);
     }
-    var entityModel = mongoose.model(name, entitySchema);
+    var Model = mongoose.model(name, schema);
     resolveAttributes(attributes);
-    return entityModel;
+    Object.defineProperty(Model.prototype, 'self', {
+
+        enumerable: true,
+        get: function () {
+
+            var self = this;
+            return {
+
+                set: function (path, value) {
+
+                    if (typeof path === 'string' && path.length > 0)
+                        path.split('.').reduce(function (wrapper, property, index, properties) {
+
+                            var isArray = Array.isArray(wrapper.attributes);
+                            if (isArray) wrapper.attributes = wrapper.attributes[0];
+                            if (typeof wrapper.attributes !== 'object') return wrapper;
+                            if (wrapper.attributes instanceof Date) return wrapper;
+                            var Type = wrapper.attributes[property];
+                            if (!Type || (typeof Type === 'object' &&
+                                Object.keys(Type).length === 0)) wrapper.markModified = false;
+                            return {
+
+                                modelObjects: wrapper.modelObjects.reduce(function (modelObjects,
+                                    modelObject) {
+
+                                    if (typeof modelObject !== 'object') return modelObjects;
+                                    if (modelObject instanceof Date) return modelObjects;
+                                    if (index === properties.length - 1) {
+
+                                        if (typeof Type === 'function')
+                                            modelObject[property] = new Type(value);
+                                        else modelObject[property] = value;
+                                        if (wrapper.markModified == false) {
+
+                                            wrapper.markModified = true;
+                                            self.markModified(path);
+                                        }
+                                    } else if (!modelObject[property])
+                                        modelObject[property] = isArray ? [{}] : {};
+                                    if (isArray) {
+
+                                        if (Array.isArray(modelObject[property])) modelObjects =
+                                            modelObjects.concat(modelObject[property]);
+                                    } else modelObjects.push(modelObject[property]);
+                                    return modelObjects;
+                                }, []),
+                                attributes: Type || {},
+                                markModified: wrapper.markModified
+                            };
+                        }, {
+
+                            modelObjects: [self],
+                            attributes: attributes
+                        });
+                }
+            };
+        }
+    });
+    return Model;
 };
 
 ModelController.prototype.constructor = ModelController;

@@ -9,7 +9,7 @@
         "prepare": "npm run snyk-protect"
     },
     "dependencies": {
-        "backend-js": "latest",
+        "backend-js": "0.9.9",
         "bunyan": "latest",
         "debug": "latest",
         "define-js": "latest",
@@ -21,7 +21,7 @@
         "sequelize": "5.15.1",
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
-        "snyk": "^1.372.0"
+        "snyk": "^1.425.4"
     },
     "repository": {
         "type": "git",

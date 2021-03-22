@@ -11,7 +11,8 @@ var started = false;
 var ModelControllerPath = {
 
     mongodb: './src/MongoController.js',
-    mysql: './src/SQLController.js'
+    mysql: './src/SQLController.js',
+    postgres: './src/SQLController.js'
 };
 
 beam.database = function (path, options) {
@@ -80,7 +81,8 @@ beam.SQLHashedProperty = function (name, hooks, sequelize) {
         }
         iterations = (options && options.iterations) || 10000;
         hashedPassword = crypto.pbkdf2Sync(password, salt, iterations, saltlen, 'sha256');
-        return 'pkdf2$' + iterations + '$' + salt.toString('hex') + '$' + hashedPassword.toString('hex');
+        return 'pkdf2$' + iterations + '$' + salt.toString('hex') + '$' +
+        hashedPassword.toString('hex');
     };
     var verify = function (password, hashedPassword) {
 
@@ -99,7 +101,9 @@ beam.SQLHashedProperty = function (name, hooks, sequelize) {
             iterations: iterations
         };
         var verifiedPassword = hash(password, options);
-        //perform the comparison in a constant time to avoid timing attacks - see http://carlos.bueno.org/2011/10/timing.html
+        /* perform the comparison in a constant time to avoid timing attacks
+            - see http://carlos.bueno.org/2011/10/timing.html
+        */
         if (hashedPassword.length === verifiedPassword.length) {
 
             var diff = 0;

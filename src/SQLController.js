@@ -45,6 +45,8 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     THROUGH: 'through'
 };
 
+var ComputationOperators = module.exports.ComputationOperators = {};
+
 var sequelize = null;
 var session = [];
 var hookHandlers = {};
@@ -556,7 +558,7 @@ module.exports.getModelControllerObject = function (options, cb) {
     }[options.dialect];
     if (!options.uri || typeof options.uri !== 'string')
         options.uri = options.dialect + '://' + options.username + ':' +
-        options.password + '@' + options.host + ':' + port + '/' + options.database;
+            options.password + '@' + options.host + ':' + port + '/' + options.database;
     return new ModelController(options.uri, function () {
 
         cb.apply(this, arguments);

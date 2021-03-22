@@ -546,8 +546,6 @@ module.exports.getModelControllerObject = function (options, cb) {
     if (typeof options.uri === 'object') Object.assign(options, options.uri);
     if (typeof options.username !== 'string' || options.username.length === 0)
         throw new Error('Invalid username');
-    if (typeof options.password !== 'string' || options.password.length === 0)
-        throw new Error('Invalid password');
     options.dialect = options.type;
     options.database = options.name || 'test';
     options.host = options.host || '127.0.0.1';
@@ -556,9 +554,13 @@ module.exports.getModelControllerObject = function (options, cb) {
         mysql: '3306',
         postgres: '5432'
     }[options.dialect];
-    if (!options.uri || typeof options.uri !== 'string')
-        options.uri = options.dialect + '://' + options.username + ':' +
-            options.password + '@' + options.host + ':' + port + '/' + options.database;
+    if (!options.uri || typeof options.uri !== 'string') {
+
+        options.uri = options.dialect + '://' + options.username;
+        if (typeof options.password === 'string' && options.password.length > 0)
+            options.uri += ':' + options.password;
+        options.uri += '@' + options.host + ':' + port + '/' + options.database;
+    }
     return new ModelController(options.uri, function () {
 
         cb.apply(this, arguments);

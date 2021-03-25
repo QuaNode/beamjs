@@ -285,7 +285,7 @@ var ModelController = function (defaultURI, cb, options) {
     sequelize.sync();
     ['beforeDefine', 'afterDefine'].forEach(function (hook) {
 
-        sequelize.addHook(hook, function (attributes, options) {
+        Sequelize.addHook(hook, function (attributes, options) {
 
             var name = (options && options.modelName) || attributes.name;
             if (typeof hookHandlers[name + hook] === 'function')
@@ -399,7 +399,7 @@ var ModelController = function (defaultURI, cb, options) {
             if (i > -1) session.splice(i, 1);
             setTimeout(function () {
 
-                if (workingModelObject instanceof sequelize.Model &&
+                if (workingModelObject instanceof Sequelize.Model &&
                     (workingModelObject.isNewRecord || workingModelObject.changed()))
                     workingModelObject.save().then(function (modelObject) {
 
@@ -438,11 +438,14 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
 
     if (typeof name !== 'string') throw new Error('Invalid entity name');
     if (typeof attributes !== 'object') throw new Error('Invalid entity schema');
+    if (constraints && typeof constraints !== 'object')
+        throw new Error('Invalid entity constraints');
     if (!sequelize) throw new Error('Sequelize is not initialized');
     var configuration = {
 
         hooks: {}
     };
+    if (constraints.freezeTableName) configuration.freezeTableName = true;
     var hooks = {
 
         on: function (hook, handler) {
@@ -461,22 +464,24 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
     }
     Object.keys(attributes).forEach(function (property) {
 
-        if (attributes[property] === String && constraints && constraints[property] &&
-            constraints[property].unique) attributes[property] = Object.assign({
+        var constraint = constraints && constraints[property] &&
+            typeof constraints[property] === 'object' ? constraints[property] : undefined;
+        if (attributes[property] === String && constraint && constraint.unique)
+            attributes[property] = Object.assign({
 
                 type: Sequelize.DataTypes.STRING(125)
-            }, (constraints && constraints[property]) || {});
+            }, constraint || {});
         else if (DataType(attributes[property])) attributes[property] = Object.assign({
 
             type: DataType(attributes[property])
-        }, (constraints && constraints[property]) || {});
+        }, constraint || {});
     });
-    attributes._id = {
+    attributes[constraints.id ? 'id' : '_id'] = Object.assign({
 
         type: Sequelize.DataTypes.BIGINT,
         autoIncrement: true,
         primaryKey: true
-    };
+    }, constraints.id && typeof constraints.id === 'object' ? constraints.id : {});
     var Model = sequelize.define(name, Object.keys(attributes)
         .reduce(function (filteredAttributes, property) {
 
@@ -507,8 +512,10 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
 
                     as: property
                 };
+                var constraint = constraints && constraints[property] &&
+                    typeof constraints[property] === 'object' ? constraints[property] : undefined;
                 Model[func](entity.prototype.getObjectConstructor(), Object.assign(options,
-                    (constraints && constraints[property]) || {}));
+                    constraint || {}));
                 Object.defineProperty(Model.prototype, property, {
 
                     enumerable: true,

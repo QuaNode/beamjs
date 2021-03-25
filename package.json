@@ -14,7 +14,7 @@
         "debug": "latest",
         "define-js": "latest",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
-        "mongoose": "^5.12.1",
+        "mongoose": "^5.12.2",
         "mongoose-cache": "quaNode/mongoose-cache",
         "mongoose-pagination": "quaNode/mongoose-pagination",
         "mysql2": "latest",

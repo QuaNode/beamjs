@@ -14,7 +14,7 @@
         "debug": "latest",
         "define-js": "latest",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
-        "mongoose": "^5.12.2",
+        "mongoose": "^5.12.3",
         "mongoose-cache": "quaNode/mongoose-cache",
         "mongoose-pagination": "quaNode/mongoose-pagination",
         "mysql2": "latest",
@@ -23,7 +23,7 @@
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
         "sequelize-values": "latest",
-        "snyk": "^1.372.0"
+        "snyk": "^1.518.0"
     },
     "repository": {
         "type": "git",

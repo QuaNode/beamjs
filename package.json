@@ -1,7 +1,7 @@
 {
     "name": "beamjs",
-    "version": "0.9.1-51",
-    "description": "Full stack web development framework (BackendJS - ExpressJS - AngularJS - MongoDB)",
+    "version": "0.9.1-52",
+    "description": "Full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
         "test": "test",
@@ -13,17 +13,25 @@
         "bunyan": "latest",
         "debug": "latest",
         "define-js": "latest",
+        "etag": "latest",
+        "file-type": "latest",
+        "fresh": "latest",
+        "http-gzip-maybe": "latest",
+        "mime": "latest",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
         "mongoose": "^5.12.2",
         "mongoose-cache": "quaNode/mongoose-cache",
         "mongoose-pagination": "quaNode/mongoose-pagination",
+        "ms": "latest",
         "mysql2": "latest",
         "pg": "latest",
+        "pump": "latest",
+        "range-parser": "latest",
         "sequelize": "5.15.1",
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
         "sequelize-values": "latest",
-        "snyk": "^1.372.0"
+        "snyk": "^1.563.0"
     },
     "repository": {
         "type": "git",
@@ -38,7 +46,7 @@
         "stack",
         "full"
     ],
-    "author": "Ahmed Ragab <ahmed.ragab@me.com> (http://backendjs.com)",
+    "author": "Ahmed Ragab <ahmed.ragab@me.com>",
     "license": "MIT",
     "bugs": {
         "url": "https://github.com/quaNode/beamjs/issues"

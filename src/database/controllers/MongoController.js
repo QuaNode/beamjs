@@ -4,22 +4,22 @@
 /*global _*/
 'use strict';
 
-let fs = require('fs');
-let define = require('define-js');
-let backend = require('backend-js');
-let debug = require('debug')('beam:MongoController');
-let bunyan = require('bunyan');
-let Entity = backend.ModelEntity;
-let QueryExpression = backend.QueryExpression;
-let AggregateExpression = backend.AggregateExpression;
-let mongoose = require('mongoose');
-let autoIncrement = require('mongodb-autoincrement');
+var fs = require('fs');
+var define = require('define-js');
+var backend = require('backend-js');
+var debug = require('debug')('beam:MongoController');
+var bunyan = require('bunyan');
+var Entity = backend.ModelEntity;
+var QueryExpression = backend.QueryExpression;
+var AggregateExpression = backend.AggregateExpression;
+var mongoose = require('mongoose');
+var autoIncrement = require('mongodb-autoincrement');
 
 if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
 
 var log = bunyan.createLogger({
 
-    name: 'backend',
+    name: 'beam',
     streams: [{
 
         path: './logs/error.log',
@@ -31,7 +31,7 @@ var log = bunyan.createLogger({
 require('mongoose-pagination');
 
 mongoose.Promise = global.Promise;
-let Schema = mongoose.Schema;
+var Schema = mongoose.Schema;
 mongoose.plugin(autoIncrement.mongoosePlugin);
 
 var cacheOpts = {
@@ -849,7 +849,7 @@ var getExecuteAggregate = function (session) {
             if (typeof option.ref !== 'string') throw new Error('Invalid populate ref');
             var match = {};
             match[option.ref] = '$$ref';
-            opt.let = {
+            opt.var = {
 
                 ref: '$' + option.path
             };

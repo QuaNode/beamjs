@@ -3,16 +3,30 @@
 /*global Symbol*/
 'use strict';
 
-let backend = require('backend-js');
-let debug = require('debug')('beam:SQLController');
-let Entity = backend.ModelEntity;
-let QueryExpression = backend.QueryExpression;
-let Sequelize = require('sequelize');
+var backend = require('backend-js');
+var debug = require('debug')('beam:SQLController');
+var bunyan = require('bunyan');
+var Entity = backend.ModelEntity;
+var QueryExpression = backend.QueryExpression;
+var Sequelize = require('sequelize');
 require('sequelize-values')(Sequelize);
-let VariableAdaptor = require('sequelize-transparent-cache-variable');
-let withCache = require('sequelize-transparent-cache')(new VariableAdaptor()).withCache;
+var VariableAdaptor = require('sequelize-transparent-cache-variable');
+var withCache = require('sequelize-transparent-cache')(new VariableAdaptor()).withCache;
 
-let Op = Sequelize.Op;
+if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
+
+var log = bunyan.createLogger({
+
+    name: 'beam',
+    streams: [{
+
+        path: './logs/error.log',
+        level: 'error',
+    }],
+    serializers: bunyan.stdSerializers
+});
+
+var Op = Sequelize.Op;
 
 module.exports.LogicalOperators = {
 
@@ -282,7 +296,14 @@ var ModelController = function (defaultURI, cb, options) {
 
     var self = this;
     sequelize = openConnection(defaultURI, cb, options);
-    sequelize.sync();
+    sequelize.sync().catch(function (err) {
+
+        log.error({
+
+            database: 'sql',
+            err: err
+        });
+    });
     ['beforeDefine', 'afterDefine'].forEach(function (hook) {
 
         Sequelize.addHook(hook, function (attributes, options) {
@@ -407,7 +428,15 @@ var ModelController = function (defaultURI, cb, options) {
                         save(index + 1);
                     }).catch(function (error) {
 
-                        if (error) debug(error);
+                        if (error) {
+
+                            debug(error);
+                            log.error({
+
+                                database: 'sql',
+                                err: error
+                            });
+                        }
                         if (typeof callback === 'function') callback(error, currentSession);
                     });
                 else if (workingSession.length > index + 1) save(index + 1);

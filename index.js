@@ -2,178 +2,122 @@
 'use strict';
 
 var backend = require('backend-js');
-var crypto = require('crypto');
+var debug = require('debug');
 
-require('debug').enable('beam:*,backend:*');
+debug.enable('beam:*,backend:*');
+debug = debug('beam:index');
+
+var bunyan = require('bunyan');
+
+if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
+
+var log = bunyan.createLogger({
+
+    name: 'beam',
+    streams: [{
+
+        path: './logs/error.log',
+        level: 'error',
+    }],
+    serializers: bunyan.stdSerializers
+});
 
 var beam = module.exports;
-var started = false;
 var ModelControllerPath = {
 
-    mongodb: './src/MongoController.js',
-    mysql: './src/SQLController.js',
-    postgres: './src/SQLController.js'
+    mongodb: './src/database/controllers/MongoController.js',
+    mysql: './src/database/controllers/SQLController.js',
+    postgres: './src/database/controllers/SQLController.js'
+};
+var ResourceControllerPath = {
+
+    fs: './src/storage/controllers/FSController.js'
 };
 
-beam.database = function (path, options) {
+beam.database = function (key, options) {
 
-    if (typeof arguments[1] === 'string' || typeof arguments[2] === 'string') return {
+    if (typeof options === 'string' || typeof arguments[2] === 'string') return {
 
-        dbType: arguments[0],
-        dbURI: arguments[1],
+        dbType: key,
+        dbURI: options,
         dbName: arguments[2]
     };
-    if (started || !options) return backend;
-    if (!ModelControllerPath[options.type]) throw new Error('Invalid database type.');
-    started = true;
-    var ModelController = require(ModelControllerPath[options.type]);
-    module.exports.ComparisonOperators = ModelController.ComparisonOperators;
-    module.exports.LogicalOperators = ModelController.LogicalOperators;
-    module.exports.ComputationOperators = ModelController.ComputationOperators;
-    backend.setComparisonOperators(ModelController.ComparisonOperators);
-    backend.setLogicalOperators(ModelController.LogicalOperators);
-    backend.setComputationOperators(ModelController.ComputationOperators);
-    backend.setModelController(ModelController.getModelControllerObject(options, function () {
+    var ModelController;
+    if (typeof options === 'object') {
 
-        // if (!error) {
+        if (!ModelControllerPath[options.type]) throw new Error('Invalid database type');
+        ModelController = require(ModelControllerPath[options.type]);
+    } else if (typeof key === 'string') ModelController = backend.getModelController(key);
+    if (ModelController) {
 
-        // } else {
+        module.exports.ComparisonOperators = ModelController.ComparisonOperators;
+        module.exports.LogicalOperators = ModelController.LogicalOperators;
+        module.exports.ComputationOperators = ModelController.ComputationOperators;
+        backend.setComparisonOperators(ModelController.ComparisonOperators);
+        backend.setLogicalOperators(ModelController.LogicalOperators);
+        backend.setComputationOperators(ModelController.ComputationOperators);
+        if (typeof options === 'object') {
 
-        // }
-    }), path);
+            backend.setModelController(ModelController.getModelControllerObject(options,
+                function (error) {
+
+                    if (error) {
+
+                        debug(error);
+                        log.error({
+
+                            controller: 'database',
+                            err: error
+                        });
+                    }
+                }), key);
+        }
+    }
     return backend;
 };
 
-beam.backend = function (database) {
+beam.storage = function (key, options) {
 
-    return module.exports.database('', database && {
+    if (typeof options === 'string' || typeof arguments[2] === 'string') return {};
+    var ResourceController;
+    if (typeof options === 'object') {
 
-        type: database.dbType,
-        uri: database.dbURI,
-        name: database.dbName
-    });
+        if (!ResourceControllerPath[options.type]) throw new Error('Invalid storage type');
+        ResourceController = require(ResourceControllerPath[options.type]);
+    } else if (typeof key === 'string') ResourceController = backend.getResourceController(key);
+    if (ResourceController && typeof options === 'object') {
+
+        backend.setResourceController(ResourceController.getResourceControllerObject(options,
+            function (error) {
+
+                if (error) {
+
+                    debug(error);
+                    log.error({
+
+                        controller: 'storage',
+                        err: error
+                    });
+                }
+            }), key);
+    }
+    return backend;
 };
 
-beam.SQLTimestamps = function (name, hooks) {
+beam.backend = function (database, storage) {
 
-    hooks.on('beforeDefine', function (attributes, options) {
+    module.exports.storage(typeof storage === 'string' ? storage : 'local',
+        typeof storage === 'object' ? {} : undefined);
+    return module.exports.database(typeof database === 'string' ? database : 'main',
+        typeof database === 'object' ? {
 
-        options.timestamps = true;
-    });
+            type: database.dbType,
+            uri: database.dbURI,
+            name: database.dbName
+        } : undefined);
 };
 
-beam.SQLHashedProperty = function (name, hooks, sequelize) {
-
-    var hash = function (password, options) {
-
-        var salt,
-            saltlen,
-            iterations,
-            hashedPassword;
-        if (options && options.salt) {
-
-            salt = options.salt;
-            saltlen = options.salt.length;
-        } else {
-
-            saltlen = (options && options.saltlen) || 64;
-            salt = crypto.randomBytes(saltlen);
-        }
-        iterations = (options && options.iterations) || 10000;
-        hashedPassword = crypto.pbkdf2Sync(password, salt, iterations, saltlen, 'sha256');
-        return 'pkdf2$' + iterations + '$' + salt.toString('hex') + '$' +
-        hashedPassword.toString('hex');
-    };
-    var verify = function (password, hashedPassword) {
-
-        var split = hashedPassword.split('$');
-        if (split.length !== 4) {
-
-            throw new Error('Invalid password hash provided');
-        }
-        var salt = new Buffer(split[2], 'hex'),
-            saltlen = salt.length,
-            iterations = Number(split[1]);
-        var options = {
-
-            salt: salt,
-            saltlen: saltlen,
-            iterations: iterations
-        };
-        var verifiedPassword = hash(password, options);
-        /* perform the comparison in a constant time to avoid timing attacks
-            - see http://carlos.bueno.org/2011/10/timing.html
-        */
-        if (hashedPassword.length === verifiedPassword.length) {
-
-            var diff = 0;
-            for (var i = 0; i < hashedPassword.length; ++i) {
-
-                diff |= hashedPassword.charCodeAt(i) ^ verifiedPassword.charCodeAt(i);
-            }
-            return diff === 0;
-        } else {
-
-            return false;
-        }
-    };
-    hooks.on('beforeDefine', function (attributes, options) {
-
-        attributes.hashed_password = {
-
-            type: sequelize.Sequelize.DataTypes.TEXT
-        };
-        attributes.password = {
-
-            type: sequelize.Sequelize.DataTypes.VIRTUAL,
-            set: function (password) {
-
-                this.setDataValue('hashed_password', hash(password));
-            }
-        };
-    });
-    hooks.on('afterDefine', function (Model) {
-
-        Model.prototype.verifyPassword = function (password) {
-
-            if (this.getDataValue('hashed_password')) {
-
-                return verify(password, this.getDataValue('hashed_password'));
-            } else {
-
-                return false;
-            }
-        };
-    });
-};
-
-beam.SQLSecret = function (name, hooks, sequelize) {
-
-    var createSecret = function (size) {
-
-        var hex = crypto.randomBytes(size).toString('hex');
-        return hex.substring(0, size);
-    };
-    hooks.on('beforeDefine', function (attributes, options) {
-
-        attributes.secret = {
-
-            type: sequelize.Sequelize.DataTypes.STRING,
-            defaultValue: createSecret(32)
-        };
-    });
-    hooks.on('afterDefine', function (Model) {
-
-        Model.prototype.generateNewSecret = function (cb) {
-
-            this.setDataValue('secret', createSecret(32));
-            return this.save().then(function (model) {
-
-                cb(model.getDataValue('secret'));
-            }).catch(function (error) {
-
-                cb(null, error);
-            });
-        };
-    });
-};
+beam.SQLTimestamps = require('./src/database/plugins/SQLTimestamps.js');
+beam.SQLHashedProperty = require('./src/database/plugins/SQLHashedProperty.js');
+beam.SQLSecret = require('./src/database/plugins/SQLSecret.js');
+beam.Respond = beam.responder = require('./src/api/plugins/Respond.js');

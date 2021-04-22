@@ -77,4 +77,13 @@ behaviour(
     };
   }
 );
-```
+``
+
+## Starter project
+
+A sample project that you can learn from examples how to use BackendJS.
+
+#### [https://github.com/QuaNode/BeamJS-Start](https://github.com/QuaNode/BeamJS-Start)
+
+#### 
+`

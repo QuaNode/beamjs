@@ -1,6 +1,6 @@
 {
     "name": "beamjs",
-    "version": "0.9.1-52",
+    "version": "1.0.0",
     "description": "Full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
@@ -14,7 +14,6 @@
         "debug": "latest",
         "define-js": "latest",
         "etag": "latest",
-        "file-type": "latest",
         "fresh": "latest",
         "http-gzip-maybe": "latest",
         "mime": "latest",
@@ -25,7 +24,6 @@
         "ms": "latest",
         "mysql2": "latest",
         "pg": "latest",
-        "pump": "latest",
         "range-parser": "latest",
         "sequelize": "5.15.1",
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",

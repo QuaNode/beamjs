@@ -3,9 +3,10 @@
 /*global Symbol*/
 'use strict';
 
-var backend = require('backend-js');
+var fs = require('fs');
 var debug = require('debug')('beam:SQLController');
 var bunyan = require('bunyan');
+var backend = require('backend-js');
 var Entity = backend.ModelEntity;
 var QueryExpression = backend.QueryExpression;
 var Sequelize = require('sequelize');
@@ -275,9 +276,15 @@ var getExecuteQuery = function (session) {
 var openConnection = function (defaultURI, callback, options) {
 
     if (!options) options = {};
-    var logging = function (error, duration) {
+    var logging = function (message, duration, info) {
 
-        callback(new Error(error), duration);
+        if (message) {
+
+            if (message.indexOf('error') > -1 ||
+                (info && JSON.stringify(info).toLowerCase().indexOf('error') > -1))
+                callback(new Error(message), duration);
+            else debug(message);
+        }
     };
     options.logging = logging;
     options.benchmark = true;
@@ -295,6 +302,7 @@ var openConnection = function (defaultURI, callback, options) {
 var ModelController = function (defaultURI, cb, options) {
 
     var self = this;
+    self.type = options.type;
     sequelize = openConnection(defaultURI, cb, options);
     sequelize.sync().catch(function (err) {
 
@@ -315,7 +323,6 @@ var ModelController = function (defaultURI, cb, options) {
     });
     self.removeObjects = function (objWrapper, entity, callback) {
 
-        var self = this;
         if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');

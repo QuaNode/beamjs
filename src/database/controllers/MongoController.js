@@ -5,10 +5,10 @@
 'use strict';
 
 var fs = require('fs');
-var define = require('define-js');
-var backend = require('backend-js');
 var debug = require('debug')('beam:MongoController');
 var bunyan = require('bunyan');
+var define = require('define-js');
+var backend = require('backend-js');
 var Entity = backend.ModelEntity;
 var QueryExpression = backend.QueryExpression;
 var AggregateExpression = backend.AggregateExpression;
@@ -1019,6 +1019,7 @@ var checkConnection = function (defaultURI, callback) {
 var ModelController = function (defaultURI, cb) {
 
     var self = this;
+    self.type = 'mongodb';
     var Session = define(function (init) {
 
         return function () {
@@ -1057,7 +1058,6 @@ var ModelController = function (defaultURI, cb) {
     openConnection(defaultURI, cb);
     self.removeObjects = function (objWrapper, entity, callback) {
 
-        var self = this;
         if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');

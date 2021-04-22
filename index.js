@@ -1,8 +1,9 @@
 /*jslint node: true */
 'use strict';
 
-var backend = require('backend-js');
+var fs = require('fs');
 var debug = require('debug');
+var backend = require('backend-js');
 
 debug.enable('beam:*,backend:*');
 debug = debug('beam:index');
@@ -42,35 +43,38 @@ beam.database = function (key, options) {
         dbURI: options,
         dbName: arguments[2]
     };
-    var ModelController;
-    if (typeof options === 'object') {
+    var ModelModule;
+    var type;
+    if (typeof options === 'object') type = options.type;
+    else if (typeof key === 'string') type = (backend.getModelController(key) || {}).type;
+    if (type) {
 
-        if (!ModelControllerPath[options.type]) throw new Error('Invalid database type');
-        ModelController = require(ModelControllerPath[options.type]);
-    } else if (typeof key === 'string') ModelController = backend.getModelController(key);
-    if (ModelController) {
+        if (!ModelControllerPath[type]) throw new Error('Invalid database type');
+        ModelModule = require(ModelControllerPath[type]);
+        if (ModelModule) {
 
-        module.exports.ComparisonOperators = ModelController.ComparisonOperators;
-        module.exports.LogicalOperators = ModelController.LogicalOperators;
-        module.exports.ComputationOperators = ModelController.ComputationOperators;
-        backend.setComparisonOperators(ModelController.ComparisonOperators);
-        backend.setLogicalOperators(ModelController.LogicalOperators);
-        backend.setComputationOperators(ModelController.ComputationOperators);
-        if (typeof options === 'object') {
+            module.exports.ComparisonOperators = ModelModule.ComparisonOperators;
+            module.exports.LogicalOperators = ModelModule.LogicalOperators;
+            module.exports.ComputationOperators = ModelModule.ComputationOperators;
+            backend.setComparisonOperators(ModelModule.ComparisonOperators);
+            backend.setLogicalOperators(ModelModule.LogicalOperators);
+            backend.setComputationOperators(ModelModule.ComputationOperators);
+            if (typeof options === 'object') {
 
-            backend.setModelController(ModelController.getModelControllerObject(options,
-                function (error) {
+                backend.setModelController(ModelModule.getModelControllerObject(options,
+                    function (error) {
 
-                    if (error) {
+                        if (error) {
 
-                        debug(error);
-                        log.error({
+                            debug(error);
+                            log.error({
 
-                            controller: 'database',
-                            err: error
-                        });
-                    }
-                }), key);
+                                controller: 'database',
+                                err: error
+                            });
+                        }
+                    }), key);
+            }
         }
     }
     return backend;
@@ -79,27 +83,30 @@ beam.database = function (key, options) {
 beam.storage = function (key, options) {
 
     if (typeof options === 'string' || typeof arguments[2] === 'string') return {};
-    var ResourceController;
-    if (typeof options === 'object') {
+    var ResourceModule;
+    var type;
+    if (typeof options === 'object') type = options.type;
+    else if (typeof key === 'string') type = (backend.getResourceController(key) || {}).type;
+    if (type) {
 
-        if (!ResourceControllerPath[options.type]) throw new Error('Invalid storage type');
-        ResourceController = require(ResourceControllerPath[options.type]);
-    } else if (typeof key === 'string') ResourceController = backend.getResourceController(key);
-    if (ResourceController && typeof options === 'object') {
+        if (!ResourceControllerPath[type]) throw new Error('Invalid storage type');
+        ResourceModule = require(ResourceControllerPath[type]);
+        if (ResourceModule && typeof options === 'object') {
 
-        backend.setResourceController(ResourceController.getResourceControllerObject(options,
-            function (error) {
+            backend.setResourceController(ResourceModule.getResourceControllerObject(options,
+                function (error) {
 
-                if (error) {
+                    if (error) {
 
-                    debug(error);
-                    log.error({
+                        debug(error);
+                        log.error({
 
-                        controller: 'storage',
-                        err: error
-                    });
-                }
-            }), key);
+                            controller: 'storage',
+                            err: error
+                        });
+                    }
+                }), key);
+        }
     }
     return backend;
 };

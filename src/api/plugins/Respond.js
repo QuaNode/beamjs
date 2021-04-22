@@ -1,16 +1,17 @@
 /*jslint node: true */
 'use strict';
 
-var Readable = require('stream').Readable;
+var {
+    Readable,
+    pipeline
+} = require('stream');
 var ms = require('ms');
 var etag = require('etag');
-var FileType = require('file-type');
 var parseUrl = require('parseurl');
 var mime = require('mime');
 var fresh = require('fresh');
 var parseRange = require('range-parser');
 var gzipMaybe = require('http-gzip-maybe');
-var pump = require('pump');
 
 var READ_SIZE = 64 * 1024;
 var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1000;
@@ -163,26 +164,40 @@ module.exports = function (key, options) {
 
         if (typeof out !== 'object') out = {};
         var data = out[typeof key === 'string' ? key : 'data'] || '';
+        var data_size;
+        var data_encoding;
         var error;
         var stream = data instanceof Readable ? data : new Readable({
 
             highWaterMark: function () {
 
-                var chunk = (Array.isArray(data) && data[0]) || data;
-                var buffer_size =
-                    chunk ? chunk.length || chunk.size || chunk.byteLength || READ_SIZE : READ_SIZE;
-                return buffer_size * 2;
+                var chunk = Array.isArray(data) ? data[0] : data;
+                var chunk_size;
+                if (chunk) chunk_size = chunk.length || chunk.size || chunk.byteLength;
+                if (chunk_size && !Array.isArray(data)) data_size = chunk_size;
+                if (!chunk_size) chunk_size = READ_SIZE;
+                return chunk_size * 2;
             }(),
-            encoding: typeof data === 'string' ? out.encoding || 'utf8' : null,
+            encoding: function () {
+
+                var encoding = out.encoding;
+                if (!encoding) {
+
+                    var chunk = Array.isArray(data) ? data[0] : data;
+                    encoding = typeof chunk === 'string' ? 'utf8' : null;
+                }
+                return data_encoding = encoding;
+            }(),
             read() {
 
-                if (Array.isArray(data) && data[0]) this.push(data.splice(0, 1)[0]);
-                else if (!Array.isArray(data) && data) this.push(data);
-                else this.push(null);
-            }
-        }).on('error', function (err) {
+                var chunk = data;
+                if (Array.isArray(data)) {
 
-            next(err);
+                    if (data.length > 0) chunk = data.splice(0, 1)[0];
+                    else chunk = null;
+                } else data = null;
+                this.push(chunk);
+            }
         });
         if (headersSent(res)) {
 
@@ -206,123 +221,119 @@ module.exports = function (key, options) {
             res.setHeader('Cache-Control', cacheControl);
         }
         var stat = out.stat || out.stats;
-        if (typeof stat === 'object' && stat.mtime instanceof Date) {
+        var mtime = out.mtime || out.lastModified;
+        if (!(mtime instanceof Date) && typeof stat === 'object' && stat.mtime instanceof Date)
+            mtime = stat.mtime;
+        if (mtime instanceof Date && options.lastModified && !res.getHeader('Last-Modified')) {
 
-            if (options.lastModified && !res.getHeader('Last-Modified')) {
+            var modified = mtime.toUTCString();
+            res.setHeader('Last-Modified', modified);
+        }
+        if (typeof stat === 'object' && options.etag && !res.getHeader('ETag')) {
 
-                var modified = stat.mtime.toUTCString();
-                res.setHeader('Last-Modified', modified);
+            var val = etag(stat);
+            res.setHeader('ETag', val);
+        }
+        var path = (out.path && decode(out.path)) || (out.filename && decode(out.filename));
+        if (!path) {
+
+            var originalUrl = parseUrl.original(req);
+            path = parseUrl(req).pathname;
+            if (path === '/' && originalUrl.pathname.substr(-1) !== '/') path = '';
+        }
+        var type = out.mime || out.type;
+        if (!type && path) type = mime.getType(path);
+        if (options.attachment && !res.getHeader('Content-Disposition')) {
+
+            res.attachment(path || undefined);
+            res.setHeader('Content-Transfer-Encoding', data_encoding || 'binary');
+        }
+        if (type && !res.getHeader('Content-Type')) {
+
+            res.setHeader('Content-Type', type);
+        }
+        if (typeof out.modified !== 'boolean') {
+
+            if (isConditionalGET(req)) {
+
+                if (isPreconditionFailure(req, res)) {
+
+                    error = new Error();
+                    error.code = 412;
+                    next(error);
+                    return;
+                }
+                if (isCachable(res) && isFresh(req, res)) {
+
+                    notModified();
+                    return;
+                }
             }
-            if (options.etag && !res.getHeader('ETag')) {
+        } else if (out.modified === false) {
 
-                var val = etag(stat);
-                res.setHeader('ETag', val);
+            notModified();
+            return;
+        }
+        var len = out.size || out.length;
+        if (!len && typeof stat === 'object' && stat.size > 0) len = stat.size;
+        if (!len && data_size) len = data_size;
+        var offset = out.start >= 0 ? out.start : 0;
+        len = Math.max(0, len - offset);
+        if (out.end > 0) {
+
+            var bytes = out.end - offset + 1;
+            if (len > bytes) len = bytes;
+        }
+        var ranges = out.ranges;
+        if (options.acceptRanges && len) {
+
+            if (!ranges) {
+
+                var ranges = req.headers.range;
+                if (BYTES_RANGE_REGEXP.test(ranges)) {
+
+                    ranges = parseRange(len, ranges, {
+
+                        combine: true
+                    });
+                }
+            }
+            if (ranges) {
+
+                if (!isRangeFresh(req, res)) ranges = -2;
+                if (ranges === -1) {
+
+                    res.setHeader('Content-Range', contentRange('bytes', len));
+                    error = new Error();
+                    error.code = 416;
+                    next(error);
+                    return;
+                }
+                if (ranges !== -2 && ranges.length === 1) {
+
+                    res.statusCode = 206;
+                    res.setHeader('Content-Range', contentRange('bytes', len, ranges[0]));
+                    offset += ranges[0].start;
+                    len = ranges[0].end - ranges[0].start + 1;
+                }
             }
         }
-        FileType.fromStream(stream).then(function (fileType) {
+        if (len) res.setHeader('Content-Length', len);
+        if (req.method === 'HEAD') {
 
-            var type = fileType && fileType.mime;
-            var path = (out.path && decode(out.path)) || (out.filename && decode(out.filename));
-            if (!path) {
+            res.end();
+            return;
+        }
+        var streams = [stream];
+        if (!path || !path.endsWith('zip')) {
 
-                var originalUrl = parseUrl.original(req);
-                path = parseUrl(req).pathname;
-                if (path === '/' && originalUrl.pathname.substr(-1) !== '/') path = '';
-            }
-            if (!type && path) type = mime.lookup(path);
-            if (options.attachment && !res.getHeader('Content-Disposition')) {
+            var gzip = gzipMaybe(req, res);
+            streams.push(gzip);
+        }
+        streams.push(res);
+        pipeline(streams, function (err) {
 
-                res.attachment(path || undefined);
-            }
-            if (type && !res.getHeader('Content-Type')) {
-
-                var charset = mime.charsets.lookup(type);
-                res.setHeader('Content-Type', type + (charset ? '; charset=' + charset : ''));
-            }
-            if (typeof options.modified !== 'boolean') {
-
-                if (isConditionalGET(req)) {
-
-                    if (isPreconditionFailure(req, res)) {
-
-                        error = new Error();
-                        error.code = 412;
-                        next(error);
-                        return;
-                    }
-                    if (isCachable(res) && isFresh(req, res)) {
-
-                        notModified();
-                        return;
-                    }
-                }
-            } else if (options.modified === false) {
-
-                notModified();
-                return;
-            }
-            if (typeof stat === 'object' && stat.size > 0) {
-
-                var len = stat.size;
-                var offset = out.start >= 0 ? out.start : 0;
-                len = Math.max(0, len - offset);
-                if (out.end > 0) {
-
-                    var bytes = out.end - offset + 1;
-                    if (len > bytes) len = bytes;
-                }
-                var ranges = out.ranges;
-                if (options.acceptRanges) {
-
-                    if (!ranges) {
-
-                        var ranges = req.headers.range;
-                        if (BYTES_RANGE_REGEXP.test(ranges)) {
-
-                            ranges = parseRange(len, ranges, {
-
-                                combine: true
-                            });
-                        }
-                    }
-                    if (ranges) {
-
-                        if (!isRangeFresh(req, res)) {
-
-                            ranges = -2;
-                        }
-                        if (ranges === -1) {
-
-                            res.setHeader('Content-Range', contentRange('bytes', len));
-                            error = new Error();
-                            error.code = 416;
-                            next(error);
-                            return;
-                        }
-                        if (ranges !== -2 && ranges.length === 1) {
-
-                            res.statusCode = 206;
-                            res.setHeader('Content-Range', contentRange('bytes', len, ranges[0]));
-                            offset += ranges[0].start;
-                            len = ranges[0].end - ranges[0].start + 1;
-                        }
-                    }
-                }
-                res.setHeader('Content-Length', len);
-            }
-            if (req.method === 'HEAD') {
-
-                res.end()
-                return;
-            }
-            var gzip = gzipMaybe(req, res).on('error', function (err) {
-
-                next(err);
-            });
-            pump(stream, gzip, res);
-        }).catch(function (err) {
-
-            next(err);
+            if (err) next(err);
         });
     };
 };

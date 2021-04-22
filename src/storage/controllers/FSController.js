@@ -132,7 +132,7 @@ var ResourceController = function () {
         }
         return function () {
 
-            if (!reader.readableEnded) reader.end();
+            if (!reader.readableEnded) reader.destroy();
         };
     };
 };

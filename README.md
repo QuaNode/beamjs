@@ -77,7 +77,7 @@ behaviour(
     };
   }
 );
-``
+```
 
 ## Starter project
 
@@ -86,4 +86,3 @@ A sample project that you can learn from examples how to use BeamJS.
 #### [https://github.com/QuaNode/BeamJS-Start](https://github.com/QuaNode/BeamJS-Start)
 
 #### 
-`

@@ -1,6 +1,5 @@
 /*jslint node: true */
 /*jshint esversion: 6 */
-/*global Symbol*/
 'use strict';
 
 var fs = require('fs');
@@ -121,7 +120,7 @@ var adapter = {
                 var filter = {};
                 var subFilter = {};
                 filter[queryExpressions[0].fieldName] = queryExpressions[0].fieldValue;
-                if (typeof queryExpressions[0].comparisonOperator instanceof Symbol)
+                if (typeof queryExpressions[0].comparisonOperator === 'symbol')
                     subFilter[queryExpressions[0].comparisonOperator] =
                         queryExpressions[0].fieldValue;
                 else if (typeof queryExpressions[0].comparisonOperator === 'function')

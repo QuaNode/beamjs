@@ -82,7 +82,13 @@ beam.database = function (key, options) {
 
 beam.storage = function (key, options) {
 
-    if (typeof options === 'string' || typeof arguments[2] === 'string') return {};
+    if (typeof options === 'string' || typeof arguments[2] === 'string') return {
+
+        type: key,
+        id: options,
+        key: arguments[2],
+        name: arguments[3]
+    };
     var ResourceModule;
     var type;
     if (typeof options === 'object') type = options.type;
@@ -114,7 +120,13 @@ beam.storage = function (key, options) {
 beam.backend = function (database, storage) {
 
     module.exports.storage(typeof storage === 'string' ? storage : 'local',
-        typeof storage === 'object' ? {} : undefined);
+        typeof storage === 'object' ? {
+
+            type: storage.type,
+            id: storage.id,
+            key: storage.key,
+            name: storage.name
+        } : undefined);
     return module.exports.database(typeof database === 'string' ? database : 'main',
         typeof database === 'object' ? {
 

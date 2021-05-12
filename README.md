@@ -1,4 +1,4 @@
-# beamjs [![Known Vulnerabilities](https://snyk.io/test/github/QuaNode/beamjs/badge.svg?targetFile=package.json)](https://snyk.io/test/github/QuaNode/beamjs?targetFile=package.json) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/518c2b67f61142ca833c75c6c07ccd43)](https://www.codacy.com/project/quanode/beamjs/dashboard?utm_source=github.com&utm_medium=referral&utm_content=QuaNode/beamjs&utm_campaign=Badge_Grade_Dashboard) [![NPM](https://nodei.co/npm/beamjs.png)](https://npmjs.org/package/beamjs)
+# beamjs [![Codacy Badge](https://api.codacy.com/project/badge/Grade/518c2b67f61142ca833c75c6c07ccd43)](https://www.codacy.com/project/quanode/beamjs/dashboard?utm_source=github.com&utm_medium=referral&utm_content=QuaNode/beamjs&utm_campaign=Badge_Grade_Dashboard) [![NPM](https://nodei.co/npm/beamjs.png)](https://npmjs.org/package/beamjs)
 
 Full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)
 
@@ -85,4 +85,4 @@ A sample project that you can learn from examples how to use BeamJS.
 
 #### [https://github.com/QuaNode/BeamJS-Start](https://github.com/QuaNode/BeamJS-Start)
 
-#### 
+####

@@ -1,12 +1,10 @@
 {
     "name": "beamjs",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
-        "test": "test",
-        "snyk-protect": "snyk protect",
-        "prepare": "npm run snyk-protect"
+        "test": "test"
     },
     "dependencies": {
         "backend-js": "latest",
@@ -28,8 +26,7 @@
         "sequelize": "5.15.1",
         "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
-        "sequelize-values": "latest",
-        "snyk": "^1.563.0"
+        "sequelize-values": "latest"
     },
     "repository": {
         "type": "git",
@@ -56,6 +53,5 @@
         "eslint-plugin-node": "^5.1.1",
         "eslint-plugin-promise": "^3.5.0",
         "eslint-plugin-standard": "^3.0.1"
-    },
-    "snyk": true
+    }
 }

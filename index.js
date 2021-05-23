@@ -140,3 +140,5 @@ beam.SQLTimestamps = require('./src/database/plugins/SQLTimestamps.js');
 beam.SQLHashedProperty = require('./src/database/plugins/SQLHashedProperty.js');
 beam.SQLSecret = require('./src/database/plugins/SQLSecret.js');
 beam.Respond = beam.responder = require('./src/api/plugins/Respond.js');
+beam.Delegate = beam.delegator = require('./src/api/plugins/Delegate.js');
+beam.Forward = beam.Proxy = beam.forwarder = require('./src/api/plugins/Forward.js');

@@ -1053,7 +1053,7 @@ var ModelController = function (defaultURI, cb) {
                 if (typeof next === 'function') next();
             };
         };
-    }).extend(Array).parameters();
+    }).extend(Array).defaults();
     var session = new Session();
     openConnection(defaultURI, cb);
     self.removeObjects = function (objWrapper, entity, callback) {
@@ -1158,7 +1158,7 @@ var ModelController = function (defaultURI, cb) {
     };
     self.save = function (callback, oldSession) {
 
-        var workingSession = (Array.isArray(oldSession) && oldSession) || session.slice();
+        var workingSession = Array.isArray(oldSession) ? oldSession : session.slice();
         if (workingSession.length === 0)
             debug('Model controller session has no objects to be saved!');
         var currentSession = [];

@@ -163,7 +163,8 @@ module.exports = function (key, options) {
     return function (out, req, res, next) {
 
         if (typeof out !== 'object') out = {};
-        var data = out[typeof key === 'string' ? key : 'data'] || '';
+        if (typeof key !== 'string' || Object.keys(out).indexOf(key) === -1) return false;
+        var data = out[key];
         var data_size;
         var data_encoding;
         var error;
@@ -335,5 +336,6 @@ module.exports = function (key, options) {
 
             if (err) next(err);
         });
+        return true;
     };
 };

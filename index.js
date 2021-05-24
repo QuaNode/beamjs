@@ -23,7 +23,7 @@ var log = bunyan.createLogger({
     serializers: bunyan.stdSerializers
 });
 
-var beam = module.exports;
+var beam = Object.assign(module.exports, backend);
 var ModelControllerPath = {
 
     mongodb: './src/database/controllers/MongoController.js',
@@ -53,9 +53,9 @@ beam.database = function (key, options) {
         ModelModule = require(ModelControllerPath[type]);
         if (ModelModule) {
 
-            module.exports.ComparisonOperators = ModelModule.ComparisonOperators;
-            module.exports.LogicalOperators = ModelModule.LogicalOperators;
-            module.exports.ComputationOperators = ModelModule.ComputationOperators;
+            beam.ComparisonOperators = ModelModule.ComparisonOperators;
+            beam.LogicalOperators = ModelModule.LogicalOperators;
+            beam.ComputationOperators = ModelModule.ComputationOperators;
             backend.setComparisonOperators(ModelModule.ComparisonOperators);
             backend.setLogicalOperators(ModelModule.LogicalOperators);
             backend.setComputationOperators(ModelModule.ComputationOperators);
@@ -77,7 +77,7 @@ beam.database = function (key, options) {
             }
         }
     }
-    return backend;
+    return beam;
 };
 
 beam.storage = function (key, options) {
@@ -114,26 +114,25 @@ beam.storage = function (key, options) {
                 }), key);
         }
     }
-    return backend;
+    return beam;
 };
 
 beam.backend = function (database, storage) {
 
-    module.exports.storage(typeof storage === 'string' ? storage : 'local',
-        typeof storage === 'object' ? {
+    beam.storage(typeof storage === 'string' ? storage : 'local', typeof storage === 'object' ? {
 
-            type: storage.type,
-            id: storage.id,
-            key: storage.key,
-            name: storage.name
-        } : undefined);
-    return module.exports.database(typeof database === 'string' ? database : 'main',
-        typeof database === 'object' ? {
+        type: storage.type,
+        id: storage.id,
+        key: storage.key,
+        name: storage.name
+    } : undefined);
+    beam.database(typeof database === 'string' ? database : 'main', typeof database === 'object' ? {
 
-            type: database.dbType,
-            uri: database.dbURI,
-            name: database.dbName
-        } : undefined);
+        type: database.dbType,
+        uri: database.dbURI,
+        name: database.dbName
+    } : undefined);
+    return backend;
 };
 
 beam.SQLTimestamps = require('./src/database/plugins/SQLTimestamps.js');

@@ -17,16 +17,18 @@ var hasEncryptedConnection = function (req) {
     return Boolean(req.connection.encrypted || req.connection.pair);
 };
 
-var getPort = function (req) {
+var getPort = function (req, target) {
 
-    var res = req.headers.host ? req.headers.host.match(/:(\d+)/) : '';
-    return res ? res[1] : hasEncryptedConnection(req) ? '443' : '80';
+    var ports = target ? target.match(/:(\d+)/) : '';
+    if (ports) return ports[1];
+    ports = req.headers.host ? req.headers.host.match(/:(\d+)/) : '';
+    return ports ? ports[1] : hasEncryptedConnection(req) ? '443' : '80';
 };
 
 var setupOutgoing = function (req, options) {
 
     var outgoing = {};
-    outgoing.port = parseInt(getPort(req));
+    outgoing.port = parseInt(getPort(req, options.target));
     if (!outgoing.port) outgoing.port = (isSSL.test(options.target) ? 443 : 80);
     outgoing.method = req.method;
     outgoing.headers = Object.assign({}, req.headers || {});
@@ -110,21 +112,21 @@ var webAdapter = {
             delete req.headers['transfer-encoding'];
         }
     },
-    timeout: function timeout(req, _, _, options) {
+    timeout: function timeout(req, _, __, options) {
 
         if (!isNaN(parseInt(options.timeout))) {
 
             req.socket.setTimeout(options.timeout);
         }
     },
-    XHeaders: function (req, _, _, options) {
+    XHeaders: function (req, _, __, options) {
 
         if (!options.reverse) return;
         var encrypted = req.isSpdy || hasEncryptedConnection(req);
         var values = {
 
             for: req.connection.remoteAddress || req.socket.remoteAddress,
-            port: getPort(req),
+            port: getPort(req, options.target),
             proto: encrypted ? 'https' : 'http'
         };
         ['for', 'port', 'proto'].forEach(function (header) {
@@ -163,7 +165,7 @@ var webAdapter = {
 
                 var functions = Object.keys(responseAdaper).map(function (key) {
 
-                    return adapter[key];
+                    return responseAdaper[key];
                 });
                 for (var i = 0; i < functions.length; i++) {
 
@@ -198,13 +200,13 @@ var wsAdapter = {
             return true;
         }
     },
-    XHeaders: function (req, _, _, options) {
+    XHeaders: function (req, _, __, options) {
 
         if (!options.reverse) return;
         var values = {
 
             for: req.connection.remoteAddress || req.socket.remoteAddress,
-            port: getPort(req),
+            port: getPort(req, options.target),
             proto: hasEncryptedConnection(req) ? 'wss' : 'ws'
         };
         ['for', 'port', 'proto'].forEach(function (header) {

@@ -279,7 +279,7 @@ module.exports = function (key, options) {
         if (!len && typeof stat === 'object' && stat.size > 0) len = stat.size;
         if (!len && data_size) len = data_size;
         var offset = out.start >= 0 ? out.start : 0;
-        len = Math.max(0, len - offset);
+        if (len) len = Math.max(0, len - offset);
         if (out.end > 0) {
 
             var bytes = out.end - offset + 1;

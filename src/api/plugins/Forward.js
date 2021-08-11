@@ -158,7 +158,6 @@ var webAdapter = {
         };
         req.on('error', proxyError);
         proxyReq.on('error', proxyError);
-        req.pipe(proxyReq);
         proxyReq.on('response', function (proxyRes) {
 
             if (!res.headersSent) {
@@ -174,6 +173,7 @@ var webAdapter = {
             }
             if (!res.finished) proxyRes.pipe(res);
         });
+        req.pipe(proxyReq);
     }
 };
 
@@ -286,9 +286,40 @@ var createProxy = function (adapter, options) {
 
 module.exports = function (host, options) {
 
+    var hosts = [];
+    if (Array.isArray(host)) host.forEach(function (entry) {
+
+        if (!entry || typeof entry !== 'object') return;
+        if (typeof entry.host !== 'string' || entry.host.length === 0) return;
+        if (typeof entry.path !== 'string' || entry.path.length === 0) return;
+        entry.health = true;
+        hosts.push(entry);
+        setInterval(function () {
+
+            var http = nativeAgents.http;
+            var https = nativeAgents.https;
+            var health_url = new URL(entry.path, entry.host).href;
+            (isSSL.test(health_url) ? https : http).get(health_url).on('error', function () {
+
+                entry.health = false;
+            }).on('response', function (res) {
+
+                entry.health = res.statusCode == 200;
+            });
+        }, 5000);
+    });
     if (typeof options != 'object') options = {};
     return function (req, res, next, head) {
 
+        hosts.some(function (entry) {
+
+            if (entry.health) {
+
+                host = entry.host;
+                return true;
+            }
+            return false;
+        });
         if (typeof host !== 'string' || host.length === 0) return false;
         var path = typeof options.path === 'string' && options.path.length > 0 ?
             options.path : req.originalUrl || req.url;

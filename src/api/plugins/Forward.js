@@ -241,6 +241,9 @@ var wsAdapter = {
         };
         setupSocket(socket);
         if (head && head.length) socket.unshift(head);
+        var agents = options.followRedirects ? followRedirects : nativeAgents;
+        var http = agents.http;
+        var https = agents.https;
         var proxyReq =
             (isSSL.test(options.target) ? https : http).request(options.target, setupOutgoing(req, options));
         proxyReq.on('error', onOutgoingError);
@@ -266,6 +269,7 @@ var wsAdapter = {
             socket.write(createHttpHeader('HTTP/1.1 101 Switching Protocols', proxyRes.headers));
             proxySocket.pipe(socket).pipe(proxySocket);
         });
+        proxyReq.end();
     }
 };
 

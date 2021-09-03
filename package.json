@@ -17,7 +17,7 @@
         "http-gzip-maybe": "latest",
         "mime": "latest",
         "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
-        "mongoose": "^5.12.2",
+        "mongoose": "^6.0.4",
         "mongoose-cache": "quaNode/mongoose-cache",
         "mongoose-pagination": "quaNode/mongoose-pagination",
         "ms": "latest",

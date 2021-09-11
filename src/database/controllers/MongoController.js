@@ -195,10 +195,11 @@ var getBinaryOperator = function (operator, acceptArray) {
                 throw new Error('Invalid values in aggregate expression');
         }
         var operation = {};
-        operation[operator] =
-            acceptArray || passingArray ? (leftValue || []).concat(rightValue || []) :
-                leftValue !== undefined && rightValue !== undefined ? [leftValue, rightValue] :
-                    [leftValue || rightValue];
+        if (acceptArray || passingArray)
+            operation[operator] = (leftValue || []).concat(rightValue || []);
+        else if (leftValue !== undefined && rightValue !== undefined)
+            operation[operator] = [leftValue, rightValue];
+        else operation[operator] = [leftValue || rightValue];
         return operation;
     };
 };
@@ -576,15 +577,15 @@ var getExecuteQuery = function (session) {
 
 var getQueryUniqueArray = function (queryExpressions, features) {
 
-    var uniqueArray = [];
-    uniqueArray = [].concat(queryExpressions.map(function (queryExpression) {
+    var uniqueArray = [].concat(queryExpressions.map(function (queryExpression) {
 
         return queryExpression.fieldValue;
     }));
     if (typeof features.distinct === 'string' || Array.isArray(features.include) ||
         Array.isArray(features.exclude) || Array.isArray(features.sort) ||
         Array.isArray(features.populate) || features.cache || features.paginate)
-        uniqueArray = uniqueArray.concat(Object.keys(features).concat(Object.values(features)));
+        uniqueArray =
+            uniqueArray.concat(Object.keys(features).concat(Object.values(features)));
     return uniqueArray;
 };
 
@@ -918,7 +919,8 @@ var getExecuteAggregate = function (session) {
                     callback(paginate && typeof limit === 'number' ? {
 
                         modelObjects: result && result[0] && result[0].modelObjects,
-                        pageCount: result && result[0] && result[0].pagination[0] &&
+                        pageCount: result && result[0] && result[0].pagination &&
+                            result[0].pagination[0] &&
                             result[0].pagination[0].total / limit
                     } : result, error);
                 session.idle(time);
@@ -1349,20 +1351,26 @@ ModelController.defineEntity = function (name, attributes, plugins) {
                     if (typeof path === 'string' && path.length > 0)
                         path.split('.').reduce(function (wrapper, property, index, properties) {
 
-                            var isArray = Array.isArray(wrapper.attributes);
-                            if (isArray) wrapper.attributes = wrapper.attributes[0];
-                            if (typeof wrapper.attributes !== 'object') return wrapper;
-                            if (wrapper.attributes instanceof Date) return wrapper;
-                            var Type = wrapper.attributes[property];
-                            if (!Type || (typeof Type === 'object' &&
-                                Object.keys(Type).length === 0)) wrapper.markModified = false;
-                            return {
+                            var Type = wrapper.attributes;
+                            var isArray = Array.isArray(Type);
+                            if (isArray) Type = Type[0];
+                            if (typeof Type !== 'object') return wrapper;
+                            if (Type instanceof Date) return wrapper;
+                            var isIndex = Number.isInteger(Number(property));
+                            if (!isArray || !isIndex) Type = Type[property];
+                            var isTypeArray = Array.isArray(Type);
+                            var isTypeObject = typeof Type === 'object';
+                            if (!Type || (isTypeObject && Object.keys(Type).length === 0))
+                                wrapper.markModified = false;
+                            var getModelObjects = function (wrapper_modelObjects) {
 
-                                modelObjects: wrapper.modelObjects.reduce(function (modelObjects,
+                                return wrapper_modelObjects.reduce(function (modelObjects,
                                     modelObject) {
 
                                     if (typeof modelObject !== 'object') return modelObjects;
                                     if (modelObject instanceof Date) return modelObjects;
+                                    if (Array.isArray(modelObject) && !isIndex)
+                                        return modelObjects.concat(getModelObjects(modelObject));
                                     if (index === properties.length - 1) {
 
                                         if (typeof Type === 'function')
@@ -1374,14 +1382,16 @@ ModelController.defineEntity = function (name, attributes, plugins) {
                                             self.markModified(path);
                                         }
                                     } else if (!modelObject[property])
-                                        modelObject[property] = isArray ? [{}] : {};
-                                    if (isArray) {
-
-                                        if (Array.isArray(modelObject[property])) modelObjects =
-                                            modelObjects.concat(modelObject[property]);
-                                    } else modelObjects.push(modelObject[property]);
+                                        modelObject[property] = isTypeArray ? [{}] : {};
+                                    if (isArray)
+                                        return modelObjects.concat(modelObject[property]);
+                                    else modelObjects.push(modelObject[property]);
                                     return modelObjects;
-                                }, []),
+                                }, []);
+                            };
+                            return {
+
+                                modelObjects: getModelObjects(wrapper.modelObjects),
                                 attributes: Type || {},
                                 markModified: wrapper.markModified
                             };

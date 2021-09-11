@@ -312,6 +312,7 @@ module.exports = function (host, options) {
             });
         }, 5000);
     });
+    if (hosts.length > 0) host = hosts[0].host;
     if (typeof options != 'object') options = {};
     return function (req, res, next, head) {
 

@@ -5,6 +5,7 @@ var {
     Readable,
     pipeline
 } = require('stream');
+var pump = require('pump');
 var ms = require('ms');
 var etag = require('etag');
 var parseUrl = require('parseurl');
@@ -332,7 +333,7 @@ module.exports = function (key, options) {
             streams.push(gzip);
         }
         streams.push(res);
-        pipeline(streams, function (err) {
+        (pipeline || pump)(streams, function (err) {
 
             if (err) next(err);
         });

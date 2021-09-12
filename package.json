@@ -1,6 +1,6 @@
 {
     "name": "beamjs",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "Full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {

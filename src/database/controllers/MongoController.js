@@ -189,8 +189,8 @@ var getBinaryOperator = function (operator, acceptArray) {
             throw new Error('Invalid values in aggregate expression');
         if (acceptArray || passingArray) {
 
-            if (leftValue !== undefined && !Array.isArray(leftValue)) leftValue = [leftValue];
-            if (rightValue !== undefined && !Array.isArray(rightValue)) rightValue = [rightValue];
+            if (acceptArray && leftValue !== undefined) leftValue = [leftValue];
+            if (passingArray && rightValue !== undefined) rightValue = [rightValue];
             if ((leftValue || []).concat(rightValue || []).length === 0)
                 throw new Error('Invalid values in aggregate expression');
         }

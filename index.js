@@ -43,6 +43,11 @@ beam.database = function (key, options) {
         dbURI: options,
         dbName: arguments[2]
     };
+    if (typeof key === 'object') {
+
+        options = key;
+        key = undefined;
+    }
     var ModelModule;
     var type;
     if (typeof options === 'object') type = options.type;
@@ -89,6 +94,11 @@ beam.storage = function (key, options) {
         key: arguments[2],
         name: arguments[3]
     };
+    if (typeof key === 'object') {
+
+        options = key;
+        key = undefined;
+    }
     var ResourceModule;
     var type;
     if (typeof options === 'object') type = options.type;
@@ -139,5 +149,5 @@ beam.SQLTimestamps = require('./src/database/plugins/SQLTimestamps.js');
 beam.SQLHashedProperty = require('./src/database/plugins/SQLHashedProperty.js');
 beam.SQLSecret = require('./src/database/plugins/SQLSecret.js');
 beam.Respond = beam.responder = require('./src/api/plugins/Respond.js');
-beam.Delegate = beam.delegator = require('./src/api/plugins/Delegate.js');
+beam.Redirect = beam.Delegate = beam.delegator = require('./src/api/plugins/Redirect.js');
 beam.Forward = beam.Proxy = beam.forwarder = require('./src/api/plugins/Forward.js');

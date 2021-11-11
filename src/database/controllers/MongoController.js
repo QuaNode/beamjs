@@ -299,7 +299,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
 
         if (typeof variable !== 'string' || variable.length === 0)
             throw new Error('Invalid array variable name in aggregate expression');
-        return function (leftValue, rightValue) {
+        return this.OPERATOR('SOME', function (leftValue, rightValue) {
 
             return {
 
@@ -310,7 +310,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
                     cond: rightValue
                 }
             };
-        };
+        });
     },
     AND: getBinaryOperator('$and'),
     OR: getBinaryOperator('$or'),
@@ -363,11 +363,15 @@ var ComputationOperators = module.exports.ComputationOperators = {
     SUBSET: getBinaryOperator('$setIsSubset'),
     UNION: getBinaryOperator('$setUnion'),
     SUM: getUnaryOperator('$sum'),
+    SUMWITH: getBinaryOperator('$sum'),
     AVR: getUnaryOperator('$avg'),
+    AVRWITH: getBinaryOperator('$avg'),
     FIRST: getUnaryOperator('$first'),
     LAST: getUnaryOperator('$last'),
     MAX: getUnaryOperator('$max'),
+    MAXWITH: getBinaryOperator('$max'),
     MIN: getUnaryOperator('$min'),
+    MINWITH: getBinaryOperator('$min'),
     DEV: getUnaryOperator('$stdDevPop'),
     DEVSAMP: getUnaryOperator('$stdDevSamp'),
     IF: function (leftValue, rightValue) {
@@ -415,7 +419,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
 
         if ((typeof type != 'number' || type < 1 || type > 19) && (typeof type !== 'string' ||
             type.length === 0)) throw new Error('Invalid conversion type in aggregate expression');
-        return function (value) {
+        return this.OPERATOR('CONVERT', function (value) {
 
             return {
 
@@ -426,7 +430,17 @@ var ComputationOperators = module.exports.ComputationOperators = {
                     onError: null
                 }
             };
-        };
+        });
+    },
+    OPERATOR: function (name, operator) {
+
+        var key = name + new Date().getTime();
+        setTimeout(function () {
+
+            delete this[key];
+            this[key] = undefined;
+        }, 60000);
+        return this[key] = operator;
     }
 };
 

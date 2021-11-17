@@ -98,10 +98,10 @@ var isPreconditionFailure = function (req, res) {
     var match = req.headers['if-match'];
     if (match) {
 
-        var etag = res.getHeader('ETag');
-        return !etag || (match !== '*' && parseTokenList(match).every(function (match) {
+        var eTag = res.getHeader('ETag');
+        return !eTag || (match !== '*' && parseTokenList(match).every(function (match) {
 
-            return match !== etag && match !== 'W/' + etag && 'W/' + match !== etag;
+            return match !== eTag && match !== 'W/' + eTag && 'W/' + match !== eTag;
         }));
     }
     var unmodifiedSince = parseHttpDate(req.headers['if-unmodified-since']);
@@ -123,11 +123,10 @@ var isFresh = function (req, res) {
 
     return fresh(req.headers, {
 
-        'etag': res.getHeader('ETag'),
+        etag: res.getHeader('ETag'),
         'last-modified': res.getHeader('Last-Modified')
     });
 };
-
 
 var notModified = function (res) {
 
@@ -135,7 +134,6 @@ var notModified = function (res) {
     res.statusCode = 304;
     res.end();
 };
-
 
 var isRangeFresh = function (req, res) {
 
@@ -146,8 +144,8 @@ var isRangeFresh = function (req, res) {
     }
     if (ifRange.indexOf('"') !== -1) {
 
-        var etag = res.getHeader('ETag');
-        return Boolean(etag && ifRange.indexOf(etag) !== -1);
+        var eTag = res.getHeader('ETag');
+        return Boolean(eTag && ifRange.indexOf(eTag) !== -1);
     }
     var lastModified = res.getHeader('Last-Modified');
     return parseHttpDate(lastModified) <= parseHttpDate(ifRange);
@@ -218,7 +216,7 @@ module.exports = function (key, options) {
             maxage = typeof maxage === 'string' ? ms(maxage) : Number(maxage);
             maxage = !isNaN(maxage) ? Math.min(Math.max(0, maxage), MAX_MAXAGE) : 0;
             var cacheControl = 'public, max-age=' + Math.floor(maxage / 1000);
-            var immutable = options.immutable !== undefined ? Boolean(opts.immutable) : false;
+            var immutable = options.immutable !== undefined ? Boolean(options.immutable) : false;
             if (immutable) cacheControl += ', immutable';
             res.setHeader('Cache-Control', cacheControl);
         }
@@ -267,13 +265,13 @@ module.exports = function (key, options) {
                 }
                 if (isCachable(res) && isFresh(req, res)) {
 
-                    notModified();
+                    notModified(res);
                     return;
                 }
             }
         } else if (out.modified === false) {
 
-            notModified();
+            notModified(res);
             return;
         }
         var len = out.size || out.length;

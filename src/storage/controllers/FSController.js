@@ -5,6 +5,7 @@
 var fs = require('fs');
 var Writable = require('stream').Writable;
 var resolve = require('path').resolve;
+var parseRange = require('range-parser');
 
 var MAX_READ_SIZE = 5 * 1024 * 1024;
 var READ_SIZE = 64 * 1024;
@@ -77,6 +78,17 @@ var ResourceController = function () {
 
             callback(null, new Error('Missing read permission for the resource'));
             return function () { };
+        }
+        if (typeof resource.ranges === 'string' && resource.ranges.length > 0) {
+
+            var ranges = parseRange(stats.size, resource.ranges, {
+
+                combine: true
+            });
+            if (Array.isArray(ranges) && ranges.length === 1 && ranges.type === 'bytes') {
+
+                Object.assign(resource, ranges[0]);
+            }
         }
         if (typeof resource.start === 'number' && (!(resource.start >= 0) ||
             !(resource.start < resource.end || resource.start < stats.size))) {

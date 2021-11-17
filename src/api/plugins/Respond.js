@@ -204,7 +204,7 @@ module.exports = function (key, options) {
             error = new Error('Can\'t set headers after they are sent');
             error.code = 500;
             next(error);
-            return;
+            return true;
         }
         if (options.acceptRanges && !res.getHeader('Accept-Ranges')) {
 
@@ -261,18 +261,18 @@ module.exports = function (key, options) {
                     error = new Error();
                     error.code = 412;
                     next(error);
-                    return;
+                    return true;
                 }
                 if (isCachable(res) && isFresh(req, res)) {
 
                     notModified(res);
-                    return;
+                    return true;
                 }
             }
         } else if (out.modified === false) {
 
             notModified(res);
-            return;
+            return true;
         }
         var len = out.size || out.length;
         if (!len && typeof stat === 'object' && stat.size > 0) len = stat.size;
@@ -307,7 +307,7 @@ module.exports = function (key, options) {
                     error = new Error();
                     error.code = 416;
                     next(error);
-                    return;
+                    return true;
                 }
                 if (ranges !== -2 && ranges.length === 1) {
 
@@ -318,11 +318,11 @@ module.exports = function (key, options) {
                 }
             }
         }
-        if (len) res.setHeader('Content-Length', len);
+        if (len && path && path.endsWith('zip')) res.setHeader('Content-Length', len);
         if (req.method === 'HEAD') {
 
             res.end();
-            return;
+            return true;
         }
         var streams = [stream];
         if (!path || !path.endsWith('zip')) {

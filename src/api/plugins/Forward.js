@@ -2,6 +2,7 @@
 'use strict';
 
 var { URL } = require('url');
+var debug = require('debug')('beam:Forward');
 var httpNative = require('http');
 var httpsNative = require('https');
 var followRedirects = require('follow-redirects');
@@ -326,17 +327,30 @@ module.exports = function (host, options) {
             return false;
         });
         if (typeof host !== 'string' || host.length === 0) return false;
-        var path = typeof options.path === 'string' && options.path.length > 0 ?
-            options.path : req.originalUrl || req.url;
+        var target;
+        var path = '';
+        if (typeof options.target === 'string' && options.target.length > 0) {
+
+            if (options.target.startsWith('/')) path = options.target;
+            else host = options.target;
+        } else path = req.originalUrl || req.url;
         try {
 
-            options.target = new URL(path, host).href;
-        } catch {
+            target = typeof options.target === 'function' ? options.target(path, host) :
+                new URL(path, host).href;
+            if (typeof target !== 'string' || target.length === 0)
+                throw new Error('Invalid request target');
+        } catch (err) {
 
+            debug(err);
             return false;
         }
-        var webProxy = createProxy(webAdapter, options);
-        var wsProxy = createProxy(wsAdapter, options);
+        var öptions = Object.assign({}, options, {
+
+            target: target
+        });
+        var webProxy = createProxy(webAdapter, öptions);
+        var wsProxy = createProxy(wsAdapter, öptions);
         if (head instanceof Buffer) wsProxy(req, res, next, head);
         else webProxy(req, res, next);
         return true;

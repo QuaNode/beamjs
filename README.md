@@ -4,8 +4,8 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 
 # Introduction
 
-- BeamJS is built above Backend-JS to provide data controllers like MongoDB data controller SequelizeJS data controller. Also it provides resources/files controllers that works on local file system or on cloud storage.
-- These data controllers are wrappers of ODM/ORM patterns used in MongooseJS and SequelizeJS. The objective of these wrappers is to define a unified query APIs to work across different database engines even across NO-SQL and SQL engines like MongoDB and MySQL for example.
+- BeamJS is built above Backend-JS to provide data controllers for SQL and No-SQL databases. It also provides file system controllers that works on local file system or on cloud storage.
+- These data controllers are abstract adapters above ODM/ORM patterns of MongooseJS and SequelizeJS. The objective of these adapters is to define a unified query APIs to work across different database engines even across NO-SQL and SQL.
 - BeamJS is an abbreviation for the following technology stack:
   - Backend-JS - A NodeJS module and library built above ExpressJS [check here](https://github.com/quaNode/Backend-JS).
   - ExpressJS - A minimal and flexible Node.js web application framework [check here](https://github.com/expressjs/expressjs.com).

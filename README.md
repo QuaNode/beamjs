@@ -11,7 +11,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
   - ExpressJS - A minimal and flexible Node.js web application framework [check here](https://github.com/expressjs/expressjs.com).
   - Angular - A single page application front-end framework [check here](https://github.com/angular/angular).
   - MongoDB - A NO-SQL database engine [check here](https://github.com/mongodb/mongo).
-- BeamJS can be configured to work with different technology stacks regard database engines and front-end frameworks.
+- BeamJS can be configured to work within different technology stacks of database engines and front-end frameworks.
 
 ## Why BeamJS and Backend-JS?
 

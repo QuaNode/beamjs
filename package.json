@@ -1,7 +1,7 @@
 {
     "name": "beamjs",
-    "version": "1.1.2",
-    "description": "Full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
+    "version": "1.1.3",
+    "description": "Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
         "test": "test"
@@ -16,19 +16,19 @@
         "fresh": "latest",
         "http-gzip-maybe": "latest",
         "mime": "latest",
-        "mongodb-autoincrement": "quaNode/mongodb-autoincrement",
+        "mongodb-autoincrement": "github:quaNode/mongodb-autoincrement",
         "mongoose": "^5.12.2",
-        "mongoose-cache": "quaNode/mongoose-cache",
-        "mongoose-pagination": "quaNode/mongoose-pagination",
+        "mongoose-cache": "github:quaNode/mongoose-cache",
+        "mongoose-pagination": "github:quaNode/mongoose-pagination",
         "ms": "^2.1.3",
         "mysql2": "latest",
         "pg": "latest",
+        "pump": "latest",
         "range-parser": "latest",
         "sequelize": "5.15.1",
-        "sequelize-transparent-cache": "quaNode/sequelize-transparent-cache",
-        "sequelize-transparent-cache-variable": "quaNode/sequelize-transparent-cache-variable",
-        "sequelize-values": "latest",
-        "pump": "latest"
+        "sequelize-transparent-cache": "github:quaNode/sequelize-transparent-cache",
+        "sequelize-transparent-cache-variable": "github:quaNode/sequelize-transparent-cache-variable",
+        "sequelize-values": "latest"
     },
     "repository": {
         "type": "git",

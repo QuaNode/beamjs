@@ -51,15 +51,30 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     NLIKE: Op.notLike,
     BETWEEN: Op.between,
     NBETWEEN: Op.notBetween,
-    COLUMN: Sequelize.col,
-    FUNCTION: function (option) {
+    FROM: 'from',
+    THROUGH: function (entity) {
 
-        return Sequelize.fn(option.get, Sequelize.col(option.of));
-    },
-    THROUGH: 'through'
+        if (!(entity instanceof Entity)) throw new Error('Invalid through entity');
+        return entity.getObjectConstructor();
+    }
 };
 
-var ComputationOperators = module.exports.ComputationOperators = {};
+var ComputationOperators = module.exports.ComputationOperators = {
+
+    COLUMN: Sequelize.col,
+    CAST: function (value, type) {
+
+        return Sequelize.cast(value, DataType(type) ? DataType(type).toString() : type);
+    },
+    FUNCTION: function (option) {
+
+        return Sequelize.fn(...[option.get].concat(Array.isArray(option.of) ?
+            option.of.map(function (öf) {
+
+                return öf;
+            }) : option.of));
+    }
+};
 
 var sequelize = null;
 var session = [];
@@ -119,7 +134,8 @@ var adapter = {
 
                 var filter = {};
                 var subFilter = {};
-                filter[queryExpressions[0].fieldName] = queryExpressions[0].fieldValue;
+                if (typeof queryExpressions[0].fieldName !== 'object')
+                    filter[queryExpressions[0].fieldName] = queryExpressions[0].fieldValue;
                 if (typeof queryExpressions[0].comparisonOperator === 'symbol')
                     subFilter[queryExpressions[0].comparisonOperator] =
                         queryExpressions[0].fieldValue;
@@ -128,6 +144,8 @@ var adapter = {
                         queryExpressions[0].comparisonOperator(queryExpressions[0].fieldValue);
                 if (typeof queryExpressions[0].comparisonOperatorOptions === 'function')
                     queryExpressions[0].comparisonOperatorOptions(subFilter);
+                if (typeof queryExpressions[0].fieldName === 'object')
+                    return Sequelize.where(queryExpressions[0].fieldName, subFilter);
                 if (queryExpressions[0].comparisonOperator !== ComparisonOperators.EQUAL)
                     filter[queryExpressions[0].fieldName] = subFilter;
                 return filter;
@@ -158,20 +176,23 @@ var adapter = {
 
         if (Array.isArray(queryExpressions)) {
 
+            var self = this;
             var indexes = [];
             var join = queryExpressions.reduce(function (join, queryExpression, index) {
 
                 if (queryExpression.fieldValue instanceof Entity) {
 
-                    join.push(this.constructQuery(queryExpression.fieldValue.getObjectQuery(),
+                    join.push(self.constructQuery(queryExpression.fieldValue.getObjectQuery(),
                         queryExpression.fieldValue.getObjectFeatures(),
                         queryExpression.fieldValue.getObjectConstructor(),
-                        queryExpression.fieldName));
+                        queryExpression.fieldName,
+                        queryExpression.comparisonOperator,
+                        queryExpression.logicalOperator));
                     indexes.push(index);
                 }
                 return join;
             }, []);
-            for (var i = 0; i < indexes.length; i++) {
+            for (var i = indexes.length - 1; i > -1; i--) {
 
                 queryExpressions.splice(indexes[i], 1);
             }
@@ -179,7 +200,7 @@ var adapter = {
         }
         return null;
     },
-    constructQuery: function (queryExpressions, features, ObjectConstructor, field,
+    constructQuery: function (queryExpressions, features, ObjectConstructor, fieldName,
         comparisonOperator, logicalOperator) {
 
         if (Array.isArray(queryExpressions) &&
@@ -193,50 +214,71 @@ var adapter = {
         }
         var query = {};
         if (ObjectConstructor && ObjectConstructor.prototype instanceof Sequelize.Model &&
-            typeof relation === 'string' && field.length > 0) {
+            typeof fieldName === 'string' && fieldName.length > 0) {
 
             query.model = ObjectConstructor;
-            query.as = field;
+            query.as = fieldName;
         }
-        if (comparisonOperator === ComparisonOperators.THROUGH) query.through = {};
+        if (comparisonOperator instanceof Sequelize.Model) query.through = {
+
+            model: comparisonOperator
+        };
         if (features.required === false) query.required = false;
-        if (features.marked !== true) query.force = true;
+        if (features.marked !== true) query.force = true; // Note: undocumented, related to paranoid
         query.include = this.constructJoin(queryExpressions);
         var where = this.getQuery(queryExpressions, 0);
-        if (query.through) query.through.where = where;
-        else query.where = where;
+        if (where) {
+
+            if (query.through) query.through.where = where;
+            else query.where = where;
+        }
         if (Array.isArray(features.having) && features.having.every(function (have, index) {
 
             return !(have instanceof QueryExpression) || (index > 0 && !have.logicalOperator);
         })) query.having = this.getQuery(features.having, 0);
-        var attributes = null;
-        if (Array.isArray(features.include)) attributes = features.include.map(function (option) {
-
-            return typeof option === 'string' ? option : option.of ? [Sequelize.fn(option.get,
-                Sequelize.col(option.of)), option.as] : [Sequelize.col(option.get), option.as];
-        });
+        var attributes;
         if (Array.isArray(features.including)) attributes = {
+
             include: features.including.map(function (option) {
 
-                return option.of ? [Sequelize.fn(option.get, Sequelize.col(option.of)),
-                option.as] : [Sequelize.col(option.get), option.as];
+                return option.of ? [ComputationOperators.FUNCTION(option), option.as] :
+                    [Sequelize.col(option.get), option.as];
             })
         };
+        if (Array.isArray(features.include)) attributes = features.include.map(function (option) {
+
+            if (typeof option === 'string') return option;
+            return option.of ? [ComputationOperators.FUNCTION(option), option.as] :
+                [Sequelize.col(option.get), option.as];
+        });
         if (Array.isArray(features.exclude)) attributes = {
 
             exclude: features.exclude
         };
-        if (query.through) query.through.attributes = attributes;
-        else query.attributes = attributes;
-        if (Array.isArray(features.sort)) query.sort = features.sort.map(function (option) {
+        if (attributes) {
+
+            if (query.through) query.through.attributes = attributes;
+            else query.attributes = attributes;
+        }
+        if (Array.isArray(features.sort)) query.order = features.sort.map(function (option) {
 
             if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
             var order = Array.isArray(option.in) ? option.in : [];
-            if (option.of) order.push(Sequelize.fn(option.by, Sequelize.col(option.of)));
-            else if (option.order === 'desc') order.push(option.by);
-            else order.push(Sequelize.col(option.by));
-            if (option.order === 'desc') order.push('DESC');
+            if (option.of) order.push(ComputationOperators.FUNCTION({
+
+                get: option.by,
+                of: option.of
+            })); else if (option.order !== 'asc') {
+
+                order.push(option.by);
+                if (typeof option.order === 'string') order.push(option.order.toUpperCase());
+            } else order.push(Sequelize.col(option.by));
             return order.length === 1 ? order[0] : order;
+        });
+        if (Array.isArray(features.group)) query.group = features.group.map(function (field) {
+
+            if (typeof field !== 'string') throw new Error('Invalid group by field name');
+            return field;
         });
         return query;
     }
@@ -257,14 +299,29 @@ var getExecuteQuery = function (session) {
             ObjectConstructor)[func](query).then(function (result) {
 
                 var modelObjects = result;
-                var pageCount = null;
+                var countObjects;
+                var pageCount;
                 if (features.paginate && typeof features.limit === 'number') {
 
                     modelObjects = result.rows;
-                    pageCount = result.count / features.limit;
+                    pageCount = result.count;
+                    if (Array.isArray(pageCount)) {
+
+                        countObjects = pageCount;
+                        pageCount = pageCount.reduce(function (count, group) {
+
+                            return count + parseInt(group.count);
+                        }, 0);
+                    }
+                    pageCount /= features.limit;
                 }
                 if (features.readonly) modelObjects = Sequelize.getValues(modelObjects);
-                callback(modelObjects, null);
+                callback(features.paginate && typeof features.limit === 'number' ? {
+
+                    modelObjects: modelObjects,
+                    countObjects: countObjects,
+                    pageCount: pageCount
+                } : modelObjects, null);
             }).catch(function (error) {
 
                 callback(null, error);
@@ -279,9 +336,19 @@ var openConnection = function (defaultURI, callback, options) {
 
         if (message) {
 
-            if (message.indexOf('error') > -1 ||
-                (info && JSON.stringify(info).toLowerCase().indexOf('error') > -1))
-                callback(new Error(message), duration);
+            if (message.indexOf('error') > -1 || (info && (JSON.stringify(info, function () {
+
+                const seen = new WeakSet();
+                return function (key, value) {
+
+                    if (typeof value === "object" && value !== null) {
+
+                        if (seen.has(value)) return;
+                        seen.add(value);
+                    }
+                    return value;
+                };
+            }) || '').toLowerCase().indexOf('error') > -1)) callback(new Error(message), duration);
             else debug(message);
         }
     };
@@ -344,8 +411,7 @@ var ModelController = function (defaultURI, cb, options) {
                     features)).then(function (modelObjects) {
 
                         if (typeof callback === 'function') callback(modelObjects, null);
-                    }).
-                    catch(function (error) {
+                    }).catch(function (error) {
 
                         if (typeof callback === 'function') callback(null, error);
                     });
@@ -458,14 +524,10 @@ var DataType = function (datatype) {
 
     switch (datatype) {
 
-        case String:
-            return Sequelize.DataTypes.TEXT;
-        case Number:
-            return Sequelize.DataTypes.DOUBLE;
-        case Boolean:
-            return Sequelize.DataTypes.BOOLEAN;
-        case Date:
-            return Sequelize.DataTypes.DATE;
+        case String: return Sequelize.DataTypes.TEXT;
+        case Number: return Sequelize.DataTypes.DOUBLE;
+        case Boolean: return Sequelize.DataTypes.BOOLEAN;
+        case Date: return Sequelize.DataTypes.DATE;
     }
 };
 
@@ -536,13 +598,13 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
 
         Object.keys(attributes).forEach(function (property) {
 
-            var entity = Array.isArray(attributes[property]) ? attributes[property][0] :
-                attributes[property];
-            if (typeof entity === 'function' && !(entity.prototype instanceof Entity))
-                entity = entity(name);
+            var toMany = Array.isArray(attributes[property]);
+            var entity = toMany ? attributes[property][0] : attributes[property];
+            var lazy = typeof entity === 'function' && !(entity.prototype instanceof Entity);
+            if (lazy) entity = entity(name);
             if (entity && entity.prototype instanceof Entity) {
 
-                var func = Array.isArray(attributes[property]) ? 'hasMany' : 'belongsTo';
+                var func = toMany ? 'hasMany' : lazy ? 'belongsTo' : 'hasOne';
                 var options = {
 
                     as: property
@@ -554,8 +616,13 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
                 Object.defineProperty(Model.prototype, property, {
 
                     enumerable: true,
+                    set: function (value) {
+
+                        this['_' + property] = value;
+                    },
                     get: function () {
 
+                        if (this['_' + property]) return this['_' + property];
                         var self = this;
                         var relation = {
 
@@ -564,7 +631,7 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
                             set: getManipulator.apply(self, [property, 'set',
                                 entity.prototype.getObjectConstructor()])
                         };
-                        if (Array.isArray(attributes[property])) {
+                        if (toMany) {
 
                             relation.add = getManipulator.apply(self, [property, 'add',
                                 entity.prototype.getObjectConstructor()]);

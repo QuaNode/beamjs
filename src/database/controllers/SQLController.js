@@ -94,30 +94,34 @@ var getManipulator = function (property, prefix, Model) {
     var self = this;
     var method = property.slice(0, 1).toUpperCase() + (property.length > 1 ?
         property.slice(1, property.length).toLowerCase() : '');
+    method = prefix + method;
     var manipulator = function (value) {
 
         return function (callback) {
 
             if (value && !(value instanceof Sequelize.Model)) {
 
-                Model.create(value).then(function (model) {
+                return Model.create(value).then(function (model) {
 
                     if (Array.isArray(model)) session = session.concat(model);
                     else session.push(model);
-                    manipulator(model)(callback);
+                    return manipulator(model)(callback);
                 }).catch(function (error) {
 
                     callback(null, error);
                 });
-                return;
             }
-            if (self[prefix + method]) self[prefix + method](value).then(function (values) {
+            if (self[method]) return self[method](value).then(function (values) {
 
-                callback(value || values);
+                return callback(value || values);
             }).catch(function (error) {
 
                 callback(null, error);
-            }); else callback(null, new Error('There is no ' + prefix + ' ' + property));
+            }); else {
+
+                var error = new Error('There is no ' + prefix + ' ' + property);
+                return callback(null, error);
+            }
         };
     };
     return manipulator;
@@ -295,7 +299,7 @@ var getExecuteQuery = function (session) {
             query.limit = features.limit;
             query.offset = (features.page - 1) * features.limit;
         }
-        (features.cache ? withCache(ObjectConstructor).cache() :
+        return (features.cache ? withCache(ObjectConstructor).cache() :
             ObjectConstructor)[func](query).then(function (result) {
 
                 var modelObjects = result;
@@ -316,7 +320,7 @@ var getExecuteQuery = function (session) {
                     pageCount /= features.limit;
                 }
                 if (features.readonly) modelObjects = Sequelize.getValues(modelObjects);
-                callback(features.paginate && typeof features.limit === 'number' ? {
+                return callback(features.paginate && typeof features.limit === 'number' ? {
 
                     modelObjects: modelObjects,
                     countObjects: countObjects,
@@ -410,7 +414,7 @@ var ModelController = function (defaultURI, cb, options) {
                 entity.getObjectConstructor().destroy(adapter.constructQuery(queryExpressions,
                     features)).then(function (modelObjects) {
 
-                        if (typeof callback === 'function') callback(modelObjects, null);
+                        if (typeof callback === 'function') return callback(modelObjects, null);
                     }).catch(function (error) {
 
                         if (typeof callback === 'function') callback(null, error);
@@ -459,7 +463,7 @@ var ModelController = function (defaultURI, cb, options) {
 
             if (error) {
 
-                if (typeof callback === 'function') callback(null, error);
+                if (typeof callback === 'function') return callback(null, error);
             } else {
 
                 var queryExpressions = (objWrapper.getObjectQuery() || [])
@@ -471,8 +475,8 @@ var ModelController = function (defaultURI, cb, options) {
                 if (aggregateExpressions.length > 0 || (typeof features.aggregate === 'object' &&
                     Object(features.aggregate).length > 0))
                     throw new Error('This feature is not implemented yet');
-                else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(),
-                    features, callback);
+                else return getExecuteQuery(session)(queryExpressions,
+                    entity.getObjectConstructor(), features, callback);
             }
         }, session.filter(function (modelObject) {
 
@@ -512,7 +516,7 @@ var ModelController = function (defaultURI, cb, options) {
                         if (typeof callback === 'function') callback(error, currentSession);
                     });
                 else if (workingSession.length > index + 1) save(index + 1);
-                else if (typeof callback === 'function') callback(null, currentSession);
+                else if (typeof callback === 'function') return callback(null, currentSession);
             }, 0);
         };
         save(0);
@@ -562,16 +566,16 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
     Object.keys(attributes).forEach(function (property) {
 
         var constraint = constraints && constraints[property] &&
-            typeof constraints[property] === 'object' ? constraints[property] : undefined;
-        if (attributes[property] === String && constraint && constraint.unique)
-            attributes[property] = Object.assign({
+            typeof constraints[property] === 'object' ? constraints[property] : {};
+        if (attributes[property] === String && constraint.unique) attributes[property] =
+            Object.assign({
 
                 type: Sequelize.DataTypes.STRING(125)
-            }, constraint || {});
+            }, constraint);
         else if (DataType(attributes[property])) attributes[property] = Object.assign({
 
             type: DataType(attributes[property])
-        }, constraint || {});
+        }, constraint);
     });
     attributes[constraints.id ? 'id' : '_id'] = Object.assign({
 
@@ -610,9 +614,10 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
                     as: property
                 };
                 var constraint = constraints && constraints[property] &&
-                    typeof constraints[property] === 'object' ? constraints[property] : undefined;
-                Model[func](entity.prototype.getObjectConstructor(), Object.assign(options,
-                    constraint || {}));
+                    typeof constraints[property] === 'object' ? constraints[property] : {};
+                if (toMany && constraint.through) func = 'belongsToMany';
+                var otherModel = entity.prototype.getObjectConstructor();
+                Model[func](otherModel, Object.assign(options, constraint));
                 Object.defineProperty(Model.prototype, property, {
 
                     enumerable: true,
@@ -626,17 +631,15 @@ ModelController.defineEntity = function (name, attributes, plugins, constraints)
                         var self = this;
                         var relation = {
 
-                            get: getManipulator.apply(self, [property, 'get',
-                                entity.prototype.getObjectConstructor()]),
-                            set: getManipulator.apply(self, [property, 'set',
-                                entity.prototype.getObjectConstructor()])
+                            get: getManipulator.apply(self, [property, 'get', otherModel]),
+                            set: getManipulator.apply(self, [property, 'set', otherModel])
                         };
                         if (toMany) {
 
-                            relation.add = getManipulator.apply(self, [property, 'add',
-                                entity.prototype.getObjectConstructor()]);
-                            relation.remove = getManipulator.apply(self, [property, 'remove',
-                                entity.prototype.getObjectConstructor()]);
+                            relation.add =
+                                getManipulator.apply(self, [property, 'add', otherModel]);
+                            relation.remove =
+                                getManipulator.apply(self, [property, 'remove', otherModel]);
                         }
                         return relation;
                     }

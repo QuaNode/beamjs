@@ -12,7 +12,7 @@
         "debug": "latest",
         "define-js": "latest",
         "etag": "latest",
-        "follow-redirects": "latest",
+        "follow-redirects": "1.14.8",
         "fresh": "latest",
         "http-gzip-maybe": "latest",
         "mime": "latest",

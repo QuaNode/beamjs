@@ -958,22 +958,24 @@ var getExecuteAggregate = function (session) {
     };
 };
 
-var openConnection = function (defaultURI, callback) {
+var openConnection = function (defaultURI, callback, closeCallback) {
 
     var connect = function () {
 
         var options = {
 
+            useUnifiedTopology: true,
             useNewUrlParser: true,
             keepAlive: true,
-            connectTimeoutMS: 30000,
-            reconnectTries: Number.MAX_VALUE,
+            heartbeatFrequencyMS: 5000,
             poolSize: 25
         };
         try {
 
+            var connection = mongoose.connection;
             mongoose.connect(defaultURI, options, function (error, response) {
 
+                if (typeof closeCallback == 'function') closeCallback(connection);
                 if (typeof callback === 'function') callback(error, response);
             });
         } catch (error) {
@@ -981,46 +983,38 @@ var openConnection = function (defaultURI, callback) {
             if (typeof callback === 'function') callback(error);
         }
     };
-    switch (mongoose.connection.readyState) {
+    var connecting;
+    if (mongoose.connections.every(function (connection) {
 
-        case 0:
-            connect();
-            break;
-        case 1:
-            log.error({
+        return connection.readyState === 0;
+    })) connect(); else if (mongoose.connections.some(function (connection) {
 
-                database: 'mongodb',
-                err: {
+        return connection.readyState === 1;
+    })) {
 
-                    message: 'DB needs disconnecting due to a load',
-                    name: 'ReadyState',
-                    code: 1
-                }
-            });
-            if (typeof callback === 'function') callback();
-            break;
-        case 2:
-        case 3:
-            log.error({
+        log.error({
 
-                database: 'mongodb',
-                err: {
+            database: 'mongodb',
+            err: {
 
-                    message: 'DB waits connecting',
-                    name: 'ReadyState',
-                    code: mongoose.connection.readyState
-                }
-            });
-            if (typeof callback === 'function') mongoose.connection.once('connected', callback)
-            break;
-        default:
-            if (typeof callback === 'function') callback(new Error('Invalid DB connection state'));
-    }
+                message: 'DB needs disconnecting due to latency',
+                name: 'ReadyState',
+                code: 1
+            }
+        });
+        connect();
+    } else if (connecting = mongoose.connections.find(function (connection) {
+
+        return connection.readyState === 2;
+    })) connecting.once('connected', callback); else mongoose.disconnect(connect);
 };
 
 var checkConnection = function (defaultURI, callback) {
 
-    if (mongoose.connection.readyState !== 1) {
+    if (!mongoose.connections.some(function (connection) {
+
+        return connection.readyState === 1;
+    })) {
 
         openConnection(defaultURI, function (error, response) {
 
@@ -1043,7 +1037,8 @@ var ModelController = function (defaultURI, cb) {
             var self = init.apply(this, arguments).self();
             var busy = 0;
             var reconnect = false;
-            var MAX_LATENCY = 30000;
+            var MAX_LATENCY = 10000;
+            var connections = [];
             self.busy = function () {
 
                 busy++;
@@ -1062,7 +1057,19 @@ var ModelController = function (defaultURI, cb) {
                     if (busy === 0) {
 
                         reconnect = false;
-                        openConnection(defaultURI, next);
+                        connections.forEach(function (connection) {
+
+                            connection.close();
+                        });
+                        connections = [];
+                        openConnection(defaultURI, next, function (connection) {
+
+                            if (connection) {
+
+                                if (busy === 0) connection.close();
+                                else connections.push(connection);
+                            }
+                        });
                         return new Error('Reconnecting');
                     } else reconnect = true;
                 }

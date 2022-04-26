@@ -1,7 +1,7 @@
 /*jslint node: true */
 'use strict';
 
-var querystring = require('querystring');
+var { URLSearchParams } = require('url');
 
 module.exports = function (key) {
 
@@ -12,11 +12,14 @@ module.exports = function (key) {
         var url = out[key];
         out[key] = undefined;
         delete out[key];
-        var query = querystring.stringify(out);
-        var delimiter = '&';
-        if (url.indexOf('?') === -1) url += '?';
-        if (url.endsWith('?')) delimiter = '';
-        if (query) url += delimiter + query;
+        var query = new URLSearchParams(out).toString();
+        if (query) {
+
+            var delimiter = '&';
+            if (url.indexOf('?') === -1) url += '?';
+            if (url.endsWith('?')) delimiter = '';
+            url += delimiter + query;
+        }
         res.redirect(url);
         return true;
     };

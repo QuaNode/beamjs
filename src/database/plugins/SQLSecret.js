@@ -3,30 +3,48 @@
 
 var crypto = require('crypto');
 
-module.exports = function (name, hooks, sequelize) {
+module.exports = function (_, hooks, sequelize) {
 
     var createSecret = function (size) {
 
-        var hex = crypto.randomBytes(size).toString('hex');
+        var hex = crypto.randomBytes(...[
+            size
+        ]).toString('hex');
         return hex.substring(0, size);
     };
-    hooks.on('beforeDefine', function (attributes, options) {
+    hooks.on('beforeDefine', function () {
 
+        var [attributes] = arguments;
+        var {
+            STRING
+        } = sequelize.Sequelize.DataTypes;
         attributes.secret = {
 
-            type: sequelize.Sequelize.DataTypes.STRING,
+            type: STRING,
             defaultValue: createSecret(32)
         };
     });
-    hooks.on('afterDefine', function (Model) {
+    hooks.on('afterDefine', function () {
 
-        Model.prototype.generateNewSecret = function (cb) {
+        var [Model] = arguments;
+        var { prototype } = Model;
+        prototype.generateNewSecret = function () {
 
-            this.setDataValue('secret', createSecret(32));
-            return this.save().then(function (model) {
+            var [cb] = arguments;
+            this.setDataValue(...[
+                'secret',
+                createSecret(32)
+            ]);
+            return this.save().then(...[
+                function (model) {
 
-                cb(model.getDataValue('secret'));
-            }).catch(function (error) {
+                    cb(...[
+                        model.getDataValue(...[
+                            'secret'
+                        ])
+                    ]);
+                }
+            ]).catch(function (error) {
 
                 cb(null, error);
             });

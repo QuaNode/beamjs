@@ -9,9 +9,11 @@ var debug = require('debug')('beam:MongoController');
 var bunyan = require('bunyan');
 var define = require('define-js');
 var backend = require('backend-js');
-var Entity = backend.ModelEntity;
-var QueryExpression = backend.QueryExpression;
-var AggregateExpression = backend.AggregateExpression;
+var {
+    ModelEntity: Entity,
+    QueryExpression,
+    AggregateExpression
+} = backend;
 var mongoose = require('mongoose');
 var autoIncrement = require('mongodb-autoincrement');
 
@@ -54,12 +56,18 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     EQUAL: '=',
     EQUALIGNORECASE: function (value, options, expression) {
 
+        var regex;
+        if (value instanceof RegExp) regex = value;
+        else regex = new RegExp('^' + value + '$');
         var query = {
 
-            $regex: value instanceof RegExp ? value : new RegExp('^' + value + '$'),
+            $regex: regex,
             $options: 'i'
         };
-        if (typeof options === 'function') query = options.apply(this, [query, expression]);
+        if (typeof options === 'function') {
+
+            query = options.apply(this, [query, expression]);
+        }
         return query;
     },
     NE: '$ne',
@@ -67,7 +75,11 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 
         return {
 
-            $ne: this.EQUALIGNORECASE(value, options, expression)
+            $ne: this.EQUALIGNORECASE(...[
+                value,
+                options,
+                expression
+            ])
         };
     },
     LT: '$lt',
@@ -77,22 +89,39 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     IN: '$in',
     INIGNORECASE: function (value, options, expression) {
 
-        if (!Array.isArray(value)) throw new Error('Invalid field value');
+        if (!Array.isArray(value)) {
+
+            throw new Error('Invalid field value');
+        }
         var query = {
 
             $in: value.map(function (value) {
 
-                return value instanceof RegExp ? new RegExp(value, 'i') :
-                    new RegExp('^' + value + '$', 'i');
+                var regex;
+                if (value instanceof RegExp) {
+
+                    regex = new RegExp(value, 'i');
+                } else regex = new RegExp(...[
+                    '^' + value + '$',
+                    'i'
+                ]);
+                return regex;
             })
         };
-        if (typeof options === 'function') query = options.apply(this, [query, expression]);
+        if (typeof options === 'function') {
+
+            query = options.apply(this, [query, expression]);
+        }
         return query;
     },
     NIN: '$nin',
     NINIGNORECASE: function (value, options, expression) {
 
-        var query = this.INIGNORECASE(value, options, expression);
+        var query = this.INIGNORECASE(...[
+            value,
+            options,
+            expression
+        ]);
         query.$nin = query.$in;
         delete query.$in;
         return query;
@@ -107,7 +136,10 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 
             $eq: value
         };
-        if (typeof options === 'function') query = options.apply(this, [query, expression]);
+        if (typeof options === 'function') {
+
+            query = options.apply(this, [query, expression]);
+        }
         return {
 
             $elemMatch: query
@@ -130,15 +162,27 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     },
     CASEINSENSITIVECOMPARE: function (query) {
 
-        if (Array.isArray(query.$in)) return this.INIGNORECASE(query.$in);
-        else if (Array.isArray(query.$nin)) return this.NINIGNORECASE(query.$nin);
-        else if (query.$eq) return this.EQUALIGNORECASE(query.$eq);
-        else if (query['=']) return this.EQUALIGNORECASE(query['=']);
-        else if (query.$ne) return this.NEIGNORECASE(query.$ne);
-        else if (query.$regex) {
+        if (Array.isArray(query.$in)) {
 
-            query.$regex = query.$regex instanceof RegExp ? query.$regex :
-                new RegExp(query.$regex);
+            return this.INIGNORECASE(query.$in);
+        } else if (Array.isArray(query.$nin)) {
+
+            return this.NINIGNORECASE(query.$nin);
+        } else if (query.$eq) {
+
+            return this.EQUALIGNORECASE(query.$eq);
+        } else if (query['=']) {
+
+            return this.EQUALIGNORECASE(query['=']);
+        } else if (query.$ne) {
+
+            return this.NEIGNORECASE(query.$ne);
+        } else if (query.$regex) {
+
+            if (!(query.$regex instanceof RegExp)) {
+
+                query.$regex = new RegExp(query.$regex);
+            }
             query.$options = 'i';
         }
         return query;
@@ -146,8 +190,13 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     SOME: function (query, expression) {
 
         var attributes = expression.fieldName.split('.');
-        if (!Array.isArray(attributes) || attributes.length < 2)
-            throw new Error('Invalid field name in a query expression');
+        var one = !Array.isArray(attributes);
+        if (!one) one |= attributes.length < 2;
+        if (one) {
+
+            throw new Error('Invalid field name in a ' +
+                'query expression');
+        }
         var property = attributes.splice(-1, 1)[0];
         expression.fieldName = attributes.join('.');
         var newQuery = {
@@ -159,15 +208,29 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         if (query['=']) newQuery.cond = {
 
             $eq: ['$$item.' + property, query['=']]
-        };
-        else if (query.$regex) query.$regex = [
-            '$$item.' + property,
-            query.$regex instanceof RegExp ? new RegExp(query.$regex, query.$options) :
-                new RegExp('^' + query.$regex + '$', query.$options)
-        ];
-        else if (Object.keys[query].length === 1) {
+        }; else if (query.$regex) {
 
-            query[Object.keys[query][0]] = ['$$item.' + property, query[Object.keys[query][0]]];
+            var regex;
+            if (query.$regex instanceof RegExp) {
+
+                regex = new RegExp(...[
+                    query.$regex,
+                    query.$options
+                ]);
+            } else regex = new RegExp(...[
+                '^' + query.$regex + '$',
+                query.$options
+            ]);
+            query.$regex = [
+                '$$item.' + property,
+                regex
+            ];
+        } else if (Object.keys[query].length === 1) {
+
+            query[Object.keys[query][0]] = [
+                '$$item.' + property,
+                query[Object.keys[query][0]]
+            ];
         } else throw new Error('Invalid filter condition');
         return {
 
@@ -185,21 +248,49 @@ var getBinaryOperator = function (operator, acceptArray) {
 
     return function (leftValue, rightValue, passingArray) {
 
-        if (leftValue === undefined && rightValue === undefined)
-            throw new Error('Invalid values in aggregate expression');
+        var validLeft = leftValue !== undefined;
+        var validRight = rightValue !== undefined;
+        if (!validLeft && !validRight) {
+
+            throw new Error('Invalid values in aggregate' +
+                ' expression');
+        }
         if (acceptArray || passingArray) {
 
-            if (acceptArray && leftValue !== undefined) leftValue = [leftValue];
-            if (passingArray && rightValue !== undefined) rightValue = [rightValue];
-            if ((leftValue || []).concat(rightValue || []).length === 0)
-                throw new Error('Invalid values in aggregate expression');
+            if (acceptArray && validLeft) {
+
+                leftValue = [leftValue];
+            }
+            if (passingArray && validRight) {
+
+                rightValue = [rightValue];
+            }
+            if ([
+                ...(leftValue || []),
+                ...(rightValue || [])
+            ].length === 0) {
+
+                throw new Error('Invalid values in aggregate' +
+                    ' expression');
+            }
         }
         var operation = {};
-        if (acceptArray || passingArray)
-            operation[operator] = (leftValue || []).concat(rightValue || []);
-        else if (leftValue !== undefined && rightValue !== undefined)
-            operation[operator] = [leftValue, rightValue];
-        else operation[operator] = [leftValue || rightValue];
+        if (acceptArray || passingArray) {
+
+            operation[operator] = [
+                ...(leftValue || []),
+                ...(rightValue || [])
+            ];
+        } else if (validLeft && validRight) {
+
+            operation[operator] = [
+                leftValue,
+                rightValue
+            ];
+        } else operation[operator] = [
+            leftValue ||
+            rightValue
+        ];
         return operation;
     };
 };
@@ -208,7 +299,11 @@ var getUnaryOperator = function (operator) {
 
     return function (value) {
 
-        if (value === undefined) throw new Error('Invalid value in aggregate expression');
+        if (value === undefined) {
+
+            throw new Error('Invalid value in aggregate' +
+                ' expression');
+        }
         var operation = {};
         operation[operator] = value;
         return operation;
@@ -236,25 +331,41 @@ var ComputationOperators = module.exports.ComputationOperators = {
 
     FIELD: function (fieldName) {
 
-        if (typeof fieldName !== 'string' || fieldName.length === 0)
-            throw new Error('Invalid field name in aggregate expression');
+        var invalid = typeof fieldName !== 'string';
+        if (!invalid) invalid |= fieldName.length === 0;
+        if (invalid) {
+
+            throw new Error('Invalid field name in aggregate' +
+                ' expression');
+        }
         return '$' + fieldName;
     },
     VAR: function (variable) {
 
-        if (typeof variable !== 'string' || variable.length === 0)
-            throw new Error('Invalid variable name in aggregate expression');
+        var invalid = typeof variable !== 'string';
+        if (!invalid) invalid |= variable.length === 0;
+        if (invalid) {
+
+            throw new Error('Invalid variable name in aggregate' +
+                ' expression');
+        }
         return '$$' + variable;
     },
     EQUAL: getBinaryOperator('$eq'),
     EQUALIGNORECASE: function (leftValue, rightValue) {
 
-        return this.EQUAL(this.CASEINSENSITIVECOMPARE(leftValue, rightValue), 0);
+        return this.EQUAL(this.CASEINSENSITIVECOMPARE(...[
+            leftValue,
+            rightValue
+        ]), 0);
     },
     NE: getBinaryOperator('$ne'),
     NEIGNORECASE: function (leftValue, rightValue) {
 
-        return this.NE(this.CASEINSENSITIVECOMPARE(leftValue, rightValue), 0);
+        return this.NE(this.CASEINSENSITIVECOMPARE(...[
+            leftValue,
+            rightValue
+        ]), 0);
     },
     LT: getBinaryOperator('$lt'),
     LE: getBinaryOperator('$lte'),
@@ -263,7 +374,10 @@ var ComputationOperators = module.exports.ComputationOperators = {
     IN: getBinaryOperator('$in'),
     INIGNORECASE: function (leftValue, rightValue) {
 
-        if (!Array.isArray(rightValue)) throw new Error('Invalid in operator array');
+        if (!Array.isArray(rightValue)) {
+
+            throw new Error('Invalid in operator array');
+        }
         var self = this;
         return self.OR(rightValue.map(function (value) {
 
@@ -276,7 +390,10 @@ var ComputationOperators = module.exports.ComputationOperators = {
     },
     NINIGNORECASE: function (leftValue, rightValue) {
 
-        return this.NOT(this.INIGNORECASE(leftValue, rightValue));
+        return this.NOT(this.INIGNORECASE(...[
+            leftValue,
+            rightValue
+        ]));
     },
     CONTAINS: function (leftValue, rightValue) {
 
@@ -291,26 +408,37 @@ var ComputationOperators = module.exports.ComputationOperators = {
     },
     CONTAINSIGNORECASE: function (leftValue, rightValue) {
 
-        var operation = this.CONTAINS(leftValue, rightValue);
+        var operation = this.CONTAINS(...[
+            leftValue,
+            rightValue
+        ]);
         operation.$regexMatch.options = 'i';
         return operation;
     },
     SOME: function (variable) {
 
-        if (typeof variable !== 'string' || variable.length === 0)
-            throw new Error('Invalid array variable name in aggregate expression');
-        return this.OPERATOR('SOME', function (leftValue, rightValue) {
+        var invalid = typeof variable !== 'string';
+        if (!invalid) invalid |= variable.length === 0;
+        if (invalid) {
 
-            return {
+            throw new Error('Invalid array variable name in ' +
+                'aggregate expression');
+        }
+        return this.OPERATOR(...[
+            'SOME',
+            function (leftValue, rightValue) {
 
-                $filter: {
+                return {
 
-                    input: leftValue,
-                    as: variable,
-                    cond: rightValue
-                }
-            };
-        });
+                    $filter: {
+
+                        input: leftValue,
+                        as: variable,
+                        cond: rightValue
+                    }
+                };
+            }
+        ]);
     },
     AND: getBinaryOperator('$and'),
     OR: getBinaryOperator('$or'),
@@ -376,7 +504,12 @@ var ComputationOperators = module.exports.ComputationOperators = {
     DEVSAMP: getUnaryOperator('$stdDevSamp'),
     IF: function (leftValue, rightValue) {
 
-        if (typeof rightValue === 'object' && typeof rightValue.$cond === 'object') {
+        var valid = typeof rightValue === 'object';
+        if (valid) {
+
+            valid &= typeof rightValue.$cond === 'object';
+        }
+        if (valid) {
 
             rightValue.$cond.then = leftValue;
             return rightValue;
@@ -391,7 +524,12 @@ var ComputationOperators = module.exports.ComputationOperators = {
     },
     ELSE: function (leftValue, rightValue) {
 
-        if (typeof leftValue === 'object' && typeof leftValue.$cond === 'object') {
+        var valid = typeof leftValue === 'object';
+        if (valid) {
+
+            valid &= typeof leftValue.$cond === 'object';
+        }
+        if (valid) {
 
             leftValue.$cond.else = rightValue;
             return leftValue;
@@ -417,8 +555,22 @@ var ComputationOperators = module.exports.ComputationOperators = {
     SHOW: '$$KEEP',
     CONVERT: function (type) {
 
-        if ((typeof type != 'number' || type < 1 || type > 19) && (typeof type !== 'string' ||
-            type.length === 0)) throw new Error('Invalid conversion type in aggregate expression');
+        var invalid = typeof type != 'number';
+        invalid |= type < 1;
+        invalid |= type > 19;
+        if (invalid) {
+
+            invalid = typeof type !== 'string';
+            if (!invalid) {
+
+                invalid |= type.length === 0;
+            }
+        }
+        if (invalid) {
+
+            throw new Error('Invalid conversion type in ' +
+                'aggregate expression');
+        }
         return this.OPERATOR('CONVERT', function (value) {
 
             return {
@@ -446,51 +598,93 @@ var ComputationOperators = module.exports.ComputationOperators = {
 
 ComputationOperators.IGNORECASE = ComputationOperators.CASEINSENSITIVECOMPARE;
 
-var getQuery = function (queryExpressions, contextualLevel) {
+var getQuery = function () {
 
-    if (contextualLevel < 0) throw new Error('Invalid contextual level');
+    var [
+        queryExpressions,
+        contextualLevel
+    ] = arguments;
+    if (contextualLevel < 0) {
+
+        throw new Error('Invalid contextual level');
+    }
     if (Array.isArray(queryExpressions)) {
 
         if (queryExpressions.length === 1) {
 
             var filter = {};
             var subFilter = {};
-            var fieldName = queryExpressions[0].fieldName;
-            filter[queryExpressions[0].fieldName] = queryExpressions[0].fieldValue;
-            if (typeof queryExpressions[0].comparisonOperator === 'string') {
+            var queryExpression = queryExpressions[0];
+            var {
+                fieldName,
+                fieldValue,
+                comparisonOperator,
+                comparisonOperatorOptions
+            } = queryExpression;
+            filter[fieldName] = fieldValue;
+            if (typeof comparisonOperator === 'string') {
 
-                subFilter[queryExpressions[0].comparisonOperator] =
-                    queryExpressions[0].fieldValue;
-                if (typeof queryExpressions[0].comparisonOperatorOptions === 'function')
-                    subFilter =
-                        queryExpressions[0].comparisonOperatorOptions.apply(ComparisonOperators,
-                            [subFilter, queryExpressions[0]]);
-            } else if (typeof queryExpressions[0].comparisonOperator === 'function')
-                subFilter = queryExpressions[0].comparisonOperator.apply(ComparisonOperators,
-                    [queryExpressions[0].fieldValue, queryExpressions[0].comparisonOperatorOptions,
-                    queryExpressions[0]]);
-            if (Object.keys(subFilter).length > 0 && !(ComparisonOperators.EQUAL in subFilter)) {
+                subFilter[comparisonOperator] = fieldValue;
+                if (typeof comparisonOperatorOptions === 'function') {
 
-                if (queryExpressions[0].fieldName in filter)
-                    filter[queryExpressions[0].fieldName] = subFilter;
-                else filter = subFilter;
+                    subFilter = comparisonOperatorOptions.apply(...[
+                        ComparisonOperators, [
+                            subFilter,
+                            queryExpression
+                        ]
+                    ]);
+                }
+            } else if (typeof comparisonOperator === 'function') {
+
+                subFilter = comparisonOperator.apply(...[
+                    ComparisonOperators, [
+                        fieldValue,
+                        comparisonOperatorOptions,
+                        queryExpression
+                    ]
+                ]);
             }
-            queryExpressions[0].fieldName = fieldName;
+            var nesting = Object.keys(subFilter).length > 0;
+            if (nesting) {
+
+                nesting &= !(ComparisonOperators.EQUAL in subFilter);
+            }
+            if (nesting) {
+
+                if (queryExpression.fieldName in filter) {
+
+                    filter[queryExpression.fieldName] = subFilter;
+                } else filter = subFilter;
+            }
+            queryExpression.fieldName = fieldName;
             return filter;
         }
         for (var j = 0; j <= contextualLevel; j++) {
 
             for (var i = 1; i < queryExpressions.length; i++) {
 
-                if (queryExpressions[i].contextualLevel === j) {
+                var queryExpression = queryExpressions[i];
+                if (queryExpression.contextualLevel === j) {
 
-                    var logicalOperator = queryExpressions[i].logicalOperator;
-                    var rightFilter = getQuery(queryExpressions.splice(i), contextualLevel + 1);
-                    var leftFilter = getQuery(queryExpressions, contextualLevel + 1);
-                    if (logicalOperator && leftFilter && rightFilter) {
+                    var { logicalOperator } = queryExpression;
+                    var rightFilter = getQuery(...[
+                        queryExpressions.splice(i),
+                        contextualLevel + 1
+                    ]);
+                    var leftFilter = getQuery(...[
+                        queryExpressions,
+                        contextualLevel + 1
+                    ]);
+                    var inducing = logicalOperator;
+                    inducing &= leftFilter;
+                    inducing &= rightFilter;
+                    if (inducing) {
 
                         var superFilter = {};
-                        superFilter[logicalOperator] = [leftFilter, rightFilter];
+                        superFilter[logicalOperator] = [
+                            leftFilter,
+                            rightFilter
+                        ];
                         return superFilter;
                     } else return leftFilter || rightFilter || null;
                 }
@@ -502,154 +696,302 @@ var getQuery = function (queryExpressions, contextualLevel) {
 
 var constructQuery = function (queryExpressions) {
 
-    if (Array.isArray(queryExpressions))
-        queryExpressions.forEach(function (queryExpression, index) {
+    var many = Array.isArray(queryExpressions);
+    if (many) queryExpressions.forEach(function () {
 
-            if (!(queryExpression instanceof QueryExpression))
-                throw new Error('Invalid query expressions');
-            if (index > 0 && !queryExpression.logicalOperator)
-                throw new Error('Query expression missing logical operator');
-            if (index > 0 && typeof queryExpression.contextualLevel !== 'number')
-                throw new Error('Query expression missing contextual level');
-        });
+        var [queryExpression, index] = arguments;
+        if (!(queryExpression instanceof QueryExpression)) {
+
+            throw new Error('Invalid query expressions');
+        }
+        var {
+            logicalOperator,
+            contextualLevel
+        } = queryExpression;
+        if (index > 0 && !logicalOperator) {
+
+            throw new Error('Query expression missing ' +
+                'logical operator');
+        }
+        if (index > 0 && typeof contextualLevel !== 'number') {
+
+            throw new Error('Query expression missing ' +
+                'contextual level');
+        }
+    });
     var query = getQuery(queryExpressions, 0);
     return query || {};
 };
 
 var getExecuteQuery = function (session) {
 
-    return function (queryExpressions, ObjectConstructor, features, callback) {
+    return function () {
 
-        var distinct = features.distinct;
-        var include = features.include,
-            exclude = features.exclude;
-        var sort = features.sort;
-        var populate = features.populate;
-        var cache = features.cache;
-        var readonly = features.readonly;
-        var paginate = features.paginate,
-            limit = features.limit,
-            page = features.page;
-        var query = ObjectConstructor.find(constructQuery(queryExpressions));
-        if (typeof distinct === 'string') query = query.distinct(distinct);
-        else {
+        var [
+            queryExpressions,
+            ObjectConstructor,
+            features,
+            callback
+        ] = arguments;
+        var {
+            distinct,
+            include,
+            exclude,
+            sort,
+            populate,
+            cache,
+            readonly,
+            paginate,
+            limit,
+            page
+        } = features;
+        var query = ObjectConstructor.find(...[
+            constructQuery(queryExpressions)
+        ]);
+        if (typeof distinct === 'string') {
 
-            if (Array.isArray(include)) query = query.select(include.join(' '));
-            else if (Array.isArray(exclude)) query = query.select(exclude.map(function (field) {
+            query = query.distinct(distinct);
+        } else {
 
-                return '-' + field;
-            }).join(' '));
-        }
-        if (Array.isArray(sort)) query = query.sort(sort.map(function (option) {
+            if (Array.isArray(include)) {
 
-            if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
-            return (option.order === 'desc' ? '-' : '') + option.by;
-        }).join(' '));
-        if (Array.isArray(populate)) populate.forEach(function (option) {
+                query = query.select(include.join(' '));
+            } else if (Array.isArray(exclude)) {
 
-            var opt = {};
-            if (typeof option.path !== 'string') throw new Error('Invalid populate path');
-            opt.path = option.path;
-            if (Array.isArray(option.include)) {
-
-                opt.select = option.include.join(' ');
-            }
-            if (Array.isArray(option.exclude)) {
-
-                opt.select = (opt.select ? opt.select + ' ' : '') + option.exclude.map(
-                    function (field) {
+                query = query.select(...[
+                    exclude.map(function (field) {
 
                         return '-' + field;
-                    }).join(' ');
+                    }).join(' ')
+                ]);
             }
-            if (typeof option.model !== 'string') throw new Error('Invalid populate model');
-            opt.model = option.model;
-            query = query.populate(opt);
-        });
+        }
+        if (Array.isArray(sort)) {
+
+            query = query.sort(...[
+                sort.map(function (option) {
+
+                    if (typeof option.by !== 'string') {
+
+                        throw new Error('Invalid sort by field name');
+                    }
+                    var sep = '';
+                    if (option.order === 'desc') {
+
+                        sep = '-';
+                    }
+                    return sep + option.by;
+                }).join(' ')
+            ]);
+        }
+        if (Array.isArray(populate)) {
+
+            populate.forEach(function (option) {
+
+                var opt = {};
+                if (typeof option.path !== 'string') {
+
+                    throw new Error('Invalid populate path');
+                }
+                opt.path = option.path;
+                if (Array.isArray(option.include)) {
+
+                    opt.select = option.include.join(' ');
+                }
+                if (Array.isArray(option.exclude)) {
+
+                    var sep = '';
+                    if (opt.select) {
+
+                        sep = ' ';
+                    }
+                    opt.select = sep + option.exclude.map(...[
+                        function (field) {
+
+                            return '-' + field;
+                        }
+                    ]).join(' ');
+                }
+                if (typeof option.model !== 'string') {
+
+                    throw new Error('Invalid populate model');
+                }
+                opt.model = option.model;
+                query = query.populate(opt);
+            });
+        }
         if (cache) query = query.cache();
         if (readonly) query = query.lean();
         var time = session.busy();
-        if (paginate && typeof limit === 'number') query.paginate(page, limit,
+        var paginating = paginate;
+        paginating &= typeof limit === 'number';
+        if (paginating) query.paginate(...[
+            page,
+            limit,
             function (error, modelObjects, total) {
 
-                if (!readonly) Array.prototype.push.apply(session, modelObjects);
+                if (!readonly) Array.prototype.push.apply(...[
+                    session,
+                    modelObjects
+                ]);
                 if (typeof callback === 'function') callback({
 
                     modelObjects: modelObjects,
                     pageCount: total / limit
                 }, error);
                 session.idle(time);
-            });
-        else query.exec(function (error, modelObjects) {
+            }
+        ]); else query.exec(function (error, modelObjects) {
 
-            if (!readonly) Array.prototype.push.apply(session, modelObjects);
-            if (typeof callback === 'function') callback(modelObjects, error);
+            if (!readonly) Array.prototype.push.apply(...[
+                session,
+                modelObjects
+            ]);
+            if (typeof callback === 'function') {
+
+                callback(modelObjects, error);
+            }
             session.idle(time);
         });
     };
 };
 
-var getQueryUniqueArray = function (queryExpressions, features) {
+var getQueryUniqueArray = function () {
 
-    var uniqueArray = [].concat(queryExpressions.map(function (queryExpression) {
+    var [
+        queryExpressions,
+        features
+    ] = arguments;
+    var uniqueArray = [
+        ...queryExpressions.map(function () {
 
-        return queryExpression.fieldValue;
-    }));
-    if (typeof features.distinct === 'string' || Array.isArray(features.include) ||
-        Array.isArray(features.exclude) || Array.isArray(features.sort) ||
-        Array.isArray(features.populate) || features.cache || features.paginate)
-        uniqueArray =
-            uniqueArray.concat(Object.keys(features).concat(Object.values(features)));
+            var [queryExpression] = arguments;
+            return queryExpression.fieldValue;
+        })
+    ];
+    var {
+        distinct,
+        include,
+        exclude,
+        sort,
+        populate,
+        cache,
+        paginate
+    } = features;
+    var unique = typeof distinct === 'string';
+    unique |= Array.isArray(include);
+    unique |= Array.isArray(exclude);
+    unique |= Array.isArray(sort);
+    unique |= Array.isArray(populate);
+    unique |= cache;
+    unique |= paginate;
+    if (unique) uniqueArray = [
+        ...uniqueArray,
+        ...Object.keys(features),
+        ...Object.values(features)
+    ];
     return uniqueArray;
 };
 
 var getMapReduce = function (session) {
 
-    return function (queryExpressions, filterExpressions, ObjectConstructor, features, callback) {
+    return function () {
 
+        var [
+            queryExpressions,
+            filterExpressions,
+            ObjectConstructor,
+            features,
+            callback
+        ] = arguments;
         var options = {};
-        var filter = features.mapReduce.filter;
-        var sort = features.mapReduce.sort || features.sort;
-        var map = features.mapReduce.map,
-            reduce = features.mapReduce.reduce,
-            finalize = features.mapReduce.finalize;
-        var scope = features.mapReduce.scope || {};
-        var paginate = typeof features.mapReduce.paginate === 'boolean' ?
-            features.mapReduce.paginate : features.paginate,
-            limit = features.mapReduce.limit || features.limit,
-            page = features.mapReduce.page || features.page;
-        var collection, output = features.mapReduce.output;
-        if (filter && queryExpressions.length > 0 && filterExpressions.length === 0)
-            options.query = constructQuery(queryExpressions);
-        else if (filterExpressions.length > 0) options.query = constructQuery(filterExpressions);
-        if (filter && Array.isArray(sort)) options.sort = sort.reduce(function (sort, opt) {
+        var {
+            filter,
+            sort,
+            map,
+            reduce,
+            finalize,
+            scope,
+            paginate,
+            limit,
+            page,
+            output
+        } = features.mapReduce;
+        if (!sort) sort = features.sort;
+        if (!scope) scope = {};
+        if (typeof paginate !== 'boolean') {
 
-            if (typeof opt.by !== 'string') throw new Error('Invalid sort by field name');
-            sort[opt.by] = opt.order === 'desc' ? -1 : 1;
-            return sort;
-        }, {});
+            paginate = features.paginate;
+        }
+        if (!limit) limit = features.limit;
+        if (!page) page = features.page;
+        var collection;
+        var many = queryExpressions.length > 0;
+        var empty = filterExpressions.length === 0;
+        if (filter && many && empty) {
+
+            options.query = constructQuery(queryExpressions);
+        } else if (!empty) {
+
+            options.query = constructQuery(filterExpressions);
+        }
+        if (filter && Array.isArray(sort)) {
+
+            options.sort = sort.reduce(function (sort, opt) {
+
+                if (typeof opt.by !== 'string') {
+
+                    throw new Error('Invalid sort by field name');
+                }
+                sort[opt.by] = opt.order === 'desc' ? -1 : 1;
+                return sort;
+            }, {});
+        }
         options.map = function () {
 
             if (typeof _.count === 'number') {
 
                 _.count++;
-                if (typeof _.skip === 'number' && _.count <= _.skip) return;
-                if (typeof _.limit === 'number' && _.count > _.skip + _.limit) return;
+                var skipping = typeof _.skip === 'number';
+                skipping &= _.count <= _.skip;
+                if (skipping) return;
+                var limiting = typeof _.limit === 'number';
+                limiting &= _.count > (_.skip + _.limit);
+                if (limiting) return;
             }
-            var emitting = _.map(this);
-            if (typeof emitting === 'function') emitting(function (data) {
+            var emitter = _.map(this);
+            if (typeof emitter === 'function') {
 
-                if (data && data.key && data.value) emit(data.key, data.value);
-            }); else if (emitting && emitting.key && emitting.value)
-                emit(emitting.key, emitting.value);
+                emitter(function (data) {
+
+                    if (data && data.key && data.value) {
+
+                        emit(data.key, data.value);
+                    }
+                });
+            } else {
+
+                var emitting = emitter;
+                if (emitting) emitting &= emitter.key;
+                if (emitting) emitting &= emitter.value;
+                if (emitting) emit(emitter.key, emitter.value);
+            }
         };
         options.reduce = reduce;
-        if (typeof finalize === 'function') options.finalize = finalize;
+        if (typeof finalize === 'function') {
+
+            options.finalize = finalize;
+        }
         options.scope = scope;
-        if (options.scope._) throw new Error('Invalid use of _ it is reserved');
+        if (options.scope._) {
+
+            throw new Error('Invalid use of _ it is reserved');
+        }
         options.scope._ = {};
         options.scope._.map = map;
-        if (filter && paginate && typeof limit === 'number') {
+        var paginating = paginate;
+        paginating &= typeof limit === 'number';
+        if (filter && paginating) {
 
             options.scope._.limit = limit;
             options.scope._.skip = ((page || 1) - 1) * limit;
@@ -657,14 +999,21 @@ var getMapReduce = function (session) {
         }
         if (output) {
 
-            var queryUniqueArray = getQueryUniqueArray(queryExpressions, features);
+            var queryUniqueArray = getQueryUniqueArray(...[
+                queryExpressions,
+                features
+            ]);
             if (queryUniqueArray.length > 0) {
 
-                collection = 'MapReduce' + ObjectConstructor.modelName.toUpperCase() +
-                    JSON.stringify(queryUniqueArray).split('').reduce(function (number, string) {
+                collection = 'MapReduce';
+                var { modelName } = ObjectConstructor;
+                collection += modelName.toUpperCase();
+                collection += JSON.stringify(...[
+                    queryUniqueArray
+                ]).split('').reduce(function (number, string) {
 
-                        return number / string.codePointAt(0);
-                    }, 9999).toString().replace('e-', '').slice(-4);
+                    return number / string.codePointAt(0);
+                }, 9999).toString().replace('e-', '').slice(-4);
                 options.out = {
 
                     replace: collection
@@ -672,64 +1021,114 @@ var getMapReduce = function (session) {
             }
         }
         var time = session.busy();
-        ObjectConstructor.mapReduce(options, function (error, out) {
+        ObjectConstructor.mapReduce(...[
+            options,
+            function (error, out) {
 
-            delete options.scope._;
-            if (!out || !out.model || !collection) {
+                delete options.scope._;
+                var callingBack = !out;
+                if (!callingBack) callingBack |= !out.model;
+                if (!callingBack) callingBack |= !collection;
+                if (callingBack) {
 
-                if (typeof callback === 'function')
-                    callback(paginate && typeof limit === 'number' ? {
+                    callingBack = typeof callback === 'function';
+                    if (callingBack) {
 
-                        modelObjects: out && out.results,
-                        pageCount: out && out.stats && out.stats.counts &&
-                            out.stats.counts.input / limit
-                    } : out && out.results, error);
-                session.idle(time);
-            } else session.idle(time, function () {
+                        var {
+                            results,
+                            stats
+                        } = out || {};
+                        var {
+                            input
+                        } = (stats || {}).counts || {};
+                        callback(paginating ? {
 
-                getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] :
-                    queryExpressions, out.model, features, callback);
-            });
-        });
+                            modelObjects: results,
+                            pageCount: input / limit
+                        } : results, error);
+                    }
+                    session.idle(time);
+                } else session.idle(time, function () {
+
+                    getExecuteQuery(session)(...[
+                        filter && empty ? [] : queryExpressions,
+                        out.model,
+                        features,
+                        callback
+                    ]);
+                });
+            }
+        ]);
     };
 };
 
-var getAggregate = function (aggregateExpression, contextualLevel) {
+var getAggregate = function () {
 
-    if (contextualLevel < 0) throw new Error('Invalid contextual level');
-    if (!Array.isArray(aggregateExpression.fieldValue)) return aggregateExpression.fieldValue;
-    if (aggregateExpression.fieldValue.length === 1) return aggregateExpression.fieldValue[0];
-    if (aggregateExpression.contextualLevels.length > 0 &&
-        aggregateExpression.contextualLevels.length !==
-        aggregateExpression.fieldValue.filter(function (value) {
+    var [
+        aggregateExpression,
+        contextualLevel
+    ] = arguments;
+    if (contextualLevel < 0) {
 
-            return typeof value === 'function';
-        }).length) throw new Error('Invalid contextual levels');
+        throw new Error('Invalid contextual level');
+    }
+    var {
+        fieldValue,
+        contextualLevels
+    } = aggregateExpression;
+    if (!Array.isArray(fieldValue)) return fieldValue;
+    if (fieldValue.length === 1) return fieldValue[0];
+    var levels = contextualLevels.length;
+    var invalid = levels > 0;
+    if (invalid) {
+
+        invalid &= levels !== fieldValue.filter(...[
+            function (value) {
+
+                return typeof value === 'function';
+            }
+        ]).length;
+    }
+    if (invalid) throw new Error('Invalid contextual levels');
     for (var j = 0; j <= contextualLevel; j++) {
 
         var k = 0;
-        for (var i = 0; i < aggregateExpression.fieldValue.length; i++) {
+        for (var i = 0; i < fieldValue.length; i++) {
 
-            if (typeof aggregateExpression.fieldValue[i] === 'function') {
+            if (typeof fieldValue[i] === 'function') {
 
-                if ((aggregateExpression.contextualLevels[k] || 0) === j) {
+                if ((contextualLevels[k] || 0) === j) {
 
-                    var computationOperator = aggregateExpression.fieldValue[i];
-                    aggregateExpression.fieldValue.splice(i, 1);
-                    aggregateExpression.contextualLevels.splice(k, 1);
-                    var rightValue = getAggregate(new AggregateExpression({
+                    var computationOperator = fieldValue[i];
+                    fieldValue.splice(i, 1);
+                    contextualLevels.splice(k, 1);
+                    var rightValue = getAggregate(...[
+                        new AggregateExpression({
 
-                        fieldValue: aggregateExpression.fieldValue.splice(i),
-                        contextualLevels: aggregateExpression.contextualLevels.splice(k)
-                    }), contextualLevel + 1);
-                    var leftValue = getAggregate(new AggregateExpression({
+                            fieldValue: fieldValue.splice(i),
+                            contextualLevels: [
+                                ...contextualLevels.splice(k)
+                            ]
+                        }),
+                        contextualLevel + 1
+                    ]);
+                    var leftValue = getAggregate(...[
+                        new AggregateExpression({
 
-                        fieldValue: aggregateExpression.fieldValue,
-                        contextualLevels: aggregateExpression.contextualLevels
-                    }), contextualLevel + 1);
-                    if (leftValue !== undefined)
-                        return computationOperator(leftValue, rightValue);
-                    else return computationOperator(rightValue);
+                            fieldValue: fieldValue,
+                            contextualLevels: contextualLevels
+                        }),
+                        contextualLevel + 1
+                    ]);
+                    if (leftValue !== undefined) {
+
+                        return computationOperator(...[
+                            leftValue,
+                            rightValue
+                        ]);
+                    } else return computationOperator(...[
+                        rightValue
+                    ]);
                 }
                 k++;
             }
@@ -737,31 +1136,62 @@ var getAggregate = function (aggregateExpression, contextualLevel) {
     }
 };
 
-var constructAggregate = function (aggregateExpressions, orderOrField) {
+var constructAggregate = function () {
 
-    if (Array.isArray(aggregateExpressions))
-        aggregateExpressions.forEach(function (aggregateExpression, index) {
+    var [
+        aggregateExpressions,
+        orderOrField
+    ] = arguments;
+    var many = Array.isArray(aggregateExpressions);
+    if (many) aggregateExpressions.forEach(function () {
 
-            if (!(aggregateExpression instanceof AggregateExpression))
-                throw new Error('Invalid aggregate expressions');
-            if (!Array.isArray(aggregateExpression.contextualLevels) ||
-                aggregateExpression.contextualLevels.some(function (contextualLevel) {
+        var [aggregateExpression] = arguments;
+        if (!(aggregateExpression instanceof AggregateExpression)) {
 
-                    return typeof contextualLevel !== 'number';
-                })) throw new Error('Aggregate expression missing contextual levels');
-        });
+            throw new Error('Invalid aggregate expressions');
+        }
+        var { contextualLevels } = aggregateExpression;
+        var one = !Array.isArray(contextualLevels);
+        if (one || contextualLevels.some(function () {
+
+            var [contextualLevel] = arguments;
+            return typeof contextualLevel !== 'number';
+        })) {
+
+            throw new Error('Aggregate expression missing ' +
+                'contextual levels');
+        }
+    });
     var indices = [];
-    var aggregate = aggregateExpressions.reduce(function (aggregate, aggregateExpression, index) {
+    var aggregate = aggregateExpressions.reduce(function () {
 
-        if (aggregateExpression.computationOrder < 0)
+        var [
+            aggregate,
+            aggregateExpression,
+            index
+        ] = arguments;
+        var {
+            computationOrder,
+            fieldName
+        } = aggregateExpression;
+        if (computationOrder < 0) {
+
             throw new Error('Invalid computation order');
-        if ((typeof orderOrField === 'number' &&
-            aggregateExpression.computationOrder === orderOrField) ||
-            (typeof orderOrField === 'string' &&
-                aggregateExpression.fieldName === orderOrField)) {
+        }
+        var aggregating = typeof orderOrField === 'number';
+        aggregating &= computationOrder === orderOrField;
+        if (!aggregating) {
+
+            aggregating = typeof orderOrField === 'string';
+            aggregating &= fieldName === orderOrField;
+        }
+        if (aggregating) {
 
             indices.push(index);
-            aggregate[aggregateExpression.fieldName] = getAggregate(aggregateExpression, 0);
+            aggregate[fieldName] = getAggregate(...[
+                aggregateExpression,
+                0
+            ]);
         }
         return aggregate;
     }, {});
@@ -774,40 +1204,83 @@ var constructAggregate = function (aggregateExpressions, orderOrField) {
 
 var getExecuteAggregate = function (session) {
 
-    return function (queryExpressions, aggregateExpressions, filterExpressions,
-        ObjectConstructor, attributes, features, callback) {
+    return function () {
 
-        if (!features.aggregate) features.aggregate = {};
-        var constructedAggregate, include = features.aggregate.include || features.include,
-            exclude = features.aggregate.exclude || features.exclude;
-        var filter = features.aggregate.filter;
-        var redact, restrict = features.aggregate.restrict;
-        var group, distinct = features.aggregate.distinct || features.distinct;
-        var flatten = features.aggregate.flatten;
-        var sort = features.aggregate.sort || features.sort;
-        var populate = features.aggregate.populate || features.populate;
-        var paginate = typeof features.aggregate.paginate === 'boolean' ?
-            features.aggregate.paginate : features.paginate,
-            limit = features.aggregate.limit || features.limit,
-            page = features.aggregate.page || features.page;
-        var collection, mapReduce = features.mapReduce,
-            output = features.aggregate.output;
+        var [
+            queryExpressions,
+            aggregateExpressions,
+            filterExpressions,
+            ObjectConstructor,
+            attributes,
+            features,
+            callback
+        ] = arguments;
+        var {
+            include,
+            exclude,
+            filter,
+            restrict,
+            distinct,
+            flatten,
+            sort,
+            populate,
+            paginate,
+            limit,
+            page,
+            output
+        } = features.aggregate || {};
+        if (!include) include = features.include;
+        if (!exclude) exclude = features.exclude;
+        if (!distinct) distinct = features.distinct;
+        if (!sort) sort = features.sort;
+        if (!populate) populate = features.populate;
+        if (typeof paginate !== 'boolean') {
+
+            paginate = features.paginate;
+        }
+        if (!limit) limit = features.limit;
+        if (!page) page = features.page;
+        var { mapReduce } = features;
         var aggregate = ObjectConstructor.aggregate();
-        if (filter && queryExpressions.length > 0 && filterExpressions.length === 0)
-            aggregate = aggregate.match(constructQuery(queryExpressions));
-        else if (filterExpressions.length > 0)
-            aggregate = aggregate.match(constructQuery(filterExpressions));
-        if (typeof restrict === 'string')
-            redact = constructAggregate(aggregateExpressions, restrict)[restrict];
+        var many = queryExpressions.length > 0;
+        var empty = filterExpressions.length === 0;
+        if (filter && many && empty) {
+
+            aggregate = aggregate.match(...[
+                constructQuery(queryExpressions)
+            ]);
+        } else if (!empty) {
+
+            aggregate = aggregate.match(...[
+                constructQuery(filterExpressions)
+            ]);
+        }
+        var redact;
+        if (typeof restrict === 'string') {
+
+            redact = constructAggregate(...[
+                aggregateExpressions,
+                restrict
+            ])[restrict];
+        }
+        var constructedAggregate;
+        var group;
+        var collection;
         if (filter && typeof distinct === 'string') {
 
-            constructedAggregate = constructAggregate(aggregateExpressions, distinct);
+            constructedAggregate = constructAggregate(...[
+                aggregateExpressions,
+                distinct
+            ]);
+            var distinctAggregate = constructedAggregate[
+                distinct
+            ];
             group = {
 
-                _id: constructedAggregate[distinct] ? function () {
+                _id: distinctAggregate ? function () {
 
                     var _id = {};
-                    _id[distinct] = constructedAggregate[distinct];
+                    _id[distinct] = distinctAggregate;
                     delete constructedAggregate[distinct];
                     return _id;
                 }() : '$' + distinct
@@ -816,108 +1289,181 @@ var getExecuteAggregate = function (session) {
         if (aggregateExpressions.length > 0) {
 
             var ordering = 0;
-            constructedAggregate = constructAggregate(aggregateExpressions, ordering);
-            if (filter && Array.isArray(include))
-                aggregate = aggregate.project(include.reduce(function (project, field) {
+            constructedAggregate = constructAggregate(...[
+                aggregateExpressions,
+                ordering
+            ]);
+            if (filter && Array.isArray(include)) {
 
-                    project[field] = 1;
+                aggregate = aggregate.project(...[
+                    include.reduce(function () {
+
+                        var [
+                            project,
+                            field
+                        ] = arguments;
+                        project[field] = 1;
+                        return project;
+                    }, constructedAggregate)
+                ]);
+            } else if (filter && Array.isArray(exclude)) {
+
+                aggregate = aggregate.project(...[
+                    ...Object.keys(attributes),
+                    ...exclude
+                ].reduce(function (project, field) {
+
+                    if (exclude.indexOf(field) === -1) {
+
+                        project[field] = true;
+                    } else project[field] = false;
                     return project;
                 }, constructedAggregate));
-            else if (filter && Array.isArray(exclude))
-                aggregate = aggregate.project(Object.keys(attributes).concat(exclude)
-                    .reduce(function (project, field) {
-
-                        project[field] = exclude.indexOf(field) === -1;
-                        return project;
-                    }, constructedAggregate));
-            else aggregate = aggregate.addFields(constructedAggregate);
+            } else aggregate = aggregate.addFields(...[
+                constructedAggregate
+            ]);
             while (aggregateExpressions.length > 0) {
 
-                constructedAggregate = constructAggregate(aggregateExpressions, ordering++);
-                if (Object.keys(constructedAggregate).length > 0)
-                    aggregate = aggregate.addFields(constructedAggregate);
+                constructedAggregate = constructAggregate(...[
+                    aggregateExpressions,
+                    ordering++
+                ]);
+                if (Object.keys(...[
+                    constructedAggregate
+                ]).length > 0) {
+
+                    aggregate = aggregate.addFields(...[
+                        constructedAggregate
+                    ]);
+                }
             }
         }
         if (redact) aggregate = aggregate.redact(redact);
         if (group) aggregate = aggregate.group(group);
-        if (Array.isArray(flatten)) flatten.forEach(function (path) {
+        if (Array.isArray(flatten)) flatten.forEach(...[
+            function (path) {
 
-            aggregate = aggregate.unwind({
+                aggregate = aggregate.unwind({
 
-                path: '$' + path,
-                preserveNullAndEmptyArrays: true
+                    path: '$' + path,
+                    preserveNullAndEmptyArrays: true
+                });
+            }
+        ]);
+        if (filter && Array.isArray(sort)) {
+
+            aggregate = aggregate.sort(...[
+                sort.map(function (option) {
+
+                    if (typeof option.by !== 'string') {
+
+                        throw new Error('Invalid sort' +
+                            ' by field name');
+                    }
+                    var sep = '';
+                    if (option.order === 'desc') {
+
+                        sep = '-';
+                    }
+                    return sep + option.by;
+                }).join(' ')
+            ]);
+        }
+        if (Array.isArray(populate)) {
+
+            populate.forEach(function (option) {
+
+                var opt = {
+
+                    pipeline: []
+                };
+                if (typeof option.path !== 'string') {
+
+                    throw new Error('Invalid populate path');
+                }
+                if (typeof option.ref !== 'string') {
+
+                    throw new Error('Invalid populate ref');
+                }
+                var match = {};
+                match[option.ref] = '$$ref';
+                opt.var = {
+
+                    ref: '$' + option.path
+                };
+                var project;
+                if (Array.isArray(option.include)) {
+
+                    project = option.include.reduce(...[
+                        function (project, field) {
+
+                            project[field] = 1;
+                            return project;
+                        }, {}
+                    ]);
+                } else if (Array.isArray(option.exclude)) {
+
+                    project = option.exclude.reduce(...[
+                        function (project, field) {
+
+                            project[field] = 0;
+                            return project;
+                        }, {}
+                    ]);
+                }
+                opt.pipeline.push({
+
+                    $match: match,
+                    $project: project
+                });
+                if (typeof option.model !== 'string') {
+
+                    throw new Error('Invalid populate model');
+                }
+                opt.from = option.model;
+                opt.as = option.path;
+                aggregate = aggregate.append({
+
+                    $lookup: opt
+                });
             });
-        });
-        if (filter && Array.isArray(sort))
-            aggregate = aggregate.sort(sort.map(function (option) {
+        }
+        var paginating = paginate;
+        paginating &= typeof limit === 'number';
+        if (filter && paginating) {
 
-                if (typeof option.by !== 'string') throw new Error('Invalid sort by field name');
-                return (option.order === 'desc' ? '-' : '') + option.by;
-            }).join(' '));
-        if (Array.isArray(populate)) populate.forEach(function (option) {
+            aggregate = aggregate.facet({
 
-            var opt = {
+                modelObjects: [{
 
-                pipeline: []
-            };
-            if (typeof option.path !== 'string') throw new Error('Invalid populate path');
-            if (typeof option.ref !== 'string') throw new Error('Invalid populate ref');
-            var match = {};
-            match[option.ref] = '$$ref';
-            opt.var = {
+                    $skip: ((page || 1) - 1) * limit
+                }, {
 
-                ref: '$' + option.path
-            };
-            var project;
-            if (Array.isArray(option.include))
-                project = option.include.reduce(function (project, field) {
+                    $limit: limit
+                }],
+                pagination: [{
 
-                    project[field] = 1;
-                    return project;
-                }, {});
-            else if (Array.isArray(option.exclude))
-                project = option.exclude.reduce(function (project, field) {
-
-                    project[field] = 0;
-                    return project;
-                }, {});
-            opt.pipeline.push({
-
-                $match: match,
-                $project: project
+                    $count: 'total'
+                }]
             });
-            if (typeof option.model !== 'string') throw new Error('Invalid populate model');
-            opt.from = option.model;
-            opt.as = option.path;
-            aggregate = aggregate.append({
-
-                $lookup: opt
-            });
-        });
-        if (filter && paginate && typeof limit === 'number') aggregate = aggregate.facet({
-
-            modelObjects: [{
-
-                $skip: ((page || 1) - 1) * limit
-            }, {
-
-                $limit: limit
-            }],
-            pagination: [{
-
-                $count: 'total'
-            }]
-        });
+        }
         if (output) {
 
-            var queryUniqueArray = getQueryUniqueArray(queryExpressions, features);
+            var queryUniqueArray = getQueryUniqueArray(...[
+                queryExpressions,
+                features
+            ]);
             if (queryUniqueArray.length > 0) {
 
-                collection = 'Aggregate' + ObjectConstructor.modelName.toUpperCase() +
-                    JSON.stringify(queryUniqueArray).split('').reduce(function (number, string) {
+                var { modelName } = ObjectConstructor;
+                collection = 'Aggregate';
+                collection += modelName.toUpperCase();
+                collection += JSON.stringify(...[
+                    queryUniqueArray
+                ]).split('').reduce(function (number, string) {
 
-                        return number / string.codePointAt(0);
-                    }, 9999).toString().replace('e-', '').slice(-4);
+                    return number / string.codePointAt(0);
+                }, 9999).toString().replace('e-', '').slice(-4);
                 aggregate = aggregate.append({
 
                     $out: collection
@@ -929,37 +1475,66 @@ var getExecuteAggregate = function (session) {
 
             if (!result || !collection) {
 
-                if (typeof callback === 'function')
-                    callback(paginate && typeof limit === 'number' ? {
+                var callingBack = typeof callback === 'function';
+                if (callingBack) {
 
-                        modelObjects: result && result[0] && result[0].modelObjects,
-                        pageCount: result && result[0] && result[0].pagination &&
-                            result[0].pagination[0] &&
-                            result[0].pagination[0].total / limit
+                    var {
+                        modelObjects,
+                        pagination
+                    } = (result || [])[0] || {};
+                    var {
+                        total
+                    } = (pagination || [])[0] || {};
+                    callback(paginating ? {
+
+                        modelObjects: modelObjects,
+                        pageCount: total / limit
                     } : result, error);
+                }
                 session.idle(time);
             } else session.idle(time, function () {
 
-                var Model = mongoose.models[collection] ||
-                    mongoose.model(collection, new Schema({}, {
+                var Model = mongoose.models[collection];
+                if (!Model) Model = mongoose.model(...[
+                    collection,
+                    new Schema({}, {
 
                         autoIndex: false,
                         strict: false,
                         collection: collection
-                    }));
-                if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
-                    typeof mapReduce.reduce === 'function') getMapReduce(session)(filter &&
-                        filterExpressions.length === 0 ? [] : queryExpressions, [], Model,
-                        features, callback);
-                else getExecuteQuery(session)(filter && filterExpressions.length === 0 ? [] :
-                    queryExpressions, Model, features, callback);
+                    })
+                ]);
+                var mapReducing = typeof mapReduce === 'object';
+                if (mapReducing) {
+
+                    var { map, reduce } = mapReduce;
+                    mapReducing &= typeof map === 'function';
+                    mapReducing &= typeof reduce === 'function';
+                }
+                if (mapReducing) getMapReduce(session)(...[
+                    filter && empty ? [] : queryExpressions,
+                    [],
+                    Model,
+                    features,
+                    callback
+                ]); else getExecuteQuery(session)(...[
+                    filter && empty ? [] : queryExpressions,
+                    Model,
+                    features,
+                    callback
+                ]);
             });
         });
     };
 };
 
-var openConnection = function (defaultURI, callback, closeCallback) {
+var openConnection = function () {
 
+    var [
+        defaultURI,
+        callback,
+        closeCallback
+    ] = arguments;
     var connect = function () {
 
         var options = {
@@ -973,24 +1548,40 @@ var openConnection = function (defaultURI, callback, closeCallback) {
         try {
 
             var connection = mongoose.connection;
-            mongoose.connect(defaultURI, options, function (error, response) {
+            mongoose.connect(...[
+                defaultURI,
+                options,
+                function (error, response) {
 
-                if (typeof closeCallback == 'function') closeCallback(connection);
-                if (typeof callback === 'function') callback(error, response);
-            });
+                    if (typeof closeCallback == 'function') {
+
+                        closeCallback(connection);
+                    }
+                    if (typeof callback === 'function') {
+
+                        callback(error, response);
+                    }
+                }
+            ]);
         } catch (error) {
 
-            if (typeof callback === 'function') callback(error);
+            if (typeof callback === 'function') {
+
+                callback(error);
+            }
         }
     };
     var connecting;
-    if (mongoose.connections.every(function (connection) {
+    var { connections } = mongoose;
+    if (connections.every(function (connection) {
 
         return connection.readyState === 0;
-    })) connect(); else if (mongoose.connections.some(function (connection) {
+    })) connect(); else if (connections.some(...[
+        function (connection) {
 
-        return connection.readyState === 1;
-    })) {
+            return connection.readyState === 1;
+        }
+    ])) {
 
         log.error({
 
@@ -1003,23 +1594,33 @@ var openConnection = function (defaultURI, callback, closeCallback) {
             }
         });
         connect();
-    } else if (connecting = mongoose.connections.find(function (connection) {
+    } else if (connecting = connections.find(...[
+        function (connection) {
 
-        return connection.readyState === 2;
-    })) connecting.once('connected', callback); else mongoose.disconnect(connect);
+            return connection.readyState === 2;
+        }
+    ])) connecting.once('connected', callback); else {
+
+        mongoose.disconnect(connect);
+    }
 };
 
 var checkConnection = function (defaultURI, callback) {
 
-    if (!mongoose.connections.some(function (connection) {
+    var { connections } = mongoose;
+    if (!connections.some(function (connection) {
 
         return connection.readyState === 1;
     })) {
 
-        openConnection(defaultURI, function (error, response) {
+        openConnection(defaultURI, function () {
 
+            var [error, response] = arguments;
             if (response) debug(response);
-            if (typeof callback === 'function') callback(error);
+            if (typeof callback === 'function') {
+
+                callback(error);
+            }
         });
         return false;
     }
@@ -1052,24 +1653,39 @@ var ModelController = function (defaultURI, cb) {
                     return;
                 }
                 if (busy > 0) busy--;
-                if (reconnect || (new Date().getTime() - time.getTime()) > MAX_LATENCY) {
+                var timing = new Date().getTime();
+                timing -= time.getTime();
+                var reconnecting = timing > MAX_LATENCY;
+                if (reconnect || reconnecting) {
 
                     if (busy === 0) {
 
                         reconnect = false;
-                        connections.forEach(function (connection) {
+                        connections.forEach(function () {
 
+                            var [connection] = arguments;
                             connection.close();
                         });
                         connections = [];
-                        openConnection(defaultURI, next, function (connection) {
+                        openConnection(...[
+                            defaultURI,
+                            next,
+                            function (connection) {
 
-                            if (connection) {
+                                if (connection) {
 
-                                if (busy === 0) connection.close();
-                                else connections.push(connection);
+                                    if (busy === 0) {
+
+                                        connection.close();
+                                    } else {
+
+                                        connections.push(...[
+                                            connection
+                                        ]);
+                                    }
+                                }
                             }
-                        });
+                        ]);
                         return new Error('Reconnecting');
                     } else reconnect = true;
                 }
@@ -1079,112 +1695,204 @@ var ModelController = function (defaultURI, cb) {
     }).extend(Array).defaults();
     var session = new Session();
     openConnection(defaultURI, cb);
-    self.removeObjects = function (objWrapper, entity, callback) {
+    self.removeObjects = function () {
 
+        var [
+            objWrapper,
+            entity,
+            callback
+        ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');
         }
         if (typeof objWrapper !== 'object') {
 
-            throw new Error('Invalid query expressions wrapper');
+            throw new Error('Invalid query ' +
+                'expressions wrapper');
         }
         self.save(function (err) {
 
             if (err) {
 
-                if (typeof callback === 'function') callback(null, err);
+                if (typeof callback === 'function') {
+
+                    callback(null, err);
+                }
             } else {
 
-                var queryExpressions = (objWrapper.getObjectQuery() || [])
-                    .concat(entity.getObjectQuery() || []);
-                entity.getObjectConstructor()
-                    .remove(constructQuery(queryExpressions), function (error) {
+                var queryExpressions = [
+                    ...(objWrapper.getObjectQuery() || []),
+                    ...(entity.getObjectQuery() || [])
+                ];
+                entity.getObjectConstructor().remove(...[
+                    constructQuery(queryExpressions),
+                    function (error) {
 
-                        if (typeof callback === 'function') callback(null, error);
-                    });
+                        if (typeof callback === 'function') {
+
+                            callback(null, error);
+                        }
+                    }
+                ]);
             }
         }, session.filter(function (modelObject) {
 
-            return modelObject instanceof entity.getObjectConstructor();
+            var { getObjectConstructor } = entity;
+            var ObjectConstructor = getObjectConstructor();
+            return modelObject instanceof ObjectConstructor;
         }));
     };
-    self.newObjects = function (objsAttributes, entity, callback) {
+    self.addObjects = function () {
 
+        var [
+            objsAttributes,
+            entity,
+            callback
+        ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');
         }
         var modelObjects = [];
-        var newObject = function (objAttributes) {
+        var addObject = function (objAttributes) {
 
             try {
 
-                var modelObject = new (entity.getObjectConstructor())(objAttributes);
+                var { getObjectConstructor } = entity;
+                var ObjectConstructor = getObjectConstructor();
+                var modelObject = new ObjectConstructor(...[
+                    objAttributes
+                ]);
                 modelObject._id = -1;
                 session.push(modelObject);
                 modelObjects.push(modelObject);
             } catch (e) {
 
-                if (typeof callback === 'function') callback(null, e);
+                if (typeof callback === 'function') {
+
+                    callback(null, e);
+                }
             }
         };
-        if (Array.isArray(objsAttributes)) objsAttributes.forEach(newObject);
-        else newObject(objsAttributes);
-        if (typeof callback === 'function') callback(modelObjects);
-        return (modelObjects.length === 1 && modelObjects[0]) || modelObjects;
-    };
-    self.getObjects = function (objWrapper, entity, callback) {
+        if (Array.isArray(objsAttributes)) {
 
+            objsAttributes.forEach(addObject);
+        } else addObject(objsAttributes);
+        if (typeof callback === 'function') {
+
+            callback(modelObjects);
+        }
+        if (modelObjects.length === 1) {
+
+            return modelObjects[0];
+        }
+        return modelObjects;
+    };
+    self.getObjects = function () {
+
+        var [
+            objWrapper,
+            entity,
+            callback
+        ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
             throw new Error('Invalid entity');
         }
         if (typeof objWrapper !== 'object') {
 
-            throw new Error('Invalid query expressions wrapper');
+            throw new Error('Invalid query expressions' +
+                ' wrapper');
         }
         self.save(function (error) {
 
             if (error) {
 
-                if (typeof callback === 'function') callback(null, error);
+                if (typeof callback === 'function') {
+
+                    callback(null, error);
+                }
             } else {
 
-                var queryExpressions = (objWrapper.getObjectQuery() ||
-                    []).concat(entity.getObjectQuery() || []);
-                var aggregateExpressions = (objWrapper.getObjectAggregate() ||
-                    []).concat(entity.getObjectAggregate() || []);
-                var filterExpressions = objWrapper.getObjectFilter() || [];
+                var queryExpressions = [
+                    ...(objWrapper.getObjectQuery() || []),
+                    ...(entity.getObjectQuery() || [])
+                ];
+                var aggregateExpressions = [
+                    ...(objWrapper.getObjectAggregate() || []),
+                    ...(entity.getObjectAggregate() || [])
+                ];
+                var filterExpressions = [
+                    ...(objWrapper.getObjectFilter() || [])
+                ];
                 var features = entity.getObjectFeatures() || {};
-                var aggregate = features.aggregate,
-                    mapReduce = features.mapReduce;
-                if (aggregateExpressions.length > 0 || (typeof aggregate === 'object' &&
-                    Object.keys(aggregate).length > 0))
-                    getExecuteAggregate(session)(queryExpressions, aggregateExpressions,
-                        filterExpressions, entity.getObjectConstructor(),
-                        entity.getObjectAttributes(), features, callback);
-                else {
+                var {
+                    aggregate,
+                    mapReduce
+                } = features;
+                var aggregating = aggregateExpressions.length > 0;
+                if (!aggregating) {
 
-                    if (typeof mapReduce === 'object' && typeof mapReduce.map === 'function' &&
-                        typeof mapReduce.reduce === 'function')
-                        getMapReduce(session)(queryExpressions, filterExpressions,
-                            entity.getObjectConstructor(), features, callback);
-                    else getExecuteQuery(session)(queryExpressions, entity.getObjectConstructor(),
-                        features, callback);
+                    aggregating = typeof aggregate === 'object';
+                    if (aggregating) {
+
+                        aggregating &= Object.keys(...[
+                            aggregate
+                        ]).length > 0;
+                    }
+                }
+                if (aggregating) getExecuteAggregate(session)(...[
+                    queryExpressions,
+                    aggregateExpressions,
+                    filterExpressions,
+                    entity.getObjectConstructor(),
+                    entity.getObjectAttributes(),
+                    features,
+                    callback
+                ]); else {
+
+                    var mapReducing = typeof mapReduce === 'object';
+                    if (mapReducing) {
+
+                        var { map, reduce } = mapReduce;
+                        mapReducing &= typeof map === 'function';
+                        mapReducing &= typeof reduce === 'function';
+                    }
+                    if (mapReducing) getMapReduce(session)(...[
+                        queryExpressions,
+                        filterExpressions,
+                        entity.getObjectConstructor(),
+                        features,
+                        callback
+                    ]); else getExecuteQuery(session)(...[
+                        queryExpressions,
+                        entity.getObjectConstructor(),
+                        features,
+                        callback
+                    ]);
                 }
             }
         }, session.filter(function (modelObject) {
 
-            return modelObject instanceof entity.getObjectConstructor();
+            var { getObjectConstructor } = entity;
+            var ObjectConstructor = getObjectConstructor();
+            return modelObject instanceof ObjectConstructor;
         }));
     };
     self.save = function (callback, oldSession) {
 
-        var workingSession = Array.isArray(oldSession) ? oldSession : session.slice();
-        if (workingSession.length === 0)
-            debug('Model controller session has no objects to be saved!');
+        var many = Array.isArray(oldSession);
+        var workingSession;
+        if (many) workingSession = oldSession
+        else workingSession = session.slice();
+        if (workingSession.length === 0) {
+
+            debug('Model controller session has ' +
+                'no objects to be saved!');
+        }
         var currentSession = [];
+        var callingBack = typeof callback === 'function';
         var save = function (index) {
 
             var workingModelObject = workingSession[index];
@@ -1192,12 +1900,22 @@ var ModelController = function (defaultURI, cb) {
             if (i > -1) session.splice(i, 1);
             setTimeout(function () {
 
-                if (workingModelObject instanceof mongoose.Model && (workingModelObject.isNew ||
-                    workingModelObject.isModified())) {
+                var { Model } = mongoose;
+                var saving = workingModelObject instanceof Model;
+                if (saving) {
+
+                    saving = workingModelObject.isNew;
+                    saving |= workingModelObject.isModified();
+                }
+                if (saving) {
 
                     var time = session.busy();
-                    workingModelObject.save(function (error, modelObject) {
+                    workingModelObject.save(function () {
 
+                        var [
+                            error,
+                            modelObject
+                        ] = arguments;
                         if (error) {
 
                             debug(error);
@@ -1209,33 +1927,51 @@ var ModelController = function (defaultURI, cb) {
                         }
                         if (error || !modelObject) {
 
-                            session.idle(time, typeof callback === 'function' ?
-                                callback.bind(self, error, currentSession) : undefined);
+                            session.idle(...[
+                                time,
+                                callingBack ? callback.bind(...[
+                                    self,
+                                    error,
+                                    currentSession
+                                ]) : undefined
+                            ]);
                         } else {
 
                             currentSession.push(modelObject);
                             session.idle(time, function () {
 
-                                if (checkConnection(defaultURI, save.bind(self, index + 1)))
-                                    save(index + 1);
+                                if (checkConnection(...[
+                                    defaultURI,
+                                    save.bind(self, index + 1)
+                                ])) save(index + 1);
                             });
                         }
                     });
                 } else if (workingSession.length > index + 1) {
 
-                    if (checkConnection(defaultURI, save.bind(self, index + 1))) save(index + 1);
-                } else if (typeof callback === 'function' && checkConnection(defaultURI,
-                    callback.bind(self, null, currentSession))) callback(null, currentSession);
+                    if (checkConnection(...[
+                        defaultURI,
+                        save.bind(self, index + 1)
+                    ])) save(index + 1);
+                } else if (callingBack && checkConnection(...[
+                    defaultURI,
+                    callback.bind(self, null, currentSession)
+                ])) callback(null, currentSession);
             }, 0);
         };
-        if (checkConnection(defaultURI, save.bind(self, 0))) save(0);
+        if (checkConnection(defaultURI, save.bind(self, 0))) {
+
+            save(0);
+        }
         return workingSession;
     };
 };
 
 var DataType = function (datatype, options, resolve) {
 
-    var Generator = Object.getPrototypeOf(function* () { }).constructor;
+    var Generator = Object.getPrototypeOf(...[
+        function* () { }
+    ]).constructor;
     switch (datatype) {
 
         case String:
@@ -1246,11 +1982,15 @@ var DataType = function (datatype, options, resolve) {
             return datatype;
         case Map:
             var [ValueType] = options;
+            var many = options.length > 1;
             var value = {
 
-                datatype: options.length > 1 ? options : ValueType
+                datatype: many ? options : ValueType
             };
-            if (ValueType !== undefined) resolve(value);
+            if (ValueType !== undefined) {
+
+                resolve(value);
+            }
             return {
 
                 type: Map,
@@ -1259,25 +1999,58 @@ var DataType = function (datatype, options, resolve) {
         default:
             if (datatype instanceof Generator) {
 
-                var [type, ...otherOptions] = datatype();
-                if (typeof type === 'function')
-                    return DataType(type, options.concat(otherOptions), resolve);
-                if (typeof otherOptions[0] === 'function')
-                    return DataType(otherOptions[0],
-                        options.concat([type].concat(otherOptions.slice(1))), resolve);
+                var [
+                    type,
+                    ...otherOptions
+                ] = datatype();
+                if (typeof type === 'function') {
+
+                    return DataType(...[
+                        type,
+                        options.concat(otherOptions),
+                        resolve
+                    ]);
+                }
+                if (typeof otherOptions[0] === 'function') {
+
+                    return DataType(...[
+                        otherOptions[0],
+                        [
+                            ...options,
+                            ...[type],
+                            ...otherOptions.slice(1)
+                        ],
+                        resolve
+                    ]);
+                }
                 resolve(type);
                 return type;
             }
             if (datatype instanceof Function) {
 
                 var [typeName] = options;
-                if (typeof typeName !== 'string' || typeName.length === 0)
-                    throw new Error('Invalid field custom data type name');
+                var invalid = typeof typeName !== 'string';
+                if (!invalid) {
+
+                    invalid |= typeName.length === 0;
+                }
+                if (invalid) {
+
+                    throw new Error('Invalid field custom' +
+                        ' data type name');
+                }
                 var Type = function (key, options) {
 
-                    mongoose.SchemaType.call(this, key, options, typeName);
+                    mongoose.SchemaType.call(...[
+                        this,
+                        key,
+                        options,
+                        typeName
+                    ]);
                 };
-                Type.prototype = Object.create(mongoose.SchemaType.prototype);
+                Type.prototype = Object.create(...[
+                    mongoose.SchemaType.prototype
+                ]);
                 Type.prototype.cast = datatype;
                 mongoose.Schema.Types[typeName] = Type;
                 return Type;
@@ -1290,72 +2063,126 @@ var resolveAttributes = function (attributes) {
 
     var resolveType = function (property) {
 
-        var value = property === undefined ? attributes : attributes[property];
+        var value;
+        if (property === undefined) {
+
+            value = attributes;
+        } else value = attributes[property];
         var isArray = Array.isArray(value);
         var [, ...options] = isArray ? value : [];
         var Type = isArray ? value[0] : value;
         var type = typeof Type;
-        var setType = function (PropertyType, noExtra) {
+        var setType = function () {
 
-            if (typeof PropertyType !== 'function') return false;
-            PropertyType = DataType(PropertyType, options, resolveAttributes);
+            var [
+                PropertyType,
+                noExtra
+            ] = arguments;
+            if (typeof PropertyType !== 'function') {
+
+                return false;
+            }
+            PropertyType = DataType(...[
+                PropertyType,
+                options,
+                resolveAttributes
+            ]);
             if (property === undefined) {
 
                 Type = PropertyType
                 return false;
             }
-            if (isArray && noExtra) attributes[property] = [PropertyType];
-            else attributes[property] = PropertyType;
+            if (isArray && noExtra) {
+
+                attributes[property] = [PropertyType];
+            } else attributes[property] = PropertyType;
             return true;
         };
         switch (type) {
 
             case 'object':
-                if (Type instanceof Date) throw new Error('Invalid field data type');
-                if (!Array.isArray(Type)) switch (Object.keys(Type).length) {
+                if (Type instanceof Date) {
 
-                    case 2:
-                        if (!('ref' in Type)) break;
-                    case 1:
-                        if (('type' in Type) && setType(Type.type, true)) return;
+                    throw new Error('Invalid field data' +
+                        ' type');
+                }
+                if (!Array.isArray(Type)) {
+
+                    switch (Object.keys(Type).length) {
+
+                        case 2:
+                            if (!('ref' in Type)) break;
+                        case 1:
+                            if (('type' in Type) && setType(...[
+                                Type.type,
+                                true
+                            ])) return;
+                    }
                 }
                 setType(resolveAttributes(Type), false);
                 break;
             case 'string':
-                if (typeof options[0] !== 'function')
-                    throw new Error('Custom field data type needs cast function');
+                if (typeof options[0] !== 'function') {
+
+                    throw new Error('Custom field data' +
+                        ' type needs cast function');
+                }
                 Type = options[0];
                 options = [Type].concat(options.slice(1));
             case 'function':
                 setType(Type, isArray && value.length === 1);
             default:
-                if (property === 'type')
-                    throw new Error('type is a reserved word if it is used as an field so ' +
+                if (property === 'type') {
+
+                    throw new Error('type is a reserved word' +
+                        ' if it is used as an field so ' +
                         'it\'s data type should be object');
-                if (property === 'self')
-                    throw new Error('self is a reserved word, it should not be an field');
+                }
+                if (property === 'self') {
+
+                    throw new Error('self is a reserved word,' +
+                        ' it should not be an field');
+                }
                 break;
         };
         return Type;
     };
-    if (Array.isArray(attributes) || (attributes instanceof Date) ||
-        typeof attributes !== 'object') return resolveType();
+    var resolving = Array.isArray(attributes);
+    resolving |= attributes instanceof Date;
+    resolving |= typeof attributes !== 'object';
+    if (resolving) return resolveType();
     else Object.keys(attributes).forEach(resolveType);
 };
 
-ModelController.defineEntity = function (name, attributes, plugins) {
+ModelController.defineEntity = function () {
 
-    if (typeof name !== 'string') throw new Error('Invalid entity name');
-    if (typeof attributes !== 'object') throw new Error('Invalid entity schema');
+    var [
+        name,
+        attributes,
+        plugins
+    ] = arguments;
+    if (typeof name !== 'string') {
+
+        throw new Error('Invalid entity name');
+    }
+    if (typeof attributes !== 'object') {
+
+        throw new Error('Invalid entity schema');
+    }
     var schema = new Schema(attributes, {
 
         autoIndex: false,
         usePushEach: true
     });
-    for (var i = 0; Array.isArray(plugins) && i < plugins.length &&
-        typeof plugins[i] === 'function'; i++) {
+    if (Array.isArray(plugins)) {
 
-        schema.plugin(plugins[i]);
+        for (var i = 0; i < plugins.length; i++) {
+
+            if (typeof plugins[i] === 'function') {
+
+                schema.plugin(plugins[i]);
+            }
+        }
     }
     var Model = mongoose.model(name, schema);
     resolveAttributes(attributes);
@@ -1369,50 +2196,121 @@ ModelController.defineEntity = function (name, attributes, plugins) {
 
                 set: function (path, value) {
 
-                    if (typeof path === 'string' && path.length > 0)
-                        path.split('.').reduce(function (wrapper, property, index, properties) {
+                    var setting = typeof path === 'string';
+                    if (setting) setting &= path.length > 0;
+                    if (setting) {
 
+                        path.split('.').reduce(function () {
+
+                            var [
+                                wrapper,
+                                property,
+                                index,
+                                properties
+                            ] = arguments;
                             var Type = wrapper.attributes;
-                            var isArray = Array.isArray(Type);
-                            if (isArray) Type = Type[0];
-                            if (typeof Type !== 'object') return wrapper;
-                            if (Type instanceof Date) return wrapper;
-                            var isIndex = Number.isInteger(Number(property));
-                            if (!isArray || !isIndex) Type = Type[property];
-                            var isTypeArray = Array.isArray(Type);
-                            var isTypeObject = typeof Type === 'object';
-                            if (!Type || (isTypeObject && Object.keys(Type).length === 0))
+                            var toMany = Array.isArray(Type);
+                            if (toMany) Type = Type[0];
+                            if (typeof Type !== 'object') {
+
+                                return wrapper;
+                            }
+                            if (Type instanceof Date) {
+
+                                return wrapper;
+                            }
+                            var integer = Number.isInteger(...[
+                                Number(property)
+                            ]);
+                            if (!toMany || !integer) {
+
+                                Type = Type[property];
+                            }
+                            var toOne = typeof Type === 'object';
+                            var modifying = !Type;
+                            if (!modifying) {
+
+                                modifying = toOne;
+                                modifying &= Object.keys(...[
+                                    Type
+                                ]).length === 0;
+                            }
+                            if (modifying) {
+
                                 wrapper.markModified = false;
-                            var getModelObjects = function (wrapper_modelObjects) {
+                            }
+                            var getModelObjects = function () {
 
-                                return wrapper_modelObjects.reduce(function (modelObjects,
-                                    modelObject) {
+                                var [
+                                    wräpper
+                                ] = arguments;
+                                return wräpper.reduce(function () {
 
-                                    if (typeof modelObject !== 'object') return modelObjects;
-                                    if (modelObject instanceof Date) return modelObjects;
-                                    if (Array.isArray(modelObject) && !isIndex)
-                                        return modelObjects.concat(getModelObjects(modelObject));
+                                    var [
+                                        modelObjects,
+                                        modelObject
+                                    ] = arguments;
+                                    if (typeof modelObject !== 'object') {
+
+                                        return modelObjects;
+                                    }
+                                    if (modelObject instanceof Date) {
+
+                                        return modelObjects;
+                                    }
+                                    var many = Array.isArray(...[
+                                        modelObject
+                                    ]);
+                                    if (many && !integer) {
+
+                                        return [
+                                            ...modelObjects,
+                                            ...getModelObjects(...[
+                                                modelObject
+                                            ])
+                                        ];
+                                    }
                                     if (index === properties.length - 1) {
 
-                                        if (typeof Type === 'function')
-                                            modelObject[property] = new Type(value);
-                                        else modelObject[property] = value;
+                                        if (typeof Type === 'function') {
+
+                                            modelObject[
+                                                property
+                                            ] = new Type(value);
+                                        } else modelObject[
+                                            property
+                                        ] = value;
                                         if (wrapper.markModified == false) {
 
                                             wrapper.markModified = true;
                                             self.markModified(path);
                                         }
-                                    } else if (!modelObject[property])
-                                        modelObject[property] = isTypeArray ? [{}] : {};
-                                    if (isArray)
-                                        return modelObjects.concat(modelObject[property]);
-                                    else modelObjects.push(modelObject[property]);
+                                    } else if (!modelObject[
+                                        property
+                                    ]) {
+
+                                        modelObject[
+                                            property
+                                        ] = toMany ? [{}] : {};
+                                    }
+                                    if (toMany) {
+
+                                        return [
+                                            ...modelObjects,
+                                            ...modelObject[property]
+                                        ];
+                                    }
+                                    else modelObjects.push(...[
+                                        modelObject[property]
+                                    ]);
                                     return modelObjects;
                                 }, []);
                             };
                             return {
 
-                                modelObjects: getModelObjects(wrapper.modelObjects),
+                                modelObjects: getModelObjects(...[
+                                    wrapper.modelObjects
+                                ]),
                                 attributes: Type || {},
                                 markModified: wrapper.markModified
                             };
@@ -1421,6 +2319,7 @@ ModelController.defineEntity = function (name, attributes, plugins) {
                             modelObjects: [self],
                             attributes: attributes
                         });
+                    }
                 }
             };
         }
@@ -1430,11 +2329,17 @@ ModelController.defineEntity = function (name, attributes, plugins) {
 
 ModelController.prototype.constructor = ModelController;
 
-module.exports.getModelControllerObject = function (options, cb) {
+module.exports.getModelControllerObject = function () {
 
-    return new ModelController(options.uri || ('mongodb://localhost:27017/' + (options.name ||
-        'test')), function () {
+    var [options, cb] = arguments;
+    var { uri, name } = options;
+    if (!uri) {
 
-            cb.apply(this, arguments);
-        });
+        uri = 'mongodb://localhost:27017/';
+        uri += (name || 'test');
+    }
+    return new ModelController(uri, function () {
+
+        cb.apply(this, arguments);
+    });
 };

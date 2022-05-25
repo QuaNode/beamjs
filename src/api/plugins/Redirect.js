@@ -8,7 +8,8 @@ module.exports = function (key) {
     return function (out, _, res, __) {
 
         if (typeof out !== 'object') out = {};
-        if (typeof key !== 'string' || Object.keys(out).indexOf(key) === -1) return false;
+        if (typeof key !== 'string') return false;
+        if (Object.keys(out).indexOf(key) === -1) return false;
         var url = out[key];
         out[key] = undefined;
         delete out[key];

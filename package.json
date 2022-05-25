@@ -1,6 +1,6 @@
 {
     "name": "beamjs",
-    "version": "1.1.5",
+    "version": "1.2.0",
     "description": "Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
@@ -28,7 +28,8 @@
         "sequelize": "5.15.1",
         "sequelize-transparent-cache": "github:quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "github:quaNode/sequelize-transparent-cache-variable",
-        "sequelize-values": "latest"
+        "sequelize-values": "latest",
+        "@fnando/keyring": "latest"
     },
     "repository": {
         "type": "git",

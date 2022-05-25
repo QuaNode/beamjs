@@ -15,30 +15,41 @@ var nativeAgents = { http: httpNative, https: httpsNative };
 
 var hasEncryptedConnection = function (req) {
 
-    return Boolean(req.connection.encrypted || req.connection.pair);
+    var { connection } = req;
+    return Boolean(connection.encrypted || connection.pair);
 };
 
 var getPort = function (req, target) {
 
     var ports = target ? target.match(/:(\d+)/) : '';
     if (ports) return ports[1];
-    ports = req.headers.host ? req.headers.host.match(/:(\d+)/) : '';
-    return ports ? ports[1] : hasEncryptedConnection(req) ? '443' : '80';
+    var { host } = req.headers;
+    ports = host ? host.match(/:(\d+)/) : '';
+    if (ports) return ports[1];
+    if (hasEncryptedConnection(req)) return '443';
+    return '80';
 };
 
 var setupOutgoing = function (req, options) {
 
+    var { target } = options;
     var outgoing = {};
-    outgoing.port = parseInt(getPort(req, options.target));
-    if (!outgoing.port) outgoing.port = (isSSL.test(options.target) ? 443 : 80);
+    outgoing.port = parseInt(getPort(req, target));
+    if (!outgoing.port) {
+
+        outgoing.port = (isSSL.test(target) ? 443 : 80);
+    }
     outgoing.method = req.method;
     outgoing.headers = Object.assign({}, req.headers || {});
     outgoing.agent = false;
-    if (typeof outgoing.headers.connection !== 'string' ||
-        !upgradeHeader.test(outgoing.headers.connection)) {
+    var { headers } = outgoing;
+    var { connection } = headers;
+    var closing = typeof connection !== 'string';
+    if (!closing) {
 
-        outgoing.headers.connection = 'close';
+        closing |= !upgradeHeader.test(connection);
     }
+    if (closing) headers.connection = 'close';
     return outgoing;
 };
 
@@ -53,23 +64,29 @@ var responseAdaper = {
     },
     setConnection: function (req, _, proxyRes) {
 
+        var headers = proxyRes.headers;
+        var { connection } = req.headers;
+        var setting = !headers.connection;
         if (req.httpVersion === '1.0') {
 
-            proxyRes.headers.connection = req.headers.connection || 'close';
-        } else if (req.httpVersion !== '2.0' && !proxyRes.headers.connection) {
+            headers.connection = connection || 'close';
+        } else if (req.httpVersion !== '2.0' && setting) {
 
-            proxyRes.headers.connection = req.headers.connection || 'keep-alive';
+            headers.connection = connection || 'keep-alive';
         }
     },
     setRedirectHostRewrite: function (req, _, proxyRes, options) {
 
-        if (!options.reverse && proxyRes.headers['location'] && redirectRegex.test(proxyRes.statusCode)) {
+        var redirecting = !options.reverse;
+        redirecting &= proxyRes.headers['location'];
+        redirecting &= redirectRegex.test(proxyRes.statusCode);
+        if (redirecting) {
 
             var target = new URL(options.target);
-            var u = new URL(proxyRes.headers['location']);
-            if (target.host == u.host) return;
-            u.host = req.headers['host'];
-            proxyRes.headers['location'] = u.href;
+            var location = new URL(proxyRes.headers['location']);
+            if (target.host == location.host) return;
+            location.host = req.headers['host'];
+            proxyRes.headers['location'] = location.href;
         }
     },
     writeHeaders: function (_, res, proxyRes) {
@@ -99,7 +116,10 @@ var responseAdaper = {
     writeStatusCode: function (_, res, proxyRes) {
 
         res.statusCode = proxyRes.statusCode;
-        if (proxyRes.statusMessage) res.statusMessage = proxyRes.statusMessage;
+        if (proxyRes.statusMessage) {
+
+            res.statusMessage = proxyRes.statusMessage;
+        }
     }
 };
 
@@ -107,7 +127,9 @@ var webAdapter = {
 
     deleteLength: function (req) {
 
-        if ((req.method === 'DELETE' || req.method === 'OPTIONS') && !req.headers['content-length']) {
+        var deleting = req.method === 'DELETE';
+        deleting |= req.method === 'OPTIONS';
+        if (deleting && !req.headers['content-length']) {
 
             req.headers['content-length'] = '0';
             delete req.headers['transfer-encoding'];
@@ -124,33 +146,54 @@ var webAdapter = {
 
         if (!options.reverse) return;
         var encrypted = req.isSpdy || hasEncryptedConnection(req);
+        var { remoteAddress } = req.connection;
+        if (!remoteAddress) {
+
+            remoteAddress = req.socket.remoteAddress;
+        }
         var values = {
 
-            for: req.connection.remoteAddress || req.socket.remoteAddress,
+            for: remoteAddress,
             port: getPort(req, options.target),
             proto: encrypted ? 'https' : 'http'
         };
         ['for', 'port', 'proto'].forEach(function (header) {
 
-            req.headers['x-forwarded-' + header] = (req.headers['x-forwarded-' + header] || '') +
-                (req.headers['x-forwarded-' + header] ? ',' : '') + values[header];
+            var x_forwarded = req.headers['x-forwarded-' + header];
+            if (!x_forwarded) x_forwarded = '';
+            x_forwarded += x_forwarded ? ',' : '';
+            x_forwarded += values[header];
+            req.headers['x-forwarded-' + header] = x_forwarded;
         });
-        req.headers['x-forwarded-host'] = req.headers['x-forwarded-host'] || req.headers['host'] || '';
+        var x_forwarded_host = req.headers['x-forwarded-host'];
+        if (!x_forwarded_host) {
+
+            x_forwarded_host = req.headers['host'];
+        }
+        if (!x_forwarded_host) x_forwarded_host = '';
+        req.headers['x-forwarded-host'] = x_forwarded_host;
     },
     stream: function (req, res, next, options) {
 
-        var agents = options.followRedirects ? followRedirects : nativeAgents;
+        var agents = nativeAgents;
+        if (options.followRedirects) agents = followRedirects;
         var http = agents.http;
         var https = agents.https;
-        var proxyReq =
-            (isSSL.test(options.target) ? https : http).request(options.target, setupOutgoing(req, options));
+        var proxyReq = (isSSL.test(...[
+            options.target
+        ]) ? https : http).request(...[
+            options.target,
+            setupOutgoing(req, options)
+        ]);
         req.on('aborted', function () {
 
             proxyReq.abort();
         });
         var proxyError = function (err) {
 
-            if (req.socket.destroyed && err.code === 'ECONNRESET') {
+            var aborting = req.socket.destroyed;
+            aborting &= err.code === 'ECONNRESET';
+            if (aborting) {
 
                 proxyReq.abort();
                 next(err);
@@ -163,13 +206,20 @@ var webAdapter = {
 
             if (!res.headersSent) {
 
-                var functions = Object.keys(responseAdaper).map(function (key) {
+                var functions = Object.keys(...[
+                    responseAdaper
+                ]).map(function (key) {
 
                     return responseAdaper[key];
                 });
                 for (var i = 0; i < functions.length; i++) {
 
-                    if (functions[i](req, res, proxyRes, options)) break;
+                    if (functions[i](...[
+                        req,
+                        res,
+                        proxyRes,
+                        options
+                    ])) break;
                 }
             }
             if (!res.finished) proxyRes.pipe(res);
@@ -190,12 +240,14 @@ var wsAdapter = {
 
     checkMethodAndHeader: function (req, socket) {
 
-        if (req.method !== 'GET' || !req.headers.upgrade) {
+        var { upgrade } = req.headers;
+        var destroying = req.method !== 'GET';
+        if (!destroying) destroying &= !upgrade;
+        if (!destroying) {
 
-            socket.destroy();
-            return true;
+            destroying &= upgrade.toLowerCase() !== 'websocket';
         }
-        if (req.headers.upgrade.toLowerCase() !== 'websocket') {
+        if (destroying) {
 
             socket.destroy();
             return true;
@@ -204,24 +256,33 @@ var wsAdapter = {
     XHeaders: function (req, _, __, options) {
 
         if (!options.reverse) return;
+        var { remoteAddress } = req.connection;
+        if (!remoteAddress) {
+
+            remoteAddress = req.socket.remoteAddress;
+        }
         var values = {
 
-            for: req.connection.remoteAddress || req.socket.remoteAddress,
+            for: remoteAddress,
             port: getPort(req, options.target),
             proto: hasEncryptedConnection(req) ? 'wss' : 'ws'
         };
         ['for', 'port', 'proto'].forEach(function (header) {
 
-            req.headers['x-forwarded-' + header] = (req.headers['x-forwarded-' + header] || '') +
-                (req.headers['x-forwarded-' + header] ? ',' : '') + values[header];
+            var x_forwarded = req.headers['x-forwarded-' + header];
+            if (!x_forwarded) x_forwarded = '';
+            x_forwarded += x_forwarded ? ',' : '';
+            x_forwarded += values[header];
+            req.headers['x-forwarded-' + header] = x_forwarded;
         });
     },
     stream: function (req, socket, next, options, head) {
 
         var createHttpHeader = function (line, headers) {
 
-            return Object.keys(headers).reduce(function (head, key) {
+            return Object.keys(headers).reduce(function () {
 
+                var [head, key] = arguments;
                 var value = headers[key];
                 if (!Array.isArray(value)) {
 
@@ -242,23 +303,38 @@ var wsAdapter = {
         };
         setupSocket(socket);
         if (head && head.length) socket.unshift(head);
-        var agents = options.followRedirects ? followRedirects : nativeAgents;
+        var agents = nativeAgents;
+        if (options.followRedirects) agents = followRedirects;
         var http = agents.http;
         var https = agents.https;
-        var proxyReq =
-            (isSSL.test(options.target) ? https : http).request(options.target, setupOutgoing(req, options));
+        var proxyReq = (isSSL.test(...[
+            options.target
+        ]) ? https : http).request(...[
+            options.target,
+            setupOutgoing(req, options)
+        ]);
         proxyReq.on('error', onOutgoingError);
         proxyReq.on('response', function (res) {
 
             if (!res.upgrade) {
 
-                socket.write(createHttpHeader('HTTP/' + res.httpVersion + ' ' + res.statusCode + ' ' +
-                    res.statusMessage, res.headers));
+                var httpHeader = 'HTTP/' + res.httpVersion;
+                httpHeader += ' ' + res.statusCode;
+                httpHeader += ' ' + res.statusMessage;
+                socket.write(createHttpHeader(...[
+                    httpHeader,
+                    res.headers
+                ]));
                 res.pipe(socket);
             }
         });
-        proxyReq.on('upgrade', function (proxyRes, proxySocket, proxyHead) {
+        proxyReq.on('upgrade', function () {
 
+            var [
+                proxyRes,
+                proxySocket,
+                proxyHead
+            ] = arguments;
             proxySocket.on('error', onOutgoingError);
             socket.on('error', function (err) {
 
@@ -266,8 +342,13 @@ var wsAdapter = {
                 if (next) next(err);
             });
             setupSocket(proxySocket);
-            if (proxyHead && proxyHead.length) proxySocket.unshift(proxyHead);
-            socket.write(createHttpHeader('HTTP/1.1 101 Switching Protocols', proxyRes.headers));
+            var unshifting = proxyHead;
+            if (unshifting) unshifting &= proxyHead.length;
+            if (unshifting) proxySocket.unshift(proxyHead);
+            socket.write(createHttpHeader(...[
+                'HTTP/1.1 101 Switching Protocols',
+                proxyRes.headers
+            ]));
             proxySocket.pipe(socket).pipe(proxySocket);
         });
         proxyReq.end();
@@ -278,13 +359,21 @@ var createProxy = function (adapter, options) {
 
     return function (req, res, next, head) {
 
-        var functions = Object.keys(adapter).map(function (key) {
+        var functions = Object.keys(...[
+            adapter
+        ]).map(function (key) {
 
             return adapter[key];
         });
         for (var i = 0; i < functions.length; i++) {
 
-            if (functions[i](req, res, next, options, head)) break;
+            if (functions[i](...[
+                req,
+                res,
+                next,
+                options,
+                head
+            ])) break;
         }
     };
 };
@@ -292,19 +381,32 @@ var createProxy = function (adapter, options) {
 module.exports = function (host, options) {
 
     var hosts = [];
-    if (Array.isArray(host)) host.forEach(function (entry) {
+    var many = Array.isArray(host);
+    if (many) host.forEach(function (entry) {
 
-        if (!entry || typeof entry !== 'object') return;
-        if (typeof entry.host !== 'string' || entry.host.length === 0) return;
-        if (typeof entry.path !== 'string' || entry.path.length === 0) return;
+        if (!entry) return;
+        if (typeof entry !== 'object') return;
+        if (typeof entry.host !== 'string') return;
+        if (entry.host.length === 0) return;
+        if (typeof entry.path !== 'string') return;
+        if (entry.path.length === 0) return;
         entry.health = true;
         hosts.push(entry);
         setInterval(function () {
 
-            var http = nativeAgents.http;
-            var https = nativeAgents.https;
-            var health_url = new URL(entry.path, entry.host).href;
-            (isSSL.test(health_url) ? https : http).get(health_url).on('error', function () {
+            var {
+                http,
+                https
+            } = nativeAgents;
+            var health_url = new URL(...[
+                entry.path,
+                entry.host
+            ]).href;
+            (isSSL.test(...[
+                health_url
+            ]) ? https : http).get(...[
+                health_url
+            ]).on('error', function () {
 
                 entry.health = false;
             }).on('response', function (res) {
@@ -326,20 +428,31 @@ module.exports = function (host, options) {
             }
             return false;
         });
-        if (typeof host !== 'string' || host.length === 0) return false;
+        if (typeof host !== 'string') return false;
+        if (host.length === 0) return false;
         var target;
         var path = '';
-        if (typeof options.target === 'string' && options.target.length > 0) {
+        var targeting = typeof options.target === 'string';
+        if (targeting) targeting &= options.target.length > 0;
+        if (targeting) {
 
-            if (options.target.startsWith('/')) path = options.target;
-            else host = options.target;
+            if (options.target.startsWith('/')) {
+
+                path = options.target;
+            } else host = options.target;
         } else path = req.originalUrl || req.url;
         try {
 
-            target = typeof options.target === 'function' ? options.target(path, host) :
-                new URL(path, host).href;
-            if (typeof target !== 'string' || target.length === 0)
+            if (typeof options.target === 'function') {
+
+                target = options.target(path, host);
+            } else target = new URL(path, host).href;
+            var untargeting = typeof target !== 'string';
+            if (!untargeting) untargeting |= target.length === 0;
+            if (untargeting) {
+
                 throw new Error('Invalid request target');
+            }
         } catch (err) {
 
             debug(err);
@@ -351,8 +464,12 @@ module.exports = function (host, options) {
         });
         var webProxy = createProxy(webAdapter, öptions);
         var wsProxy = createProxy(wsAdapter, öptions);
-        if (head instanceof Buffer) wsProxy(req, res, next, head);
-        else webProxy(req, res, next);
+        if (head instanceof Buffer) wsProxy(...[
+            req,
+            res,
+            next,
+            head
+        ]); else webProxy(req, res, next);
         return true;
     };
 };

@@ -10,7 +10,10 @@ debug = debug('beam:index');
 
 var bunyan = require('bunyan');
 
-if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
+if (!fs.existsSync('./logs')) {
+
+    fs.mkdirSync('./logs');
+}
 
 var log = bunyan.createLogger({
 
@@ -23,105 +26,213 @@ var log = bunyan.createLogger({
     serializers: bunyan.stdSerializers
 });
 
-var beam = Object.assign(module.exports, backend);
-var ModelControllerPath = {
+var beam = Object.assign(...[
+    module.exports,
+    backend
+]);
 
-    mongodb: './src/database/controllers/MongoController.js',
-    mysql: './src/database/controllers/SQLController.js',
-    postgres: './src/database/controllers/SQLController.js'
-};
-var ResourceControllerPath = {
+var getModelControllerPath = function () {
 
-    fs: './src/storage/controllers/FSController.js'
-};
+    var [key] = arguments;
+    var controllers = {
 
-beam.database = function (key, options) {
-
-    if (typeof options === 'string' || typeof arguments[2] === 'string') return {
-
-        dbType: key,
-        dbURI: options,
-        dbName: arguments[2]
-    };
-    if (typeof key === 'object') {
-
-        options = key;
-        key = undefined;
+        mongodb: '/MongoController.js',
+        mysql: '/SQLController.js',
+        postgres: '/SQLController.js'
     }
-    var ModelModule;
+    var path = [
+        '.',
+        'src',
+        'database',
+        'controllers'
+    ];
+    path = path.join('/');
+    path += controllers[key];
+    return path;
+};
+
+var getResourceControllerPath = function () {
+
+    var [key] = arguments;
+    var controllers = {
+
+        fs: '/FSController.js'
+    }
+    var path = [
+        '.',
+        'src',
+        'storage',
+        'controllers'
+    ];
+    path = path.join('/');
+    path += controllers[key];
+    return path;
+};
+
+beam.database = function (KEY, options) {
+
+    var [
+        dbType,
+        dbURI,
+        dbName
+    ] = arguments;
+    var version_0 = typeof dbURI === 'string';
+    version_0 |= typeof dbName === 'string';
+    if (version_0) {
+
+        return { dbType, dbURI, dbName };
+    }
+    if (typeof KEY === 'object') {
+
+        options = KEY;
+        KEY = undefined;
+    }
     var type;
-    if (typeof options === 'object') type = options.type;
-    else if (typeof key === 'string') type = (backend.getModelController(key) || {}).type;
+    if (typeof options === 'object') {
+
+        type = options.type;
+    } else if (typeof KEY === 'string') {
+
+        var {
+            getModelController: getMC
+        } = backend;
+        var controller = getMC(KEY);
+        if (controller) {
+
+            type = controller.type;
+        }
+    }
     if (type) {
 
-        if (!ModelControllerPath[type]) throw new Error('Invalid database type');
-        ModelModule = require(ModelControllerPath[type]);
+        if (!getModelControllerPath(...[
+            type
+        ])) {
+
+            throw new Error('Invalid' +
+                ' database type');
+        }
+        var ModelModule = require(...[
+            getModelControllerPath(type)
+        ]);
         if (ModelModule) {
 
-            beam.ComparisonOperators = ModelModule.ComparisonOperators;
-            beam.LogicalOperators = ModelModule.LogicalOperators;
-            beam.ComputationOperators = ModelModule.ComputationOperators;
-            backend.setComparisonOperators(ModelModule.ComparisonOperators);
-            backend.setLogicalOperators(ModelModule.LogicalOperators);
-            backend.setComputationOperators(ModelModule.ComputationOperators);
+            [
+                'ComparisonOperators',
+                'LogicalOperators',
+                'ComputationOperators'
+            ].forEach(function (key) {
+
+                var operators = ModelModule[key];
+                beam[key] = operators;
+                backend['set' + key](operators);
+            });
             if (typeof options === 'object') {
 
-                backend.setModelController(ModelModule.getModelControllerObject(options,
-                    function (error) {
+                var {
+                    setModelController
+                } = backend;
+                var {
+                    getModelControllerObject
+                } = ModelModule;
+                setModelController(...[
+                    getModelControllerObject(...[
+                        options,
+                        function (error) {
 
-                        if (error) {
+                            if (error) {
 
-                            debug(error);
-                            log.error({
+                                debug(error);
+                                log.error({
 
-                                controller: 'database',
-                                err: error
-                            });
+                                    controller: 'database',
+                                    err: error
+                                });
+                            }
                         }
-                    }), key);
+                    ]),
+                    KEY
+                ]);
             }
         }
     }
     return beam;
 };
 
-beam.storage = function (key, options) {
+beam.storage = function (KEY, options) {
 
-    if (typeof options === 'string' || typeof arguments[2] === 'string') return {
+    var [
+        type,
+        id,
+        key,
+        name
+    ] = arguments;
+    var version_0 = typeof id === 'string';
+    version_0 |= typeof key === 'string';
+    if (version_0) {
 
-        type: key,
-        id: options,
-        key: arguments[2],
-        name: arguments[3]
-    };
-    if (typeof key === 'object') {
-
-        options = key;
-        key = undefined;
+        return { type, id, key, name };
     }
-    var ResourceModule;
+    if (typeof KEY === 'object') {
+
+        options = KEY;
+        KEY = undefined;
+    }
     var type;
-    if (typeof options === 'object') type = options.type;
-    else if (typeof key === 'string') type = (backend.getResourceController(key) || {}).type;
+    if (typeof options === 'object') {
+
+        type = options.type;
+    } else if (typeof KEY === 'string') {
+
+        var {
+            getResourceController: getRC
+        } = backend;
+        var controller = getRC(KEY);
+        if (controller) {
+
+            type = controller.type;
+        }
+    }
     if (type) {
 
-        if (!ResourceControllerPath[type]) throw new Error('Invalid storage type');
-        ResourceModule = require(ResourceControllerPath[type]);
-        if (ResourceModule && typeof options === 'object') {
+        if (!getResourceControllerPath(...[
+            type
+        ])) {
 
-            backend.setResourceController(ResourceModule.getResourceControllerObject(options,
-                function (error) {
+            throw new Error('Invalid' +
+                ' storage type');
+        }
+        var ResourceModule = require(...[
+            getResourceControllerPath(type)
+        ]);
+        if (ResourceModule) {
 
-                    if (error) {
+            if (typeof options === 'object') {
 
-                        debug(error);
-                        log.error({
+                var {
+                    setResourceController
+                } = backend;
+                var {
+                    getResourceControllerObject
+                } = ResourceModule;
+                setResourceController(...[
+                    getResourceControllerObject(...[
+                        options,
+                        function (error) {
 
-                            controller: 'storage',
-                            err: error
-                        });
-                    }
-                }), key);
+                            if (error) {
+
+                                debug(error);
+                                log.error({
+
+                                    controller: 'storage',
+                                    err: error
+                                });
+                            }
+                        }
+                    ]),
+                    KEY
+                ]);
+            }
         }
     }
     return beam;
@@ -129,25 +240,67 @@ beam.storage = function (key, options) {
 
 beam.backend = function (database, storage) {
 
-    beam.storage(typeof storage === 'string' ? storage : 'local', typeof storage === 'object' ? {
+    var storageOptions;
+    if (typeof storage === 'object') {
 
-        type: storage.type,
-        id: storage.id,
-        key: storage.key,
-        name: storage.name
-    } : undefined);
-    beam.database(typeof database === 'string' ? database : 'main', typeof database === 'object' ? {
+        if (storage) {
 
-        type: database.dbType,
-        uri: database.dbURI,
-        name: database.dbName
-    } : undefined);
+            var {
+                type,
+                id,
+                key,
+                name
+            } = storage;
+            storageOptions = {
+                type,
+                id,
+                key,
+                name
+            };
+        }
+    }
+    if (typeof storage !== 'string') {
+
+        storage = 'local';
+    }
+    beam.storage(storage, storageOptions);
+    var databaseOptions;
+    if (typeof database === 'object') {
+
+        if (database) {
+
+            var {
+                dbType: type,
+                dbURI: uri,
+                dbName: name
+            } = database;
+            databaseOptions = {
+                type,
+                uri,
+                name
+            };
+        }
+    }
+    if (typeof database !== 'string') {
+
+        database = 'main';
+    }
+    beam.database(database, databaseOptions);
     return backend;
 };
 
-beam.SQLTimestamps = require('./src/database/plugins/SQLTimestamps.js');
-beam.SQLHashedProperty = require('./src/database/plugins/SQLHashedProperty.js');
-beam.SQLSecret = require('./src/database/plugins/SQLSecret.js');
-beam.Respond = beam.responder = require('./src/api/plugins/Respond.js');
-beam.Redirect = beam.Delegate = beam.delegator = require('./src/api/plugins/Redirect.js');
-beam.Forward = beam.Proxy = beam.forwarder = require('./src/api/plugins/Forward.js');
+var db = './src/database/plugins/';
+var api = './src/api/plugins/';
+
+beam.SQLEncrypt = require(db + 'SQLEncrypt.js');
+beam.SQLTimestamps = require(db + 'SQLTimestamps.js');
+beam.SQLHashedProperty = require(db + 'SQLHashedProperty.js');
+beam.SQLSecret = require(db + 'SQLSecret.js');
+beam.Respond = require(api + 'Respond.js');
+beam.responder = beam.Respond;
+beam.Redirect = require(api + 'Redirect.js');
+beam.Delegate = beam.Redirect;
+beam.delegator = beam.Redirect;
+beam.Forward = require(api + 'Forward.js');
+beam.Proxy = beam.Forward;
+beam.forwarder = beam.Forward;

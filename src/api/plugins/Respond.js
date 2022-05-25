@@ -20,7 +20,11 @@ var BYTES_RANGE_REGEXP = /^ *bytes=/;
 
 var headersSent = function (res) {
 
-    return typeof res.headersSent !== 'boolean' ? Boolean(res._header) : res.headersSent;
+    if (typeof res.headersSent !== 'boolean') {
+
+        return Boolean(res._header);
+    }
+    return res.headersSent;
 };
 
 var decode = function (path) {
@@ -36,8 +40,11 @@ var decode = function (path) {
 
 var getHeaderNames = function (res) {
 
-    return typeof res.getHeaderNames !== 'function' ? Object.keys(res._headers || {}) :
-        res.getHeaderNames();
+    if (typeof res.getHeaderNames !== 'function') {
+
+        return Object.keys(res._headers || {});
+    }
+    return res.getHeaderNames();
 };
 
 var removeContentHeaderFields = function (res) {
@@ -46,17 +53,19 @@ var removeContentHeaderFields = function (res) {
     for (var i = 0; i < headers.length; i++) {
 
         var header = headers[i];
-        if (header.substr(0, 8) === 'content-' && header !== 'content-location') {
-
-            res.removeHeader(header);
-        }
+        var removing = header.substr(0, 8) === 'content-';
+        removing &= header !== 'content-location';
+        if (removing) res.removeHeader(header);
     }
 };
 
 var isConditionalGET = function (req) {
 
-    return req.headers['if-match'] || req.headers['if-unmodified-since'] ||
-        req.headers['if-none-match'] || req.headers['if-modified-since'];
+    var conditional = req.headers['if-match'];
+    conditional |= req.headers['if-unmodified-since'];
+    conditional |= req.headers['if-none-match'];
+    conditional |= req.headers['if-modified-since'];
+    return conditional;
 };
 
 var parseTokenList = function (str) {
@@ -90,7 +99,11 @@ var parseTokenList = function (str) {
 var parseHttpDate = function (date) {
 
     var timestamp = date && Date.parse(date);
-    return typeof timestamp === 'number' ? timestamp : NaN;
+    if (typeof timestamp === 'number') {
+
+        return timestamp;
+    }
+    return NaN;
 };
 
 var isPreconditionFailure = function (req, res) {
@@ -99,16 +112,31 @@ var isPreconditionFailure = function (req, res) {
     if (match) {
 
         var eTag = res.getHeader('ETag');
-        return !eTag || (match !== '*' && parseTokenList(match).every(function (match) {
+        if (!eTag) return true;
+        return match !== '*' && parseTokenList(...[
+            match
+        ]).every(function (match) {
 
-            return match !== eTag && match !== 'W/' + eTag && 'W/' + match !== eTag;
-        }));
+            var matching = match !== eTag;
+            matching &= match !== ('W/' + eTag);
+            matching &= ('W/' + match) !== eTag;
+            return matching;
+        });
     }
-    var unmodifiedSince = parseHttpDate(req.headers['if-unmodified-since']);
+    var unmodifiedSince = parseHttpDate(...[
+        req.headers['if-unmodified-since']
+    ]);
     if (!isNaN(unmodifiedSince)) {
 
-        var lastModified = parseHttpDate(res.getHeader('Last-Modified'));
-        return isNaN(lastModified) || lastModified > unmodifiedSince;
+        var lastModified = parseHttpDate(...[
+            res.getHeader('Last-Modified')
+        ]);
+        var failing = isNaN(lastModified);
+        if (failing) {
+
+            failing |= lastModified > unmodifiedSince;
+        }
+        return failing;
     }
     return false;
 };
@@ -116,7 +144,10 @@ var isPreconditionFailure = function (req, res) {
 var isCachable = function (res) {
 
     var statusCode = res.statusCode;
-    return (statusCode >= 200 && statusCode < 300) || statusCode === 304;
+    var cachable = statusCode >= 200;
+    cachable &= statusCode < 300;
+    if (!cachable) cachable |= statusCode === 304;
+    return cachable;
 };
 
 var isFresh = function (req, res) {
@@ -145,15 +176,24 @@ var isRangeFresh = function (req, res) {
     if (ifRange.indexOf('"') !== -1) {
 
         var eTag = res.getHeader('ETag');
-        return Boolean(eTag && ifRange.indexOf(eTag) !== -1);
+        var fresh = ifRange.indexOf(eTag) !== -1;
+        return Boolean(eTag && fresh);
     }
     var lastModified = res.getHeader('Last-Modified');
-    return parseHttpDate(lastModified) <= parseHttpDate(ifRange);
+    lastModified = parseHttpDate(lastModified);
+    ifRange = parseHttpDate(ifRange);
+    return lastModified <= ifRange;
 };
 
 var contentRange = function (type, size, range) {
 
-    return type + ' ' + (range ? range.start + '-' + range.end : '*') + '/' + size;
+    var content = type + ' ';
+    if (range) {
+
+        content += range.start + '-' + range.end;
+    } else content += '*';
+    content += '/' + size;
+    return content;
 };
 
 module.exports = function (key, options) {
@@ -162,19 +202,30 @@ module.exports = function (key, options) {
     return function (out, req, res, next) {
 
         if (typeof out !== 'object') out = {};
-        if (typeof key !== 'string' || Object.keys(out).indexOf(key) === -1) return false;
+        if (typeof key !== 'string') return false;
+        if (Object.keys(out).indexOf(key) === -1) return false;
         var data = out[key];
         var data_size;
-        var data_encoding;
         var error;
-        var stream = data instanceof Readable ? data : new Readable({
+        var stream;
+        var many = Array.isArray(data);
+        if (data instanceof Readable) stream = data;
+        else stream = new Readable({
 
             highWaterMark: function () {
 
-                var chunk = Array.isArray(data) ? data[0] : data;
+                var chunk = many ? data[0] : data;
                 var chunk_size;
-                if (chunk) chunk_size = chunk.length || chunk.size || chunk.byteLength;
-                if (chunk_size && !Array.isArray(data)) data_size = chunk_size;
+                if (chunk) {
+
+                    chunk_size = chunk.length;
+                    if (!chunk_size) chunk_size |= chunk.size;
+                    if (!chunk_size) {
+
+                        chunk_size |= chunk.byteLength;
+                    }
+                }
+                if (chunk_size && !many) data_size = chunk_size;
                 if (!chunk_size) chunk_size = READ_SIZE;
                 return chunk_size * 2;
             }(),
@@ -183,18 +234,23 @@ module.exports = function (key, options) {
                 var encoding = out.encoding;
                 if (!encoding) {
 
-                    var chunk = Array.isArray(data) ? data[0] : data;
-                    encoding = typeof chunk === 'string' ? 'utf8' : null;
+                    var chunk = many ? data[0] : data;
+                    if (typeof chunk === 'string') {
+
+                        encoding = 'utf8';
+                    } else encoding = null;
                 }
-                return data_encoding = encoding;
+                return encoding;
             }(),
             read() {
 
                 var chunk = data;
-                if (Array.isArray(data)) {
+                if (many) {
 
-                    if (data.length > 0) chunk = data.splice(0, 1)[0];
-                    else chunk = null;
+                    if (data.length > 0) {
+
+                        chunk = data.splice(0, 1)[0];
+                    } else chunk = null;
                 } else data = null;
                 this.push(chunk);
             }
@@ -206,47 +262,87 @@ module.exports = function (key, options) {
             next(error);
             return true;
         }
-        if (options.acceptRanges && !res.getHeader('Accept-Ranges')) {
+        var accepting = options.acceptRanges;
+        accepting &= !res.getHeader('Accept-Ranges');
+        if (accepting) {
 
             res.setHeader('Accept-Ranges', 'bytes');
         }
-        if (options.cacheControl && !res.getHeader('Cache-Control')) {
+        var caching = options.cacheControl;
+        caching &= !res.getHeader('Cache-Control');
+        if (caching) {
 
-            var maxage = options.maxAge || options.maxage;
-            maxage = typeof maxage === 'string' ? ms(maxage) : Number(maxage);
-            maxage = !isNaN(maxage) ? Math.min(Math.max(0, maxage), MAX_MAXAGE) : 0;
-            var cacheControl = 'public, max-age=' + Math.floor(maxage / 1000);
-            var immutable = options.immutable !== undefined ? Boolean(options.immutable) : false;
+            var maxage = options.maxAge;
+            if (!maxage) maxage = options.maxage;
+            if (typeof maxage === 'string') {
+
+                maxage = ms(maxage);
+            } else maxage = Number(maxage);
+            if (!isNaN(maxage)) {
+
+                maxage = Math.min(...[
+                    Math.max(0, maxage),
+                    MAX_MAXAGE
+                ]);
+            } else maxage = 0;
+            var cacheControl = 'public, max-age=';
+            cacheControl += Math.floor(maxage / 1000);
+            var immutable = false;
+            if (options.immutable !== undefined) {
+
+                immutable = Boolean(options.immutable);
+            }
             if (immutable) cacheControl += ', immutable';
             res.setHeader('Cache-Control', cacheControl);
         }
         var stat = out.stat || out.stats;
         var mtime = out.mtime || out.lastModified;
-        if (!(mtime instanceof Date) && typeof stat === 'object' && stat.mtime instanceof Date)
-            mtime = stat.mtime;
-        if (mtime instanceof Date && options.lastModified && !res.getHeader('Last-Modified')) {
+        var timing = !(mtime instanceof Date);
+        timing &= typeof stat === 'object';
+        if (timing) timing &= stat.mtime instanceof Date;
+        if (timing) mtime = stat.mtime;
+        var modifying = mtime instanceof Date;
+        modifying &= options.lastModified;
+        modifying &= !res.getHeader('Last-Modified');
+        if (modifying) {
 
             var modified = mtime.toUTCString();
             res.setHeader('Last-Modified', modified);
         }
-        if (typeof stat === 'object' && options.etag && !res.getHeader('ETag')) {
+        var etaging = typeof stat === 'object';
+        etaging &= options.etag;
+        etaging &= !res.getHeader('ETag');
+        if (etaging) {
 
             var val = etag(stat);
             res.setHeader('ETag', val);
         }
-        var path = (out.path && decode(out.path)) || (out.filename && decode(out.filename));
+        var path;
+        if (out.path) path = decode(out.path);
+        if (!path && out.filename) {
+
+            path = decode(out.filename);
+        }
         if (!path) {
 
             var originalUrl = parseUrl.original(req);
             path = parseUrl(req).pathname;
-            if (path === '/' && originalUrl.pathname.substr(-1) !== '/') path = '';
+            var resetting = path === '/';
+            var { pathname } = originalUrl;
+            resetting &= pathname.substr(-1) !== '/';
+            if (resetting) path = '';
         }
         var type = out.mime || out.type;
         if (!type && path) type = mime.getType(path);
-        if (options.attachment && !res.getHeader('Content-Disposition')) {
+        var attaching = options.attachment;
+        attaching &= !res.getHeader('Content-Disposition');
+        if (attaching) {
 
             res.attachment(path || undefined);
-            res.setHeader('Content-Transfer-Encoding', data_encoding || 'binary');
+            res.setHeader(...[
+                'Content-Transfer-Encoding',
+                'binary'
+            ]);
         }
         if (type && !res.getHeader('Content-Type')) {
 
@@ -275,7 +371,10 @@ module.exports = function (key, options) {
             return true;
         }
         var len = out.size || out.length;
-        if (!len && typeof stat === 'object' && stat.size > 0) len = stat.size;
+        var sizing = !len;
+        sizing &= typeof stat === 'object';
+        if (sizing) sizing &= stat.size > 0;
+        if (sizing) len = stat.size;
         if (!len && data_size) len = data_size;
         var offset = out.start >= 0 ? out.start : 0;
         if (len) len = Math.max(0, len - offset);
@@ -303,7 +402,10 @@ module.exports = function (key, options) {
                 if (!isRangeFresh(req, res)) ranges = -2;
                 if (ranges === -1) {
 
-                    res.setHeader('Content-Range', contentRange('bytes', len));
+                    res.setHeader(...[
+                        'Content-Range',
+                        contentRange('bytes', len)
+                    ]);
                     error = new Error();
                     error.code = 416;
                     next(error);
@@ -312,13 +414,19 @@ module.exports = function (key, options) {
                 if (ranges !== -2 && ranges.length === 1) {
 
                     res.statusCode = 206;
-                    res.setHeader('Content-Range', contentRange('bytes', len, ranges[0]));
+                    res.setHeader(...[
+                        'Content-Range',
+                        contentRange('bytes', len, ranges[0])
+                    ]);
                     offset += ranges[0].start;
                     len = ranges[0].end - ranges[0].start + 1;
                 }
             }
         }
-        if (len && path && path.endsWith('zip')) res.setHeader('Content-Length', len);
+        if (len && path && path.endsWith('zip')) {
+
+            res.setHeader('Content-Length', len);
+        }
         if (req.method === 'HEAD') {
 
             res.end();

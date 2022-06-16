@@ -1,7 +1,7 @@
 /*jslint node: true */
-'use strict';
+"use strict";
 
-var crypto = require('crypto');
+var crypto = require("crypto");
 
 module.exports = function (_, hooks, sequelize) {
 
@@ -9,10 +9,10 @@ module.exports = function (_, hooks, sequelize) {
 
         var hex = crypto.randomBytes(...[
             size
-        ]).toString('hex');
+        ]).toString("hex");
         return hex.substring(0, size);
     };
-    hooks.on('beforeDefine', function () {
+    hooks.on("beforeDefine", function () {
 
         var [attributes] = arguments;
         var {
@@ -24,7 +24,7 @@ module.exports = function (_, hooks, sequelize) {
             defaultValue: createSecret(32)
         };
     });
-    hooks.on('afterDefine', function () {
+    hooks.on("afterDefine", function () {
 
         var [Model] = arguments;
         var { prototype } = Model;
@@ -32,7 +32,7 @@ module.exports = function (_, hooks, sequelize) {
 
             var [cb] = arguments;
             this.setDataValue(...[
-                'secret',
+                "secret",
                 createSecret(32)
             ]);
             return this.save().then(...[
@@ -40,7 +40,7 @@ module.exports = function (_, hooks, sequelize) {
 
                     cb(...[
                         model.getDataValue(...[
-                            'secret'
+                            "secret"
                         ])
                     ]);
                 }

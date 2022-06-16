@@ -2,35 +2,35 @@
 /*jshint esversion: 6 */
 /*global emit*/
 /*global _*/
-'use strict';
+"use strict";
 
-var fs = require('fs');
-var debug = require('debug')('beam:MongoController');
-var bunyan = require('bunyan');
-var define = require('define-js');
-var backend = require('backend-js');
+var fs = require("fs");
+var debug = require("debug")("beam:MongoController");
+var bunyan = require("bunyan");
+var define = require("define-js");
+var backend = require("backend-js");
 var {
     ModelEntity: Entity,
     QueryExpression,
     AggregateExpression
 } = backend;
-var mongoose = require('mongoose');
-var autoIncrement = require('mongodb-autoincrement');
+var mongoose = require("mongoose");
+var autoIncrement = require("mongodb-autoincrement");
 
-if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
+if (!fs.existsSync("./logs")) fs.mkdirSync("./logs");
 
 var log = bunyan.createLogger({
 
-    name: 'beam',
+    name: "beam",
     streams: [{
 
-        path: './logs/error.log',
-        level: 'error',
+        path: "./logs/error.log",
+        level: "error",
     }],
     serializers: bunyan.stdSerializers
 });
 
-require('mongoose-pagination');
+require("mongoose-pagination");
 
 mongoose.Promise = global.Promise;
 var Schema = mongoose.Schema;
@@ -42,35 +42,35 @@ var cacheOpts = {
     maxAge: 1000 * 60 * 2
 };
 
-require('mongoose-cache').install(mongoose, cacheOpts);
+require("mongoose-cache").install(mongoose, cacheOpts);
 
 module.exports.LogicalOperators = {
 
-    AND: '$and',
-    OR: '$or',
-    NOT: '$not'
+    AND: "$and",
+    OR: "$or",
+    NOT: "$not"
 };
 
 var ComparisonOperators = module.exports.ComparisonOperators = {
 
-    EQUAL: '=',
+    EQUAL: "=",
     EQUALIGNORECASE: function (value, options, expression) {
 
         var regex;
         if (value instanceof RegExp) regex = value;
-        else regex = new RegExp('^' + value + '$');
+        else regex = new RegExp("^" + value + "$");
         var query = {
 
             $regex: regex,
-            $options: 'i'
+            $options: "i"
         };
-        if (typeof options === 'function') {
+        if (typeof options === "function") {
 
             query = options.apply(this, [query, expression]);
         }
         return query;
     },
-    NE: '$ne',
+    NE: "$ne",
     NEIGNORECASE: function (value, options, expression) {
 
         return {
@@ -82,16 +82,16 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
             ])
         };
     },
-    LT: '$lt',
-    LE: '$lte',
-    GT: '$gt',
-    GE: '$gte',
-    IN: '$in',
+    LT: "$lt",
+    LE: "$lte",
+    GT: "$gt",
+    GE: "$gte",
+    IN: "$in",
     INIGNORECASE: function (value, options, expression) {
 
         if (!Array.isArray(value)) {
 
-            throw new Error('Invalid field value');
+            throw new Error("Invalid field value");
         }
         var query = {
 
@@ -100,21 +100,21 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
                 var regex;
                 if (value instanceof RegExp) {
 
-                    regex = new RegExp(value, 'i');
+                    regex = new RegExp(value, "i");
                 } else regex = new RegExp(...[
-                    '^' + value + '$',
-                    'i'
+                    "^" + value + "$",
+                    "i"
                 ]);
                 return regex;
             })
         };
-        if (typeof options === 'function') {
+        if (typeof options === "function") {
 
             query = options.apply(this, [query, expression]);
         }
         return query;
     },
-    NIN: '$nin',
+    NIN: "$nin",
     NINIGNORECASE: function (value, options, expression) {
 
         var query = this.INIGNORECASE(...[
@@ -126,17 +126,17 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         delete query.$in;
         return query;
     },
-    CONTAINS: '$regex',
+    CONTAINS: "$regex",
     ANY: function (value, options, expression) {
 
         var query = Array.isArray(value) ? {
 
             $in: value
-        } : typeof value === 'object' ? value : {
+        } : typeof value === "object" ? value : {
 
             $eq: value
         };
-        if (typeof options === 'function') {
+        if (typeof options === "function") {
 
             query = options.apply(this, [query, expression]);
         }
@@ -145,7 +145,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
             $elemMatch: query
         };
     },
-    ALL: '$all',
+    ALL: "$all",
     ANYMATCH: function (query) {
 
         return {
@@ -171,9 +171,9 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         } else if (query.$eq) {
 
             return this.EQUALIGNORECASE(query.$eq);
-        } else if (query['=']) {
+        } else if (query["="]) {
 
-            return this.EQUALIGNORECASE(query['=']);
+            return this.EQUALIGNORECASE(query["="]);
         } else if (query.$ne) {
 
             return this.NEIGNORECASE(query.$ne);
@@ -183,31 +183,31 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 
                 query.$regex = new RegExp(query.$regex);
             }
-            query.$options = 'i';
+            query.$options = "i";
         }
         return query;
     },
     SOME: function (query, expression) {
 
-        var attributes = expression.fieldName.split('.');
+        var attributes = expression.fieldName.split(".");
         var one = !Array.isArray(attributes);
         if (!one) one |= attributes.length < 2;
         if (one) {
 
-            throw new Error('Invalid field name in a ' +
-                'query expression');
+            throw new Error("Invalid field name in a " +
+                "query expression");
         }
         var property = attributes.splice(-1, 1)[0];
-        expression.fieldName = attributes.join('.');
+        expression.fieldName = attributes.join(".");
         var newQuery = {
 
-            input: '$' + expression.fieldName,
-            as: 'item',
+            input: "$" + expression.fieldName,
+            as: "item",
             cond: query
         };
-        if (query['=']) newQuery.cond = {
+        if (query["="]) newQuery.cond = {
 
-            $eq: ['$$item.' + property, query['=']]
+            $eq: ["$$item." + property, query["="]]
         }; else if (query.$regex) {
 
             var regex;
@@ -218,20 +218,20 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
                     query.$options
                 ]);
             } else regex = new RegExp(...[
-                '^' + query.$regex + '$',
+                "^" + query.$regex + "$",
                 query.$options
             ]);
             query.$regex = [
-                '$$item.' + property,
+                "$$item." + property,
                 regex
             ];
         } else if (Object.keys[query].length === 1) {
 
             query[Object.keys[query][0]] = [
-                '$$item.' + property,
+                "$$item." + property,
                 query[Object.keys[query][0]]
             ];
-        } else throw new Error('Invalid filter condition');
+        } else throw new Error("Invalid filter condition");
         return {
 
             $expr: {
@@ -252,8 +252,8 @@ var getBinaryOperator = function (operator, acceptArray) {
         var validRight = rightValue !== undefined;
         if (!validLeft && !validRight) {
 
-            throw new Error('Invalid values in aggregate' +
-                ' expression');
+            throw new Error("Invalid values in aggregate" +
+                " expression");
         }
         if (acceptArray || passingArray) {
 
@@ -270,8 +270,8 @@ var getBinaryOperator = function (operator, acceptArray) {
                 ...(rightValue || [])
             ].length === 0) {
 
-                throw new Error('Invalid values in aggregate' +
-                    ' expression');
+                throw new Error("Invalid values in aggregate" +
+                    " expression");
             }
         }
         var operation = {};
@@ -301,8 +301,8 @@ var getUnaryOperator = function (operator) {
 
         if (value === undefined) {
 
-            throw new Error('Invalid value in aggregate' +
-                ' expression');
+            throw new Error("Invalid value in aggregate" +
+                " expression");
         }
         var operation = {};
         operation[operator] = value;
@@ -331,27 +331,27 @@ var ComputationOperators = module.exports.ComputationOperators = {
 
     FIELD: function (fieldName) {
 
-        var invalid = typeof fieldName !== 'string';
+        var invalid = typeof fieldName !== "string";
         if (!invalid) invalid |= fieldName.length === 0;
         if (invalid) {
 
-            throw new Error('Invalid field name in aggregate' +
-                ' expression');
+            throw new Error("Invalid field name in aggregate" +
+                " expression");
         }
-        return '$' + fieldName;
+        return "$" + fieldName;
     },
     VAR: function (variable) {
 
-        var invalid = typeof variable !== 'string';
+        var invalid = typeof variable !== "string";
         if (!invalid) invalid |= variable.length === 0;
         if (invalid) {
 
-            throw new Error('Invalid variable name in aggregate' +
-                ' expression');
+            throw new Error("Invalid variable name in aggregate" +
+                " expression");
         }
-        return '$$' + variable;
+        return "$$" + variable;
     },
-    EQUAL: getBinaryOperator('$eq'),
+    EQUAL: getBinaryOperator("$eq"),
     EQUALIGNORECASE: function (leftValue, rightValue) {
 
         return this.EQUAL(this.CASEINSENSITIVECOMPARE(...[
@@ -359,7 +359,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
             rightValue
         ]), 0);
     },
-    NE: getBinaryOperator('$ne'),
+    NE: getBinaryOperator("$ne"),
     NEIGNORECASE: function (leftValue, rightValue) {
 
         return this.NE(this.CASEINSENSITIVECOMPARE(...[
@@ -367,16 +367,16 @@ var ComputationOperators = module.exports.ComputationOperators = {
             rightValue
         ]), 0);
     },
-    LT: getBinaryOperator('$lt'),
-    LE: getBinaryOperator('$lte'),
-    GT: getBinaryOperator('$gt'),
-    GE: getBinaryOperator('$gte'),
-    IN: getBinaryOperator('$in'),
+    LT: getBinaryOperator("$lt"),
+    LE: getBinaryOperator("$lte"),
+    GT: getBinaryOperator("$gt"),
+    GE: getBinaryOperator("$gte"),
+    IN: getBinaryOperator("$in"),
     INIGNORECASE: function (leftValue, rightValue) {
 
         if (!Array.isArray(rightValue)) {
 
-            throw new Error('Invalid in operator array');
+            throw new Error("Invalid in operator array");
         }
         var self = this;
         return self.OR(rightValue.map(function (value) {
@@ -412,20 +412,20 @@ var ComputationOperators = module.exports.ComputationOperators = {
             leftValue,
             rightValue
         ]);
-        operation.$regexMatch.options = 'i';
+        operation.$regexMatch.options = "i";
         return operation;
     },
     SOME: function (variable) {
 
-        var invalid = typeof variable !== 'string';
+        var invalid = typeof variable !== "string";
         if (!invalid) invalid |= variable.length === 0;
         if (invalid) {
 
-            throw new Error('Invalid array variable name in ' +
-                'aggregate expression');
+            throw new Error("Invalid array variable name in " +
+                "aggregate expression");
         }
         return this.OPERATOR(...[
-            'SOME',
+            "SOME",
             function (leftValue, rightValue) {
 
                 return {
@@ -440,74 +440,74 @@ var ComputationOperators = module.exports.ComputationOperators = {
             }
         ]);
     },
-    AND: getBinaryOperator('$and'),
-    OR: getBinaryOperator('$or'),
-    NOT: getBinaryOperator('$not'),
-    ABS: getUnaryOperator('$abs'),
-    ACOS: getUnaryOperator('$acos'),
-    ACOSH: getUnaryOperator('$acosh'),
-    ADD: getBinaryOperator('$add'),
-    ASIN: getUnaryOperator('$asin'),
-    ASINH: getUnaryOperator('$asinh'),
-    ATAN: getUnaryOperator('$atan'),
-    ATANH: getUnaryOperator('$atanh'),
-    CEIL: getUnaryOperator('$ceil'),
-    COS: getUnaryOperator('$cos'),
-    DIVIDE: getBinaryOperator('$divide'),
-    EXP: getUnaryOperator('$exp'),
-    FLOOR: getUnaryOperator('$floor'),
-    LN: getUnaryOperator('$ln'),
-    LOG: getBinaryOperator('$log'),
-    LOG10: getUnaryOperator('$log10'),
-    MOD: getBinaryOperator('$mod'),
-    MULTIPLY: getBinaryOperator('$multiply'),
-    POW: getBinaryOperator('$pow'),
-    ROUND: getBinaryOperator('$round'),
-    SIN: getUnaryOperator('$sin'),
-    SQRT: getUnaryOperator('$sqrt'),
-    SUBTRACT: getBinaryOperator('$subtract'),
-    TAN: getUnaryOperator('$tan'),
-    TRUNC: getUnaryOperator('$trunc'),
-    CONCAT: getBinaryOperator('$concat'),
-    SUBSTR: getBinaryOperator('$substrCP', true),
-    SUBSTRINDEX: getBinaryOperator('$indexOfCP', true),
-    STRLENGTH: getUnaryOperator('$strLenCP'),
-    LOWERCASE: getUnaryOperator('$toLower'),
-    UPPERCASE: getUnaryOperator('$toUpper'),
-    CASEINSENSITIVECOMPARE: getBinaryOperator('$strcasecmp'),
-    LTRIM: getTrimOperator('$ltrim'),
-    RTRIM: getTrimOperator('$rtrim'),
-    TRIM: getTrimOperator('$trim'),
-    SPLIT: getBinaryOperator('$split'),
-    INDEXAT: getBinaryOperator('$arrayElemAt'),
-    INDEXOF: getBinaryOperator('$indexOfArray', true),
-    APPEND: getBinaryOperator('$concatArrays'),
-    ARRAY: getUnaryOperator('$isArray'),
-    LENGTH: getUnaryOperator('$size'),
-    SLICE: getBinaryOperator('$slice', true),
-    DIFF: getBinaryOperator('$setDifference'),
-    SAME: getBinaryOperator('$setEquals'),
-    INTERSECT: getBinaryOperator('$setIntersection'),
-    SUBSET: getBinaryOperator('$setIsSubset'),
-    UNION: getBinaryOperator('$setUnion'),
-    SUM: getUnaryOperator('$sum'),
-    SUMWITH: getBinaryOperator('$sum'),
-    AVR: getUnaryOperator('$avg'),
-    AVRWITH: getBinaryOperator('$avg'),
-    FIRST: getUnaryOperator('$first'),
-    LAST: getUnaryOperator('$last'),
-    MAX: getUnaryOperator('$max'),
-    MAXWITH: getBinaryOperator('$max'),
-    MIN: getUnaryOperator('$min'),
-    MINWITH: getBinaryOperator('$min'),
-    DEV: getUnaryOperator('$stdDevPop'),
-    DEVSAMP: getUnaryOperator('$stdDevSamp'),
+    AND: getBinaryOperator("$and"),
+    OR: getBinaryOperator("$or"),
+    NOT: getBinaryOperator("$not"),
+    ABS: getUnaryOperator("$abs"),
+    ACOS: getUnaryOperator("$acos"),
+    ACOSH: getUnaryOperator("$acosh"),
+    ADD: getBinaryOperator("$add"),
+    ASIN: getUnaryOperator("$asin"),
+    ASINH: getUnaryOperator("$asinh"),
+    ATAN: getUnaryOperator("$atan"),
+    ATANH: getUnaryOperator("$atanh"),
+    CEIL: getUnaryOperator("$ceil"),
+    COS: getUnaryOperator("$cos"),
+    DIVIDE: getBinaryOperator("$divide"),
+    EXP: getUnaryOperator("$exp"),
+    FLOOR: getUnaryOperator("$floor"),
+    LN: getUnaryOperator("$ln"),
+    LOG: getBinaryOperator("$log"),
+    LOG10: getUnaryOperator("$log10"),
+    MOD: getBinaryOperator("$mod"),
+    MULTIPLY: getBinaryOperator("$multiply"),
+    POW: getBinaryOperator("$pow"),
+    ROUND: getBinaryOperator("$round"),
+    SIN: getUnaryOperator("$sin"),
+    SQRT: getUnaryOperator("$sqrt"),
+    SUBTRACT: getBinaryOperator("$subtract"),
+    TAN: getUnaryOperator("$tan"),
+    TRUNC: getUnaryOperator("$trunc"),
+    CONCAT: getBinaryOperator("$concat"),
+    SUBSTR: getBinaryOperator("$substrCP", true),
+    SUBSTRINDEX: getBinaryOperator("$indexOfCP", true),
+    STRLENGTH: getUnaryOperator("$strLenCP"),
+    LOWERCASE: getUnaryOperator("$toLower"),
+    UPPERCASE: getUnaryOperator("$toUpper"),
+    CASEINSENSITIVECOMPARE: getBinaryOperator("$strcasecmp"),
+    LTRIM: getTrimOperator("$ltrim"),
+    RTRIM: getTrimOperator("$rtrim"),
+    TRIM: getTrimOperator("$trim"),
+    SPLIT: getBinaryOperator("$split"),
+    INDEXAT: getBinaryOperator("$arrayElemAt"),
+    INDEXOF: getBinaryOperator("$indexOfArray", true),
+    APPEND: getBinaryOperator("$concatArrays"),
+    ARRAY: getUnaryOperator("$isArray"),
+    LENGTH: getUnaryOperator("$size"),
+    SLICE: getBinaryOperator("$slice", true),
+    DIFF: getBinaryOperator("$setDifference"),
+    SAME: getBinaryOperator("$setEquals"),
+    INTERSECT: getBinaryOperator("$setIntersection"),
+    SUBSET: getBinaryOperator("$setIsSubset"),
+    UNION: getBinaryOperator("$setUnion"),
+    SUM: getUnaryOperator("$sum"),
+    SUMWITH: getBinaryOperator("$sum"),
+    AVR: getUnaryOperator("$avg"),
+    AVRWITH: getBinaryOperator("$avg"),
+    FIRST: getUnaryOperator("$first"),
+    LAST: getUnaryOperator("$last"),
+    MAX: getUnaryOperator("$max"),
+    MAXWITH: getBinaryOperator("$max"),
+    MIN: getUnaryOperator("$min"),
+    MINWITH: getBinaryOperator("$min"),
+    DEV: getUnaryOperator("$stdDevPop"),
+    DEVSAMP: getUnaryOperator("$stdDevSamp"),
     IF: function (leftValue, rightValue) {
 
-        var valid = typeof rightValue === 'object';
+        var valid = typeof rightValue === "object";
         if (valid) {
 
-            valid &= typeof rightValue.$cond === 'object';
+            valid &= typeof rightValue.$cond === "object";
         }
         if (valid) {
 
@@ -524,10 +524,10 @@ var ComputationOperators = module.exports.ComputationOperators = {
     },
     ELSE: function (leftValue, rightValue) {
 
-        var valid = typeof leftValue === 'object';
+        var valid = typeof leftValue === "object";
         if (valid) {
 
-            valid &= typeof leftValue.$cond === 'object';
+            valid &= typeof leftValue.$cond === "object";
         }
         if (valid) {
 
@@ -542,25 +542,25 @@ var ComputationOperators = module.exports.ComputationOperators = {
             }
         };
     },
-    IFNULL: getBinaryOperator('$ifNull'),
-    RANGE: getBinaryOperator('$range'),
-    MINUTE: getUnaryOperator('$minute'),
-    HOUR: getUnaryOperator('$hour'),
-    DAY: getUnaryOperator('$dayOfMonth'),
-    WEEK: getUnaryOperator('$week'),
-    MONTH: getUnaryOperator('$month'),
-    YEAR: getUnaryOperator('$year'),
-    UNEMBED: '$$DESCEND',
-    HIDE: '$$PRUNE',
-    SHOW: '$$KEEP',
+    IFNULL: getBinaryOperator("$ifNull"),
+    RANGE: getBinaryOperator("$range"),
+    MINUTE: getUnaryOperator("$minute"),
+    HOUR: getUnaryOperator("$hour"),
+    DAY: getUnaryOperator("$dayOfMonth"),
+    WEEK: getUnaryOperator("$week"),
+    MONTH: getUnaryOperator("$month"),
+    YEAR: getUnaryOperator("$year"),
+    UNEMBED: "$$DESCEND",
+    HIDE: "$$PRUNE",
+    SHOW: "$$KEEP",
     CONVERT: function (type) {
 
-        var invalid = typeof type != 'number';
+        var invalid = typeof type != "number";
         invalid |= type < 1;
         invalid |= type > 19;
         if (invalid) {
 
-            invalid = typeof type !== 'string';
+            invalid = typeof type !== "string";
             if (!invalid) {
 
                 invalid |= type.length === 0;
@@ -568,10 +568,10 @@ var ComputationOperators = module.exports.ComputationOperators = {
         }
         if (invalid) {
 
-            throw new Error('Invalid conversion type in ' +
-                'aggregate expression');
+            throw new Error("Invalid conversion type in " +
+                "aggregate expression");
         }
-        return this.OPERATOR('CONVERT', function (value) {
+        return this.OPERATOR("CONVERT", function (value) {
 
             return {
 
@@ -606,7 +606,7 @@ var getQuery = function () {
     ] = arguments;
     if (contextualLevel < 0) {
 
-        throw new Error('Invalid contextual level');
+        throw new Error("Invalid contextual level");
     }
     if (Array.isArray(queryExpressions)) {
 
@@ -622,10 +622,10 @@ var getQuery = function () {
                 comparisonOperatorOptions
             } = queryExpression;
             filter[fieldName] = fieldValue;
-            if (typeof comparisonOperator === 'string') {
+            if (typeof comparisonOperator === "string") {
 
                 subFilter[comparisonOperator] = fieldValue;
-                if (typeof comparisonOperatorOptions === 'function') {
+                if (typeof comparisonOperatorOptions === "function") {
 
                     subFilter = comparisonOperatorOptions.apply(...[
                         ComparisonOperators, [
@@ -634,7 +634,7 @@ var getQuery = function () {
                         ]
                     ]);
                 }
-            } else if (typeof comparisonOperator === 'function') {
+            } else if (typeof comparisonOperator === "function") {
 
                 subFilter = comparisonOperator.apply(...[
                     ComparisonOperators, [
@@ -675,9 +675,9 @@ var getQuery = function () {
                         queryExpressions,
                         contextualLevel + 1
                     ]);
-                    var inducing = logicalOperator;
-                    inducing &= leftFilter;
-                    inducing &= rightFilter;
+                    var inducing = !!logicalOperator;
+                    inducing &= !!leftFilter;
+                    inducing &= !!rightFilter;
                     if (inducing) {
 
                         var superFilter = {};
@@ -702,7 +702,7 @@ var constructQuery = function (queryExpressions) {
         var [queryExpression, index] = arguments;
         if (!(queryExpression instanceof QueryExpression)) {
 
-            throw new Error('Invalid query expressions');
+            throw new Error("Invalid query expressions");
         }
         var {
             logicalOperator,
@@ -710,13 +710,13 @@ var constructQuery = function (queryExpressions) {
         } = queryExpression;
         if (index > 0 && !logicalOperator) {
 
-            throw new Error('Query expression missing ' +
-                'logical operator');
+            throw new Error("Query expression missing " +
+                "logical operator");
         }
-        if (index > 0 && typeof contextualLevel !== 'number') {
+        if (index > 0 && typeof contextualLevel !== "number") {
 
-            throw new Error('Query expression missing ' +
-                'contextual level');
+            throw new Error("Query expression missing " +
+                "contextual level");
         }
     });
     var query = getQuery(queryExpressions, 0);
@@ -748,21 +748,21 @@ var getExecuteQuery = function (session) {
         var query = ObjectConstructor.find(...[
             constructQuery(queryExpressions)
         ]);
-        if (typeof distinct === 'string') {
+        if (typeof distinct === "string") {
 
             query = query.distinct(distinct);
         } else {
 
             if (Array.isArray(include)) {
 
-                query = query.select(include.join(' '));
+                query = query.select(include.join(" "));
             } else if (Array.isArray(exclude)) {
 
                 query = query.select(...[
                     exclude.map(function (field) {
 
-                        return '-' + field;
-                    }).join(' ')
+                        return "-" + field;
+                    }).join(" ")
                 ]);
             }
         }
@@ -771,17 +771,17 @@ var getExecuteQuery = function (session) {
             query = query.sort(...[
                 sort.map(function (option) {
 
-                    if (typeof option.by !== 'string') {
+                    if (typeof option.by !== "string") {
 
-                        throw new Error('Invalid sort by field name');
+                        throw new Error("Invalid sort by field name");
                     }
-                    var sep = '';
-                    if (option.order === 'desc') {
+                    var sep = "";
+                    if (option.order === "desc") {
 
-                        sep = '-';
+                        sep = "-";
                     }
                     return sep + option.by;
-                }).join(' ')
+                }).join(" ")
             ]);
         }
         if (Array.isArray(populate)) {
@@ -789,32 +789,32 @@ var getExecuteQuery = function (session) {
             populate.forEach(function (option) {
 
                 var opt = {};
-                if (typeof option.path !== 'string') {
+                if (typeof option.path !== "string") {
 
-                    throw new Error('Invalid populate path');
+                    throw new Error("Invalid populate path");
                 }
                 opt.path = option.path;
                 if (Array.isArray(option.include)) {
 
-                    opt.select = option.include.join(' ');
+                    opt.select = option.include.join(" ");
                 }
                 if (Array.isArray(option.exclude)) {
 
-                    var sep = '';
+                    var sep = "";
                     if (opt.select) {
 
-                        sep = ' ';
+                        sep = " ";
                     }
                     opt.select = sep + option.exclude.map(...[
                         function (field) {
 
-                            return '-' + field;
+                            return "-" + field;
                         }
-                    ]).join(' ');
+                    ]).join(" ");
                 }
-                if (typeof option.model !== 'string') {
+                if (typeof option.model !== "string") {
 
-                    throw new Error('Invalid populate model');
+                    throw new Error("Invalid populate model");
                 }
                 opt.model = option.model;
                 query = query.populate(opt);
@@ -824,7 +824,7 @@ var getExecuteQuery = function (session) {
         if (readonly) query = query.lean();
         var time = session.busy();
         var paginating = paginate;
-        paginating &= typeof limit === 'number';
+        paginating &= typeof limit === "number";
         if (paginating) query.paginate(...[
             page,
             limit,
@@ -834,7 +834,7 @@ var getExecuteQuery = function (session) {
                     session,
                     modelObjects
                 ]);
-                if (typeof callback === 'function') callback({
+                if (typeof callback === "function") callback({
 
                     modelObjects: modelObjects,
                     pageCount: total / limit
@@ -847,7 +847,7 @@ var getExecuteQuery = function (session) {
                 session,
                 modelObjects
             ]);
-            if (typeof callback === 'function') {
+            if (typeof callback === "function") {
 
                 callback(modelObjects, error);
             }
@@ -878,7 +878,7 @@ var getQueryUniqueArray = function () {
         cache,
         paginate
     } = features;
-    var unique = typeof distinct === 'string';
+    var unique = typeof distinct === "string";
     unique |= Array.isArray(include);
     unique |= Array.isArray(exclude);
     unique |= Array.isArray(sort);
@@ -919,7 +919,7 @@ var getMapReduce = function (session) {
         } = features.mapReduce;
         if (!sort) sort = features.sort;
         if (!scope) scope = {};
-        if (typeof paginate !== 'boolean') {
+        if (typeof paginate !== "boolean") {
 
             paginate = features.paginate;
         }
@@ -939,28 +939,28 @@ var getMapReduce = function (session) {
 
             options.sort = sort.reduce(function (sort, opt) {
 
-                if (typeof opt.by !== 'string') {
+                if (typeof opt.by !== "string") {
 
-                    throw new Error('Invalid sort by field name');
+                    throw new Error("Invalid sort by field name");
                 }
-                sort[opt.by] = opt.order === 'desc' ? -1 : 1;
+                sort[opt.by] = opt.order === "desc" ? -1 : 1;
                 return sort;
             }, {});
         }
         options.map = function () {
 
-            if (typeof _.count === 'number') {
+            if (typeof _.count === "number") {
 
                 _.count++;
-                var skipping = typeof _.skip === 'number';
+                var skipping = typeof _.skip === "number";
                 skipping &= _.count <= _.skip;
                 if (skipping) return;
-                var limiting = typeof _.limit === 'number';
+                var limiting = typeof _.limit === "number";
                 limiting &= _.count > (_.skip + _.limit);
                 if (limiting) return;
             }
             var emitter = _.map(this);
-            if (typeof emitter === 'function') {
+            if (typeof emitter === "function") {
 
                 emitter(function (data) {
 
@@ -971,26 +971,26 @@ var getMapReduce = function (session) {
                 });
             } else {
 
-                var emitting = emitter;
-                if (emitting) emitting &= emitter.key;
-                if (emitting) emitting &= emitter.value;
+                var emitting = !!emitter;
+                if (emitting) emitting &= !!emitter.key;
+                if (emitting) emitting &= !!emitter.value;
                 if (emitting) emit(emitter.key, emitter.value);
             }
         };
         options.reduce = reduce;
-        if (typeof finalize === 'function') {
+        if (typeof finalize === "function") {
 
             options.finalize = finalize;
         }
         options.scope = scope;
         if (options.scope._) {
 
-            throw new Error('Invalid use of _ it is reserved');
+            throw new Error("Invalid use of _ it is reserved");
         }
         options.scope._ = {};
         options.scope._.map = map;
         var paginating = paginate;
-        paginating &= typeof limit === 'number';
+        paginating &= typeof limit === "number";
         if (filter && paginating) {
 
             options.scope._.limit = limit;
@@ -1005,15 +1005,15 @@ var getMapReduce = function (session) {
             ]);
             if (queryUniqueArray.length > 0) {
 
-                collection = 'MapReduce';
+                collection = "MapReduce";
                 var { modelName } = ObjectConstructor;
                 collection += modelName.toUpperCase();
                 collection += JSON.stringify(...[
                     queryUniqueArray
-                ]).split('').reduce(function (number, string) {
+                ]).split("").reduce(function (number, string) {
 
                     return number / string.codePointAt(0);
-                }, 9999).toString().replace('e-', '').slice(-4);
+                }, 9999).toString().replace("e-", "").slice(-4);
                 options.out = {
 
                     replace: collection
@@ -1031,7 +1031,7 @@ var getMapReduce = function (session) {
                 if (!callingBack) callingBack |= !collection;
                 if (callingBack) {
 
-                    callingBack = typeof callback === 'function';
+                    callingBack = typeof callback === "function";
                     if (callingBack) {
 
                         var {
@@ -1070,7 +1070,7 @@ var getAggregate = function () {
     ] = arguments;
     if (contextualLevel < 0) {
 
-        throw new Error('Invalid contextual level');
+        throw new Error("Invalid contextual level");
     }
     var {
         fieldValue,
@@ -1085,17 +1085,17 @@ var getAggregate = function () {
         invalid &= levels !== fieldValue.filter(...[
             function (value) {
 
-                return typeof value === 'function';
+                return typeof value === "function";
             }
         ]).length;
     }
-    if (invalid) throw new Error('Invalid contextual levels');
+    if (invalid) throw new Error("Invalid contextual levels");
     for (var j = 0; j <= contextualLevel; j++) {
 
         var k = 0;
         for (var i = 0; i < fieldValue.length; i++) {
 
-            if (typeof fieldValue[i] === 'function') {
+            if (typeof fieldValue[i] === "function") {
 
                 if ((contextualLevels[k] || 0) === j) {
 
@@ -1148,18 +1148,18 @@ var constructAggregate = function () {
         var [aggregateExpression] = arguments;
         if (!(aggregateExpression instanceof AggregateExpression)) {
 
-            throw new Error('Invalid aggregate expressions');
+            throw new Error("Invalid aggregate expressions");
         }
         var { contextualLevels } = aggregateExpression;
         var one = !Array.isArray(contextualLevels);
         if (one || contextualLevels.some(function () {
 
             var [contextualLevel] = arguments;
-            return typeof contextualLevel !== 'number';
+            return typeof contextualLevel !== "number";
         })) {
 
-            throw new Error('Aggregate expression missing ' +
-                'contextual levels');
+            throw new Error("Aggregate expression missing " +
+                "contextual levels");
         }
     });
     var indices = [];
@@ -1176,13 +1176,13 @@ var constructAggregate = function () {
         } = aggregateExpression;
         if (computationOrder < 0) {
 
-            throw new Error('Invalid computation order');
+            throw new Error("Invalid computation order");
         }
-        var aggregating = typeof orderOrField === 'number';
+        var aggregating = typeof orderOrField === "number";
         aggregating &= computationOrder === orderOrField;
         if (!aggregating) {
 
-            aggregating = typeof orderOrField === 'string';
+            aggregating = typeof orderOrField === "string";
             aggregating &= fieldName === orderOrField;
         }
         if (aggregating) {
@@ -1234,7 +1234,7 @@ var getExecuteAggregate = function (session) {
         if (!distinct) distinct = features.distinct;
         if (!sort) sort = features.sort;
         if (!populate) populate = features.populate;
-        if (typeof paginate !== 'boolean') {
+        if (typeof paginate !== "boolean") {
 
             paginate = features.paginate;
         }
@@ -1256,7 +1256,7 @@ var getExecuteAggregate = function (session) {
             ]);
         }
         var redact;
-        if (typeof restrict === 'string') {
+        if (typeof restrict === "string") {
 
             redact = constructAggregate(...[
                 aggregateExpressions,
@@ -1266,7 +1266,7 @@ var getExecuteAggregate = function (session) {
         var constructedAggregate;
         var group;
         var collection;
-        if (filter && typeof distinct === 'string') {
+        if (filter && typeof distinct === "string") {
 
             constructedAggregate = constructAggregate(...[
                 aggregateExpressions,
@@ -1283,7 +1283,7 @@ var getExecuteAggregate = function (session) {
                     _id[distinct] = distinctAggregate;
                     delete constructedAggregate[distinct];
                     return _id;
-                }() : '$' + distinct
+                }() : "$" + distinct
             };
         }
         if (aggregateExpressions.length > 0) {
@@ -1345,7 +1345,7 @@ var getExecuteAggregate = function (session) {
 
                 aggregate = aggregate.unwind({
 
-                    path: '$' + path,
+                    path: "$" + path,
                     preserveNullAndEmptyArrays: true
                 });
             }
@@ -1355,18 +1355,18 @@ var getExecuteAggregate = function (session) {
             aggregate = aggregate.sort(...[
                 sort.map(function (option) {
 
-                    if (typeof option.by !== 'string') {
+                    if (typeof option.by !== "string") {
 
-                        throw new Error('Invalid sort' +
-                            ' by field name');
+                        throw new Error("Invalid sort" +
+                            " by field name");
                     }
-                    var sep = '';
-                    if (option.order === 'desc') {
+                    var sep = "";
+                    if (option.order === "desc") {
 
-                        sep = '-';
+                        sep = "-";
                     }
                     return sep + option.by;
-                }).join(' ')
+                }).join(" ")
             ]);
         }
         if (Array.isArray(populate)) {
@@ -1377,19 +1377,19 @@ var getExecuteAggregate = function (session) {
 
                     pipeline: []
                 };
-                if (typeof option.path !== 'string') {
+                if (typeof option.path !== "string") {
 
-                    throw new Error('Invalid populate path');
+                    throw new Error("Invalid populate path");
                 }
-                if (typeof option.ref !== 'string') {
+                if (typeof option.ref !== "string") {
 
-                    throw new Error('Invalid populate ref');
+                    throw new Error("Invalid populate ref");
                 }
                 var match = {};
-                match[option.ref] = '$$ref';
+                match[option.ref] = "$$ref";
                 opt.var = {
 
-                    ref: '$' + option.path
+                    ref: "$" + option.path
                 };
                 var project;
                 if (Array.isArray(option.include)) {
@@ -1416,9 +1416,9 @@ var getExecuteAggregate = function (session) {
                     $match: match,
                     $project: project
                 });
-                if (typeof option.model !== 'string') {
+                if (typeof option.model !== "string") {
 
-                    throw new Error('Invalid populate model');
+                    throw new Error("Invalid populate model");
                 }
                 opt.from = option.model;
                 opt.as = option.path;
@@ -1429,7 +1429,7 @@ var getExecuteAggregate = function (session) {
             });
         }
         var paginating = paginate;
-        paginating &= typeof limit === 'number';
+        paginating &= typeof limit === "number";
         if (filter && paginating) {
 
             aggregate = aggregate.facet({
@@ -1443,7 +1443,7 @@ var getExecuteAggregate = function (session) {
                 }],
                 pagination: [{
 
-                    $count: 'total'
+                    $count: "total"
                 }]
             });
         }
@@ -1456,14 +1456,14 @@ var getExecuteAggregate = function (session) {
             if (queryUniqueArray.length > 0) {
 
                 var { modelName } = ObjectConstructor;
-                collection = 'Aggregate';
+                collection = "Aggregate";
                 collection += modelName.toUpperCase();
                 collection += JSON.stringify(...[
                     queryUniqueArray
-                ]).split('').reduce(function (number, string) {
+                ]).split("").reduce(function (number, string) {
 
                     return number / string.codePointAt(0);
-                }, 9999).toString().replace('e-', '').slice(-4);
+                }, 9999).toString().replace("e-", "").slice(-4);
                 aggregate = aggregate.append({
 
                     $out: collection
@@ -1475,7 +1475,7 @@ var getExecuteAggregate = function (session) {
 
             if (!result || !collection) {
 
-                var callingBack = typeof callback === 'function';
+                var callingBack = typeof callback === "function";
                 if (callingBack) {
 
                     var {
@@ -1504,12 +1504,12 @@ var getExecuteAggregate = function (session) {
                         collection: collection
                     })
                 ]);
-                var mapReducing = typeof mapReduce === 'object';
+                var mapReducing = typeof mapReduce === "object";
                 if (mapReducing) {
 
                     var { map, reduce } = mapReduce;
-                    mapReducing &= typeof map === 'function';
-                    mapReducing &= typeof reduce === 'function';
+                    mapReducing &= typeof map === "function";
+                    mapReducing &= typeof reduce === "function";
                 }
                 if (mapReducing) getMapReduce(session)(...[
                     filter && empty ? [] : queryExpressions,
@@ -1553,11 +1553,11 @@ var openConnection = function () {
                 options,
                 function (error, response) {
 
-                    if (typeof closeCallback == 'function') {
+                    if (typeof closeCallback == "function") {
 
                         closeCallback(connection);
                     }
-                    if (typeof callback === 'function') {
+                    if (typeof callback === "function") {
 
                         callback(error, response);
                     }
@@ -1565,7 +1565,7 @@ var openConnection = function () {
             ]);
         } catch (error) {
 
-            if (typeof callback === 'function') {
+            if (typeof callback === "function") {
 
                 callback(error);
             }
@@ -1585,11 +1585,11 @@ var openConnection = function () {
 
         log.error({
 
-            database: 'mongodb',
+            database: "mongodb",
             err: {
 
-                message: 'DB needs disconnecting due to latency',
-                name: 'ReadyState',
+                message: "DB needs disconnecting due to latency",
+                name: "ReadyState",
                 code: 1
             }
         });
@@ -1599,7 +1599,7 @@ var openConnection = function () {
 
             return connection.readyState === 2;
         }
-    ])) connecting.once('connected', callback); else {
+    ])) connecting.once("connected", callback); else {
 
         mongoose.disconnect(connect);
     }
@@ -1617,7 +1617,7 @@ var checkConnection = function (defaultURI, callback) {
 
             var [error, response] = arguments;
             if (response) debug(response);
-            if (typeof callback === 'function') {
+            if (typeof callback === "function") {
 
                 callback(error);
             }
@@ -1630,7 +1630,7 @@ var checkConnection = function (defaultURI, callback) {
 var ModelController = function (defaultURI, cb) {
 
     var self = this;
-    self.type = 'mongodb';
+    self.type = "mongodb";
     var Session = define(function (init) {
 
         return function () {
@@ -1649,7 +1649,7 @@ var ModelController = function (defaultURI, cb) {
 
                 if (!(time instanceof Date)) {
 
-                    if (typeof next === 'function') next();
+                    if (typeof next === "function") next();
                     return;
                 }
                 if (busy > 0) busy--;
@@ -1686,10 +1686,10 @@ var ModelController = function (defaultURI, cb) {
                                 }
                             }
                         ]);
-                        return new Error('Reconnecting');
+                        return new Error("Reconnecting");
                     } else reconnect = true;
                 }
-                if (typeof next === 'function') next();
+                if (typeof next === "function") next();
             };
         };
     }).extend(Array).defaults();
@@ -1704,18 +1704,18 @@ var ModelController = function (defaultURI, cb) {
         ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
-            throw new Error('Invalid entity');
+            throw new Error("Invalid entity");
         }
-        if (typeof objWrapper !== 'object') {
+        if (typeof objWrapper !== "object") {
 
-            throw new Error('Invalid query ' +
-                'expressions wrapper');
+            throw new Error("Invalid query " +
+                "expressions wrapper");
         }
         self.save(function (err) {
 
             if (err) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === "function") {
 
                     callback(null, err);
                 }
@@ -1729,7 +1729,7 @@ var ModelController = function (defaultURI, cb) {
                     constructQuery(queryExpressions),
                     function (error) {
 
-                        if (typeof callback === 'function') {
+                        if (typeof callback === "function") {
 
                             callback(null, error);
                         }
@@ -1752,7 +1752,7 @@ var ModelController = function (defaultURI, cb) {
         ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
-            throw new Error('Invalid entity');
+            throw new Error("Invalid entity");
         }
         var modelObjects = [];
         var addObject = function (objAttributes) {
@@ -1769,7 +1769,7 @@ var ModelController = function (defaultURI, cb) {
                 modelObjects.push(modelObject);
             } catch (e) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === "function") {
 
                     callback(null, e);
                 }
@@ -1779,7 +1779,7 @@ var ModelController = function (defaultURI, cb) {
 
             objsAttributes.forEach(addObject);
         } else addObject(objsAttributes);
-        if (typeof callback === 'function') {
+        if (typeof callback === "function") {
 
             callback(modelObjects);
         }
@@ -1798,18 +1798,18 @@ var ModelController = function (defaultURI, cb) {
         ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
-            throw new Error('Invalid entity');
+            throw new Error("Invalid entity");
         }
-        if (typeof objWrapper !== 'object') {
+        if (typeof objWrapper !== "object") {
 
-            throw new Error('Invalid query expressions' +
-                ' wrapper');
+            throw new Error("Invalid query expressions" +
+                " wrapper");
         }
         self.save(function (error) {
 
             if (error) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === "function") {
 
                     callback(null, error);
                 }
@@ -1834,7 +1834,7 @@ var ModelController = function (defaultURI, cb) {
                 var aggregating = aggregateExpressions.length > 0;
                 if (!aggregating) {
 
-                    aggregating = typeof aggregate === 'object';
+                    aggregating = typeof aggregate === "object";
                     if (aggregating) {
 
                         aggregating &= Object.keys(...[
@@ -1852,12 +1852,12 @@ var ModelController = function (defaultURI, cb) {
                     callback
                 ]); else {
 
-                    var mapReducing = typeof mapReduce === 'object';
+                    var mapReducing = typeof mapReduce === "object";
                     if (mapReducing) {
 
                         var { map, reduce } = mapReduce;
-                        mapReducing &= typeof map === 'function';
-                        mapReducing &= typeof reduce === 'function';
+                        mapReducing &= typeof map === "function";
+                        mapReducing &= typeof reduce === "function";
                     }
                     if (mapReducing) getMapReduce(session)(...[
                         queryExpressions,
@@ -1888,11 +1888,11 @@ var ModelController = function (defaultURI, cb) {
         else workingSession = session.slice();
         if (workingSession.length === 0) {
 
-            debug('Model controller session has ' +
-                'no objects to be saved!');
+            debug("Model controller session has " +
+                "no objects to be saved!");
         }
         var currentSession = [];
-        var callingBack = typeof callback === 'function';
+        var callingBack = typeof callback === "function";
         var save = function (index) {
 
             var workingModelObject = workingSession[index];
@@ -1921,7 +1921,7 @@ var ModelController = function (defaultURI, cb) {
                             debug(error);
                             log.error({
 
-                                database: 'mongodb',
+                                database: "mongodb",
                                 err: error
                             });
                         }
@@ -2003,7 +2003,7 @@ var DataType = function (datatype, options, resolve) {
                     type,
                     ...otherOptions
                 ] = datatype();
-                if (typeof type === 'function') {
+                if (typeof type === "function") {
 
                     return DataType(...[
                         type,
@@ -2011,7 +2011,7 @@ var DataType = function (datatype, options, resolve) {
                         resolve
                     ]);
                 }
-                if (typeof otherOptions[0] === 'function') {
+                if (typeof otherOptions[0] === "function") {
 
                     return DataType(...[
                         otherOptions[0],
@@ -2029,15 +2029,16 @@ var DataType = function (datatype, options, resolve) {
             if (datatype instanceof Function) {
 
                 var [typeName] = options;
-                var invalid = typeof typeName !== 'string';
+                if (!typeName) typeName = datatype.name;
+                var invalid = typeof typeName !== "string";
                 if (!invalid) {
 
                     invalid |= typeName.length === 0;
                 }
                 if (invalid) {
 
-                    throw new Error('Invalid field custom' +
-                        ' data type name');
+                    throw new Error("Invalid field custom" +
+                        " data type name");
                 }
                 var Type = function (key, options) {
 
@@ -2078,7 +2079,7 @@ var resolveAttributes = function (attributes) {
                 PropertyType,
                 noExtra
             ] = arguments;
-            if (typeof PropertyType !== 'function') {
+            if (typeof PropertyType !== "function") {
 
                 return false;
             }
@@ -2100,20 +2101,20 @@ var resolveAttributes = function (attributes) {
         };
         switch (type) {
 
-            case 'object':
+            case "object":
                 if (Type instanceof Date) {
 
-                    throw new Error('Invalid field data' +
-                        ' type');
+                    throw new Error("Invalid field data" +
+                        " type");
                 }
                 if (!Array.isArray(Type)) {
 
                     switch (Object.keys(Type).length) {
 
                         case 2:
-                            if (!('ref' in Type)) break;
+                            if (!("ref" in Type)) break;
                         case 1:
-                            if (('type' in Type) && setType(...[
+                            if (("type" in Type) && setType(...[
                                 Type.type,
                                 true
                             ])) return;
@@ -2121,27 +2122,27 @@ var resolveAttributes = function (attributes) {
                 }
                 setType(resolveAttributes(Type), false);
                 break;
-            case 'string':
-                if (typeof options[0] !== 'function') {
+            case "string":
+                if (typeof options[0] !== "function") {
 
-                    throw new Error('Custom field data' +
-                        ' type needs cast function');
+                    throw new Error("Custom field data" +
+                        " type needs cast function");
                 }
                 Type = options[0];
                 options = [Type].concat(options.slice(1));
-            case 'function':
+            case "function":
                 setType(Type, isArray && value.length === 1);
             default:
-                if (property === 'type') {
+                if (property === "type") {
 
-                    throw new Error('type is a reserved word' +
-                        ' if it is used as an field so ' +
-                        'it\'s data type should be object');
+                    throw new Error("type is a reserved word" +
+                        " if it is used as an field so " +
+                        "it's data type should be object");
                 }
-                if (property === 'self') {
+                if (property === "self") {
 
-                    throw new Error('self is a reserved word,' +
-                        ' it should not be an field');
+                    throw new Error("self is a reserved word," +
+                        " it should not be an field");
                 }
                 break;
         };
@@ -2149,7 +2150,7 @@ var resolveAttributes = function (attributes) {
     };
     var resolving = Array.isArray(attributes);
     resolving |= attributes instanceof Date;
-    resolving |= typeof attributes !== 'object';
+    resolving |= typeof attributes !== "object";
     if (resolving) return resolveType();
     else Object.keys(attributes).forEach(resolveType);
 };
@@ -2161,13 +2162,13 @@ ModelController.defineEntity = function () {
         attributes,
         plugins
     ] = arguments;
-    if (typeof name !== 'string') {
+    if (typeof name !== "string") {
 
-        throw new Error('Invalid entity name');
+        throw new Error("Invalid entity name");
     }
-    if (typeof attributes !== 'object') {
+    if (typeof attributes !== "object") {
 
-        throw new Error('Invalid entity schema');
+        throw new Error("Invalid entity schema");
     }
     var schema = new Schema(attributes, {
 
@@ -2178,7 +2179,7 @@ ModelController.defineEntity = function () {
 
         for (var i = 0; i < plugins.length; i++) {
 
-            if (typeof plugins[i] === 'function') {
+            if (typeof plugins[i] === "function") {
 
                 schema.plugin(plugins[i]);
             }
@@ -2186,7 +2187,7 @@ ModelController.defineEntity = function () {
     }
     var Model = mongoose.model(name, schema);
     resolveAttributes(attributes);
-    Object.defineProperty(Model.prototype, 'self', {
+    Object.defineProperty(Model.prototype, "self", {
 
         enumerable: true,
         get: function () {
@@ -2196,11 +2197,11 @@ ModelController.defineEntity = function () {
 
                 set: function (path, value) {
 
-                    var setting = typeof path === 'string';
+                    var setting = typeof path === "string";
                     if (setting) setting &= path.length > 0;
                     if (setting) {
 
-                        path.split('.').reduce(function () {
+                        path.split(".").reduce(function () {
 
                             var [
                                 wrapper,
@@ -2211,7 +2212,7 @@ ModelController.defineEntity = function () {
                             var Type = wrapper.attributes;
                             var toMany = Array.isArray(Type);
                             if (toMany) Type = Type[0];
-                            if (typeof Type !== 'object') {
+                            if (typeof Type !== "object") {
 
                                 return wrapper;
                             }
@@ -2226,7 +2227,7 @@ ModelController.defineEntity = function () {
 
                                 Type = Type[property];
                             }
-                            var toOne = typeof Type === 'object';
+                            var toOne = typeof Type === "object";
                             var modifying = !Type;
                             if (!modifying) {
 
@@ -2250,7 +2251,7 @@ ModelController.defineEntity = function () {
                                         modelObjects,
                                         modelObject
                                     ] = arguments;
-                                    if (typeof modelObject !== 'object') {
+                                    if (typeof modelObject !== "object") {
 
                                         return modelObjects;
                                     }
@@ -2272,7 +2273,7 @@ ModelController.defineEntity = function () {
                                     }
                                     if (index === properties.length - 1) {
 
-                                        if (typeof Type === 'function') {
+                                        if (typeof Type === "function") {
 
                                             modelObject[
                                                 property
@@ -2335,8 +2336,8 @@ module.exports.getModelControllerObject = function () {
     var { uri, name } = options;
     if (!uri) {
 
-        uri = 'mongodb://localhost:27017/';
-        uri += (name || 'test');
+        uri = "mongodb://localhost:27017/";
+        uri += (name || "test");
     }
     return new ModelController(uri, function () {
 

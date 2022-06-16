@@ -1,11 +1,11 @@
 /*jslint node: true */
 /*jshint esversion: 6 */
-'use strict';
+"use strict";
 
-var fs = require('fs');
-var { Writable } = require('stream');
-var { resolve } = require('path');
-var parseRange = require('range-parser');
+var fs = require("fs");
+var { Writable } = require("stream");
+var { resolve } = require("path");
+var parseRange = require("range-parser");
 
 var MAX_READ_SIZE = 5 * 1024 * 1024;
 var READ_SIZE = 64 * 1024;
@@ -33,23 +33,23 @@ var ResourceController = function () {
             callback
         ] = arguments;
         var error;
-        if (typeof resource !== 'object') {
+        if (typeof resource !== "object") {
 
             callback(...[
                 null,
-                new Error('Invalid resource object')
+                new Error("Invalid resource object")
             ]);
             return function () { };
         }
         var path = resource.path;
         if (!path) path = resource.url;
-        var invalid = typeof path !== 'string';
+        var invalid = typeof path !== "string";
         if (!invalid) invalid |= path.length === 0;
         if (invalid) {
 
             callback(...[
                 null,
-                new Error('Invalid resource url')
+                new Error("Invalid resource url")
             ]);
             return function () { };
         }
@@ -58,15 +58,15 @@ var ResourceController = function () {
 
             callback(...[
                 null,
-                new Error('Invalid resource url')
+                new Error("Invalid resource url")
             ]);
             return function () { };
         }
-        if (~path.indexOf('\0')) {
+        if (~path.indexOf("\0")) {
 
             callback(...[
                 null,
-                new Error('Invalid resource url')
+                new Error("Invalid resource url")
             ]);
             return function () { };
         }
@@ -74,15 +74,15 @@ var ResourceController = function () {
 
             callback(...[
                 null,
-                new Error('Invalid resource url')
+                new Error("Invalid resource url")
             ]);
             return function () { };
         }
         path = resource.path = resolve(path);
         if (!fs.existsSync(path)) {
 
-            error = new Error('Resource is not' +
-                ' existed');
+            error = new Error("Resource is not" +
+                " existed");
             error.code = 404;
             callback(null, error);
             return function () { };
@@ -91,8 +91,8 @@ var ResourceController = function () {
         resource.stats = stats;
         if (!stats.isFile()) {
 
-            error = new Error('Resource is not' +
-                ' a file');
+            error = new Error("Resource is not" +
+                " a file");
             error.code = 400;
             callback(null, error);
             return function () { };
@@ -107,8 +107,8 @@ var ResourceController = function () {
 
             callback(...[
                 null,
-                new Error('Missing read permission' +
-                    ' for the resource')
+                new Error("Missing read permission" +
+                    " for the resource")
             ]);
             return function () { };
         }
@@ -118,14 +118,14 @@ var ResourceController = function () {
             end,
             buffer_size
         } = resource;
-        var ranging = typeof ranges === 'string';
+        var ranging = typeof ranges === "string";
         if (ranging) {
 
             ranging &= ranges.length > 0;
         }
         if (ranging) {
 
-            var ranges = parseRange(...[
+            ranges = parseRange(...[
                 stats.size,
                 ranges,
                 {
@@ -136,31 +136,31 @@ var ResourceController = function () {
             if (ranging) {
 
                 ranging &= ranges.length === 1;
-                ranging &= ranges.type === 'bytes';
+                ranging &= ranges.type === "bytes";
             }
             if (ranging) Object.assign(...[
                 resource,
                 ranges[0]
             ]);
         }
-        var starting = typeof start === 'number';
+        var starting = typeof start === "number";
         invalid = starting;
         if (invalid) {
 
             invalid = !(start >= 0);
-            var { size } = stats;
+            let { size } = stats;
             invalid |= !(start < end || start < size);
         }
         if (invalid) {
 
             callback(...[
                 null,
-                new Error('Invalid resource reading' +
-                    ' start')
+                new Error("Invalid resource reading" +
+                    " start")
             ]);
             return function () { };
         }
-        var ending = typeof end === 'number';
+        var ending = typeof end === "number";
         invalid = ending;
         if (invalid) {
 
@@ -169,19 +169,19 @@ var ResourceController = function () {
         }
         if (invalid) {
 
-            error = new Error('Invalid resource reading' +
-                ' end');
+            error = new Error("Invalid resource reading" +
+                " end");
             error.code = 400;
             callback(null, error);
             return function () { };
         }
-        var streaming = typeof stream === 'function';
-        var buffering = typeof buffer_size === 'number';
+        var streaming = typeof stream === "function";
+        var buffering = typeof buffer_size === "number";
         invalid = streaming;
         invalid &= buffering;
         if (invalid) {
 
-            var size = buffer_size;
+            let size = buffer_size;
             invalid = !(stats.size > size);
             invalid |= !(size <= MAX_READ_SIZE);
             var diff = end - start;
@@ -189,8 +189,8 @@ var ResourceController = function () {
         }
         if (invalid) {
 
-            error = new Error('Invalid resource buffer' +
-                ' size');
+            error = new Error("Invalid resource buffer" +
+                " size");
             error.code = 400;
             callback(null, error);
             return function () { };
@@ -213,14 +213,14 @@ var ResourceController = function () {
         } else {
 
             var data = [];
-            reader.on('data', function (chunk) {
+            reader.on("data", function (chunk) {
 
                 data.push(chunk);
-            }).on('end', function () {
+            }).on("end", function () {
 
                 resource.data = data;
                 callback(resource);
-            }).on('error', function (err) {
+            }).on("error", function (err) {
 
                 callback(null, err);
             });

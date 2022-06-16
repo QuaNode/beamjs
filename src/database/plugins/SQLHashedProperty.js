@@ -1,7 +1,7 @@
 /*jslint node: true */
-'use strict';
+"use strict";
 
-var crypto = require('crypto');
+var crypto = require("crypto");
 
 module.exports = function (_, hooks, sequelize) {
 
@@ -26,11 +26,11 @@ module.exports = function (_, hooks, sequelize) {
             salt,
             iterations,
             saltlen,
-            'sha256'
+            "sha256"
         ]);
-        var value = 'pkdf2$' + iterations + '$';
-        value += salt.toString('hex') + '$';
-        value += hashed.toString('hex');
+        var value = "pkdf2$" + iterations + "$";
+        value += salt.toString("hex") + "$";
+        value += hashed.toString("hex");
         return value;
     };
     var verify = function () {
@@ -39,13 +39,13 @@ module.exports = function (_, hooks, sequelize) {
             password,
             hashed
         ] = arguments;
-        var split = hashed.split('$');
+        var split = hashed.split("$");
         if (split.length !== 4) {
 
-            throw new Error('Invalid password' +
-                ' hash provided');
+            throw new Error("Invalid password" +
+                " hash provided");
         }
-        var salt = new Buffer(split[2], 'hex'),
+        var salt = new Buffer(split[2], "hex"),
             saltlen = salt.length,
             iterations = Number(split[1]);
         var options = {
@@ -76,7 +76,7 @@ module.exports = function (_, hooks, sequelize) {
             return false;
         }
     };
-    hooks.on('beforeDefine', function () {
+    hooks.on("beforeDefine", function () {
 
         var [attributes] = arguments;
         var {
@@ -93,13 +93,13 @@ module.exports = function (_, hooks, sequelize) {
             set: function (password) {
 
                 this.setDataValue(...[
-                    'hashed_password',
+                    "hashed_password",
                     hash(password)
                 ]);
             }
         };
     });
-    hooks.on('afterDefine', function () {
+    hooks.on("afterDefine", function () {
 
         var [Model] = arguments;
         var { prototype } = Model;
@@ -107,13 +107,13 @@ module.exports = function (_, hooks, sequelize) {
 
             var [password] = arguments;
             if (this.getDataValue(...[
-                'hashed_password'
+                "hashed_password"
             ])) {
 
                 return verify(...[
                     password,
                     this.getDataValue(...[
-                        'hashed_password'
+                        "hashed_password"
                     ])
                 ]);
             } else return false;

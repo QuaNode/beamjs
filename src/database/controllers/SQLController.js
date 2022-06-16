@@ -1,29 +1,29 @@
 /*jslint node: true */
 /*jshint esversion: 6 */
-'use strict';
+"use strict";
 
-var fs = require('fs');
-var debug = require('debug')('beam:SQLController');
-var bunyan = require('bunyan');
-var backend = require('backend-js');
+var fs = require("fs");
+var debug = require("debug")("beam:SQLController");
+var bunyan = require("bunyan");
+var backend = require("backend-js");
 var {
     ModelEntity: Entity,
     QueryExpression
 } = backend;
-var Sequelize = require('sequelize');
-require('sequelize-values')(Sequelize);
-var VariableAdaptor = require('sequelize-transparent-cache-variable');
-var { withCache } = require('sequelize-transparent-cache')(new VariableAdaptor());
+var Sequelize = require("sequelize");
+require("sequelize-values")(Sequelize);
+var VariableAdaptor = require("sequelize-transparent-cache-variable");
+var { withCache } = require("sequelize-transparent-cache")(new VariableAdaptor());
 
-if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
+if (!fs.existsSync("./logs")) fs.mkdirSync("./logs");
 
 var log = bunyan.createLogger({
 
-    name: 'beam',
+    name: "beam",
     streams: [{
 
-        path: './logs/error.log',
-        level: 'error',
+        path: "./logs/error.log",
+        level: "error",
     }],
     serializers: bunyan.stdSerializers
 });
@@ -53,12 +53,12 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     NLIKE: Op.notLike,
     BETWEEN: Op.between,
     NBETWEEN: Op.notBetween,
-    FROM: 'from',
+    FROM: "from",
     THROUGH: function (entity) {
 
         if (!(entity instanceof Entity)) {
 
-            throw new Error('Invalid through entity');
+            throw new Error("Invalid through entity");
         }
         return entity.getObjectConstructor();
     }
@@ -83,35 +83,25 @@ var ComputationOperators = module.exports.ComputationOperators = {
             ...(many ? option.of.map(function (öf) {
 
                 return öf;
-            }) : option.of)
+            }) : [option.of])
         ]);
     }
+};
+
+var NullIfUndefined = function (value) {
+
+    return value === undefined ? null : value;
 };
 
 var sequelize = null;
 var session = [];
 var hookTypes = [
-    'beforeDefine',
-    'afterDefine',
-    'beforeBulkSync',
-    'afterBulkSync'
+    "beforeDefine",
+    "afterDefine",
+    "beforeBulkSync",
+    "afterBulkSync"
 ];
 var hookHandlers = {};
-
-var getHookHandler = function (hook) {
-
-    var self = this;
-    return function () {
-
-        for (var index in self[hook]) {
-
-            self[hook][index].apply(...[
-                self,
-                arguments
-            ]);
-        }
-    };
-};
 
 var getManipulator = function () {
 
@@ -127,42 +117,58 @@ var getManipulator = function () {
         method += property.slice(...[
             1,
             property.length
-        ]).toLowerCase();
+        ]);
     }
     method = prefix + method;
     var manipulator = function (value) {
 
+        /*var [
+            _,
+            features,
+            queryExpressions
+        ] = arguments;*/
         return function (callback) {
 
-            if (!(value instanceof Sequelize.Model)) {
+            var nëw = value !== null;
+            nëw &= value !== undefined;
+            nëw &= !(value instanceof Sequelize.Model)
+            if (nëw) return Model.create(...[
+                value,
+                /*options*/
+            ]).then(function (model) {
 
-                return Model.create(...[
-                    value
-                ]).then(function (model) {
+                if (Array.isArray(model)) {
 
-                    if (Array.isArray(model)) {
+                    session = session.concat(model);
+                } else session.push(model);
+                return manipulator(model)(callback);
+            }).catch(function (error) {
 
-                        session = session.concat(model);
-                    } else session.push(model);
-                    return manipulator(model)(callback);
-                }).catch(function (error) {
-
-                    callback(null, error);
-                });
-            }
+                callback(null, error);
+            });
             if (self[method]) return self[method](...[
-                value
+                value,
+                /*options*/
             ]).then(function (values) {
 
-                return callback(value || values);
+                var result = values;
+                var one = !!value;
+                one &= !Array.isArray(value);
+                one &= Array.isArray(result);
+                if (one) result = result[0];
+                return NullIfUndefined(...[
+                    callback(result)
+                ]);
             }).catch(function (error) {
 
                 callback(null, error);
             }); else {
 
-                var error = new Error('There is no ' +
-                    prefix + ' ' + property);
-                return callback(null, error);
+                var error = new Error("There is no " +
+                    prefix + " " + property);
+                return NullIfUndefined(...[
+                    callback(null, error)
+                ]);
             }
         };
     };
@@ -179,7 +185,7 @@ var adapter = {
         ] = arguments;
         if (contextualLevel < 0) {
 
-            throw new Error('Invalid contextual level');
+            throw new Error("Invalid contextual level");
         }
         if (Array.isArray(queryExpressions)) {
 
@@ -194,22 +200,22 @@ var adapter = {
                     comparisonOperator,
                     comparisonOperatorOptions
                 } = queryExpression;
-                if (typeof fieldName !== 'object') {
+                if (typeof fieldName !== "object") {
 
                     filter[fieldName] = fieldValue;
                 }
-                if (typeof comparisonOperator === 'symbol') {
+                if (typeof comparisonOperator === "symbol") {
 
                     subFilter[comparisonOperator] = fieldValue;
-                } else if (typeof comparisonOperator === 'function') {
+                } else if (typeof comparisonOperator === "function") {
 
                     subFilter = comparisonOperator(fieldValue);
                 }
-                if (typeof comparisonOperatorOptions === 'function') {
+                if (typeof comparisonOperatorOptions === "function") {
 
                     comparisonOperatorOptions(subFilter);
                 }
-                if (typeof fieldName === 'object') {
+                if (typeof fieldName === "object") {
 
                     return Sequelize.where(fieldName, subFilter);
                 }
@@ -235,9 +241,9 @@ var adapter = {
                             queryExpressions,
                             contextualLevel + 1
                         ]);
-                        var inducing = logicalOperator;
-                        inducing &= leftFilter;
-                        inducing &= rightFilter;
+                        var inducing = !!logicalOperator;
+                        inducing &= !!leftFilter;
+                        inducing &= !!rightFilter;
                         if (inducing) {
 
                             var superFilter = {};
@@ -324,16 +330,16 @@ var adapter = {
             return index > 0 && !queryExpression.logicalOperator;
         })) {
 
-            throw new Error('Invalid query expressions');
+            throw new Error("Invalid query expressions");
         }
         var query = {};
         var { Model } = Sequelize;
-        var joining = ObjectConstructor;
+        var joining = !!ObjectConstructor;
         if (joining) {
 
             var { prototype } = ObjectConstructor;
             joining &= prototype instanceof Model;
-            joining &= typeof fieldName === 'string';
+            joining &= typeof fieldName === "string";
             if (joining) {
 
                 joining &= fieldName.length > 0;
@@ -422,7 +428,7 @@ var adapter = {
             attributes = include.map(...[
                 function (option) {
 
-                    if (typeof option === 'string') {
+                    if (typeof option === "string") {
 
                         return option;
                     }
@@ -457,10 +463,10 @@ var adapter = {
             query.order = sort.map(function () {
 
                 var [option] = arguments;
-                if (typeof option.by !== 'string') {
+                if (typeof option.by !== "string") {
 
-                    throw new Error('Invalid sort by' +
-                        ' field name');
+                    throw new Error("Invalid sort by" +
+                        " field name");
                 }
                 var order = [];
                 if (Array.isArray(option.in)) {
@@ -473,10 +479,10 @@ var adapter = {
                         get: option.by,
                         of: option.of
                     })
-                ]); else if (option.order !== 'asc') {
+                ]); else if (option.order !== "asc") {
 
                     order.push(option.by);
-                    if (typeof option.order === 'string') {
+                    if (typeof option.order === "string") {
 
                         order.push(...[
                             option.order.toUpperCase()
@@ -493,10 +499,10 @@ var adapter = {
 
             query.group = group.map(function (field) {
 
-                if (typeof field !== 'string') {
+                if (typeof field !== "string") {
 
-                    throw new Error('Invalid group by' +
-                        ' field name');
+                    throw new Error("Invalid group by" +
+                        " field name");
                 }
                 return field;
             });
@@ -526,13 +532,13 @@ var getExecuteQuery = function (session) {
             cache,
             readonly
         } = features;
-        var func = 'findAll';
+        var func = "findAll";
         if (paginate) {
 
-            func = 'findAndCountAll';
+            func = "findAndCountAll";
         }
         var paginating = paginate;
-        paginating &= typeof limit === 'number';
+        paginating &= typeof limit === "number";
         if (paginating) {
 
             query.limit = limit;
@@ -572,12 +578,12 @@ var getExecuteQuery = function (session) {
                     modelObjects
                 ]);
             }
-            return callback(paginating ? {
+            return NullIfUndefined(callback(paginating ? {
 
                 modelObjects: modelObjects,
                 countObjects: countObjects,
                 pageCount: pageCount
-            } : modelObjects, null);
+            } : modelObjects, null));
         }).catch(function (error) {
 
             callback(null, error);
@@ -602,20 +608,20 @@ var openConnection = function () {
         ] = arguments;
         if (message) {
 
-            var callingBack = message.indexOf('error') > -1;
+            var callingBack = message.indexOf("error") > -1;
             if (!callingBack) {
 
                 callingBack = info;
                 if (callingBack) {
 
-                    callingBack = JSON.stringify(...[
+                    var stringified = JSON.stringify(...[
                         info,
                         function () {
 
                             const seen = new WeakSet();
                             return function (_, value) {
 
-                                var one = typeof value === 'object';
+                                var one = typeof value === "object";
                                 if (one) {
 
                                     one &= value !== null;
@@ -631,7 +637,15 @@ var openConnection = function () {
                                 return value;
                             };
                         }
-                    ]).toLowerCase().indexOf('error') > -1;
+                    ]);
+                    callingBack = typeof stringified === "string";
+                    if (callingBack) {
+
+                        stringified = stringified.toLowerCase();
+                        callingBack = stringified.indexOf(...[
+                            "error"
+                        ]) > -1;
+                    }
                 }
             }
             if (callingBack) callback(...[
@@ -664,22 +678,37 @@ var ModelController = function (defaultURI, cb, options) {
     ]);
     hookTypes.forEach(function (hook) {
 
-        Sequelize.addHook(...[
+        sequelize.addHook(...[
             hook,
-            function (attributes, options) {
+            function (attributes, öptions) {
 
                 var name;
-                if (options) name = options.modelName;
-                if (!name) name = attributes.name;
-                if (typeof hookHandlers[
-                    name + hook
-                ] === 'function') {
+                if (öptions) {
 
-                    hookHandlers[name + hook](...[
-                        attributes,
-                        options
-                    ]);
+                    name = öptions.modelName;
                 }
+                if (!name) {
+
+                    name = attributes.tableName;
+                }
+                var handlers = hookHandlers[
+                    name + hook
+                ];
+                if (!handlers) {
+
+                    handlers = hookHandlers[hook];
+                }
+                var results = null;
+                for (var index in handlers) {
+
+                    if (!results) results = [];
+                    var handler = handlers[index];
+                    results.push(handler(...[
+                        attributes,
+                        öptions
+                    ]));
+                }
+                return results;
             }
         ]);
     });
@@ -687,7 +716,7 @@ var ModelController = function (defaultURI, cb, options) {
 
         log.error({
 
-            database: 'sql',
+            database: "sql",
             err: err
         });
     });
@@ -700,18 +729,18 @@ var ModelController = function (defaultURI, cb, options) {
         ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
-            throw new Error('Invalid entity');
+            throw new Error("Invalid entity");
         }
-        if (typeof objWrapper !== 'object') {
+        if (typeof objWrapper !== "object") {
 
-            throw new Error('Invalid query expressions' +
-                ' wrapper');
+            throw new Error("Invalid query expressions" +
+                " wrapper");
         }
         self.save(function (err) {
 
             if (err) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === "function") {
 
                     callback(null, err);
                 }
@@ -729,13 +758,16 @@ var ModelController = function (defaultURI, cb, options) {
                     ])
                 ]).then(function (modelObjects) {
 
-                    if (typeof callback === 'function') {
+                    if (typeof callback === "function") {
 
-                        return callback(modelObjects, null);
+                        return NullIfUndefined(...[
+                            callback(modelObjects, null)
+                        ]);
                     }
+                    return null;
                 }).catch(function (error) {
 
-                    if (typeof callback === 'function') {
+                    if (typeof callback === "function") {
 
                         callback(null, error);
                     }
@@ -757,7 +789,7 @@ var ModelController = function (defaultURI, cb, options) {
         ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
-            throw new Error('Invalid entity');
+            throw new Error("Invalid entity");
         }
         var modelObjects = [];
         var addObject = function (objAttributes) {
@@ -773,7 +805,7 @@ var ModelController = function (defaultURI, cb, options) {
                 modelObjects.push(modelObject);
             } catch (e) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === "function") {
 
                     callback(null, e);
                 }
@@ -783,7 +815,7 @@ var ModelController = function (defaultURI, cb, options) {
 
             objsAttributes.forEach(addObject);
         } else addObject(objsAttributes);
-        if (typeof callback === 'function') {
+        if (typeof callback === "function") {
 
             callback(modelObjects);
         }
@@ -802,20 +834,22 @@ var ModelController = function (defaultURI, cb, options) {
         ] = arguments;
         if (!entity || !(entity instanceof Entity)) {
 
-            throw new Error('Invalid entity');
+            throw new Error("Invalid entity");
         }
-        if (typeof objWrapper !== 'object') {
+        if (typeof objWrapper !== "object") {
 
-            throw new Error('Invalid query expressions' +
-                ' wrapper');
+            throw new Error("Invalid query expressions" +
+                " wrapper");
         }
         self.save(function (error) {
 
             if (error) {
 
-                if (typeof callback === 'function') {
+                if (typeof callback === "function") {
 
-                    return callback(null, error);
+                    return NullIfUndefined(...[
+                        callback(null, error)
+                    ]);
                 }
             } else {
 
@@ -833,7 +867,7 @@ var ModelController = function (defaultURI, cb, options) {
                 if (!aggregating) {
 
                     var { aggregate } = features;
-                    aggregating = typeof aggregate === 'object';
+                    aggregating = typeof aggregate === "object";
                     if (aggregating) {
 
                         aggregating &= Object(aggregate).length > 0;
@@ -841,8 +875,8 @@ var ModelController = function (defaultURI, cb, options) {
                 }
                 if (aggregating) {
 
-                    throw new Error('This feature is not ' +
-                        'implemented yet');
+                    throw new Error("This feature is not " +
+                        "implemented yet");
                 } else return getExecuteQuery(session)(...[
                     queryExpressions,
                     entity.getObjectConstructor(),
@@ -865,11 +899,11 @@ var ModelController = function (defaultURI, cb, options) {
         else workingSession = session.slice();
         if (workingSession.length === 0) {
 
-            debug('Model controller session has ' +
-                'no objects to be saved!');
+            debug("Model controller session has " +
+                "no objects to be saved!");
         }
         var currentSession = [];
-        var callingBack = typeof callback === 'function';
+        var callingBack = typeof callback === "function";
         var save = function (index) {
 
             var workingModelObject = workingSession[index];
@@ -882,7 +916,7 @@ var ModelController = function (defaultURI, cb, options) {
                 if (saving) {
 
                     saving = workingModelObject.isNewRecord;
-                    saving |= workingModelObject.changed();
+                    saving |= !!workingModelObject.changed();
                 }
                 if (saving) {
 
@@ -891,6 +925,7 @@ var ModelController = function (defaultURI, cb, options) {
 
                             currentSession.push(modelObject);
                             save(index + 1);
+                            return null;
                         }
                     ]).catch(function (error) {
 
@@ -899,7 +934,7 @@ var ModelController = function (defaultURI, cb, options) {
                             debug(error);
                             log.error({
 
-                                database: 'sql',
+                                database: "sql",
                                 err: error
                             });
                         }
@@ -913,7 +948,9 @@ var ModelController = function (defaultURI, cb, options) {
                     save(index + 1);
                 } else if (callingBack) {
 
-                    return callback(null, currentSession);
+                    return NullIfUndefined(...[
+                        callback(null, currentSession)
+                    ]);
                 }
             }, 0);
         };
@@ -930,6 +967,30 @@ var DataType = function (datatype) {
         case Number: return Sequelize.DataTypes.DOUBLE;
         case Boolean: return Sequelize.DataTypes.BOOLEAN;
         case Date: return Sequelize.DataTypes.DATE;
+        default:
+            if (typeof datatype === "function") {
+
+                var { name } = datatype;
+                var typeName = name.toUpperCase();
+                var TYPE = Sequelize.DataTypes[
+                    typeName
+                ];
+                if (TYPE) return TYPE;
+                else {
+
+                    var {
+                        ABSTRACT
+                    } = Sequelize.DataTypes;
+                    var { prototype } = datatype;
+                    if (prototype instanceof ABSTRACT) {
+
+                        return Sequelize.DataTypes[
+                            typeName
+                        ] = datatype;
+                    }
+                }
+            }
+            break;
     }
 };
 
@@ -941,21 +1002,21 @@ ModelController.defineEntity = function () {
         plugins,
         constraints
     ] = arguments;
-    if (typeof name !== 'string') {
+    if (typeof name !== "string") {
 
-        throw new Error('Invalid entity name');
+        throw new Error("Invalid entity name");
     }
-    if (typeof attributes !== 'object') {
+    if (typeof attributes !== "object") {
 
-        throw new Error('Invalid entity schema');
+        throw new Error("Invalid entity schema");
     }
-    if (constraints && typeof constraints !== 'object') {
+    if (constraints && typeof constraints !== "object") {
 
-        throw new Error('Invalid entity constraints');
+        throw new Error("Invalid entity constraints");
     }
     if (!sequelize) {
 
-        throw new Error('Sequelize is not initialized');
+        throw new Error("Sequelize is not initialized");
     }
     var configuration = {
 
@@ -967,34 +1028,67 @@ ModelController.defineEntity = function () {
     }
     var hooks = {
 
-        on: function (hook, handler) {
+        handlers: {},
+        on: function (hook, handler, general) {
 
-            if (!Array.isArray(this[hook])) {
+            if (typeof handler !== "function") {
 
-                this[hook] = [];
+                throw new Error("Invalid hook " +
+                    hook + " handler in model " +
+                    name);
             }
-            this[hook].push(handler);
+            var händler = function () {
+
+                var result = handler.apply(...[
+                    this,
+                    arguments
+                ]);
+                if (result === undefined) {
+
+                    return null;
+                }
+                return result;
+            };
             if (hookTypes.indexOf(hook) > -1) {
 
-                hookHandlers[
-                    name + hook
-                ] = getHookHandler.apply(...[
-                    this,
-                    [hook]
+                if (!general) {
+
+                    hook = name + hook;
+                }
+                if (!Array.isArray(...[
+                    hookHandlers[hook]
+                ])) hookHandlers[hook] = [];
+                hookHandlers[hook].push(...[
+                    händler
                 ]);
-            } else configuration.hooks[
-                hook
-            ] = getHookHandler.apply(...[
-                this,
-                [hook]
-            ]);
+            } else {
+
+                if (general) {
+
+                    if (configuration.hooks[hook]) {
+
+                        debug("Overwritting hook " +
+                            hook + " in model " +
+                            name + "!");
+                    }
+                    configuration.hooks[
+                        hook
+                    ] = händler;
+                } else {
+
+                    if (!Array.isArray(...[
+                        this.handlers[hook]
+                    ])) this.handlers[hook] = [];
+                    this.handlers[hook].push(händler);
+                }
+            }
         }
     };
     if (Array.isArray(plugins)) {
 
         for (var i = 0; i < plugins.length; i++) {
 
-            if (typeof plugins[i] === 'function') {
+            if (typeof plugins[i] === "function") {
 
                 plugins[i](name, hooks, sequelize);
             }
@@ -1004,13 +1098,13 @@ ModelController.defineEntity = function () {
         function (property) {
 
             var constraint = {};
-            var constraining = constraints;
+            var constraining = !!constraints;
             var rule;
             if (constraining) {
 
                 rule = constraints[property];
-                constraining &= rule;
-                constraining &= typeof rule === 'object';
+                constraining &= !!rule;
+                constraining &= typeof rule === "object";
             }
             if (constraining) {
 
@@ -1038,12 +1132,12 @@ ModelController.defineEntity = function () {
     var key;
     if (constraints.id) {
 
-        key = 'id';
-        if (typeof constraints.id === 'object') {
+        key = "id";
+        if (typeof constraints.id === "object") {
 
             id = constraints.id;
         }
-    } else key = '_id';
+    } else key = "_id";
     attributes[key] = Object.assign({
 
         type: Sequelize.DataTypes.BIGINT,
@@ -1066,9 +1160,9 @@ ModelController.defineEntity = function () {
                 attributes[property].type
             ])) {
 
-                if (property.startsWith('has')) {
+                if (property.startsWith("has")) {
 
-                    throw new Error('Remove/rename' +
+                    throw new Error("Remove/rename" +
                         ' "has" from field ' +
                         property);
                 }
@@ -1084,6 +1178,20 @@ ModelController.defineEntity = function () {
 
         return Sequelize.getValues(this);
     };
+    Object.keys(hooks.handlers).forEach(...[
+        function (hook) {
+
+            for (var index in hooks.handlers[
+                hook
+            ]) {
+
+                var handler = hooks.handlers[
+                    hook
+                ][index];
+                Model.addHook(hook, handler);
+            }
+        }
+    ]);
     setTimeout(function () {
 
         Object.keys(...[
@@ -1098,14 +1206,14 @@ ModelController.defineEntity = function () {
 
                 entity = attributes[property][0];
             } else entity = attributes[property];
-            var lazy = typeof entity === 'function';
+            var lazy = typeof entity === "function";
             if (lazy) {
 
                 var { prototype } = entity;
                 lazy &= !(prototype instanceof Entity);
             }
             if (lazy) entity = entity(name);
-            var valid = entity;
+            var valid = !!entity;
             if (valid) {
 
                 var { prototype } = entity;
@@ -1113,21 +1221,21 @@ ModelController.defineEntity = function () {
             }
             if (valid) {
 
-                var func = 'hasOne';
-                if (toMany) func = 'hasMany';
-                else if (lazy) func = 'belongsTo';
+                var func = "hasOne";
+                if (toMany) func = "hasMany";
+                else if (lazy) func = "belongsTo";
                 var options = {
 
                     as: property
                 };
                 var constraint = {};
-                var constraining = constraints;
+                var constraining = !!constraints;
                 var rule;
                 if (constraining) {
 
                     rule = constraints[property];
-                    constraining &= rule;
-                    constraining &= typeof rule === 'object';
+                    constraining &= !!rule;
+                    constraining &= typeof rule === "object";
                 }
                 if (constraining) {
 
@@ -1135,7 +1243,7 @@ ModelController.defineEntity = function () {
                 }
                 if (toMany && constraint.through) {
 
-                    func = 'belongsToMany';
+                    func = "belongsToMany";
                 }
                 var {
                     getObjectConstructor
@@ -1152,13 +1260,13 @@ ModelController.defineEntity = function () {
                         enumerable: true,
                         set: function (value) {
 
-                            this['_' + property] = value;
+                            this["_" + property] = value;
                         },
                         get: function () {
 
-                            if (this['_' + property]) {
+                            if (this["_" + property]) {
 
-                                return this['_' + property];
+                                return this["_" + property];
                             }
                             var self = this;
                             var relation = {
@@ -1167,7 +1275,7 @@ ModelController.defineEntity = function () {
                                     self,
                                     [
                                         property,
-                                        'get',
+                                        "get",
                                         otherModel
                                     ]
                                 ]),
@@ -1175,7 +1283,7 @@ ModelController.defineEntity = function () {
                                     self,
                                     [
                                         property,
-                                        'set',
+                                        "set",
                                         otherModel
                                     ]
                                 ])
@@ -1186,7 +1294,7 @@ ModelController.defineEntity = function () {
                                     self,
                                     [
                                         property,
-                                        'add',
+                                        "add",
                                         otherModel
                                     ]
                                 ]);
@@ -1194,7 +1302,7 @@ ModelController.defineEntity = function () {
                                     self,
                                     [
                                         property,
-                                        'remove',
+                                        "remove",
                                         otherModel
                                     ]
                                 ]);
@@ -1214,9 +1322,9 @@ ModelController.prototype.constructor = ModelController;
 module.exports.getModelControllerObject = function () {
 
     var [options, cb] = arguments;
-    if (typeof options !== 'object') {
+    if (typeof options !== "object") {
 
-        throw new Error('Invalid options');
+        throw new Error("Invalid options");
     }
     var {
         uri,
@@ -1226,39 +1334,39 @@ module.exports.getModelControllerObject = function () {
         name,
         host
     } = options;
-    if (typeof uri === 'object') {
+    if (typeof uri === "object") {
 
         Object.assign(options, uri);
     }
-    var invalid = username;
+    var invalid = typeof username !== "string";
     if (!invalid) {
 
         invalid |= username.length === 0;
     }
     if (invalid) {
 
-        throw new Error('Invalid username');
+        throw new Error("Invalid username");
     }
     options.dialect = type;
-    options.database = name || 'test';
-    options.host = host || '127.0.0.1';
+    options.database = name || "test";
+    options.host = host || "127.0.0.1";
     var port = options.port || {
 
-        mysql: '3306',
-        postgres: '5432'
+        mysql: "3306",
+        postgres: "5432"
     }[options.dialect];
-    if (!uri || typeof uri !== 'string') {
+    if (!uri || typeof uri !== "string") {
 
         options.uri = options.dialect;
-        options.uri += '://' + username;
-        var auth = typeof password === 'string';
+        options.uri += "://" + username;
+        var auth = typeof password === "string";
         if (auth) {
 
             auth &= password.length > 0;
         }
-        if (auth) options.uri += ':' + password;
-        options.uri += '@' + options.host;
-        options.uri += ':' + port + '/';
+        if (auth) options.uri += ":" + password;
+        options.uri += "@" + options.host;
+        options.uri += ":" + port + "/";
         options.uri += options.database;
     }
     return new ModelController(...[

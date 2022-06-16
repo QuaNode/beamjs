@@ -1,9 +1,9 @@
 /*jslint node: true */
-'use strict';
+"use strict";
 
 module.exports = function (_, hooks) {
 
-    hooks.on('beforeDefine', function (_, options) {
+    hooks.on("beforeDefine", function (_, options) {
 
         options.timestamps = true;
     });

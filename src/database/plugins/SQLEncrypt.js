@@ -82,7 +82,12 @@ module.exports = function (columns, options) {
                 var table = "unencrypted_";
                 table += name;
                 var constraint = cN;
-                constraint += "_encrypted";
+                if (!constraint.endsWith(...[
+                    "_encrypted"
+                ])) {
+
+                    constraint += "_encrypted";
+                }
                 var include = rN === table;
                 include &= !refs.some(...[
                     function (rëf) {
@@ -104,7 +109,12 @@ module.exports = function (columns, options) {
                     referencedColumnName: rC
                 } = ref;
                 var constraint = cN;
-                constraint += "_encrypted";
+                if (!constraint.endsWith(...[
+                    "_encrypted"
+                ])) {
+
+                    constraint += "_encrypted";
+                }
                 return addConstraint.apply(...[
                     queryI,
                     [
@@ -198,23 +208,28 @@ module.exports = function (columns, options) {
                     ]).sync();
                 }).then(function () {
 
-                    return sync(Object.keys(...[
-                        sequelize.models
-                    ]).filter(function (model) {
-
-                        return model !== name;
-                    }));
-                }).then(function () {
-
                     define();
-                    migrate(1, cb);
-                    return null;
+                    return new Promise(...[
+                        function (resolve) {
+
+                            migrate(1, resolve);
+                        }
+                    ]);
                 }).catch(function (err) {
 
                     var { message } = err;
                     if (message.indexOf(...[
                         "exist"
                     ]) === -1) debug(err);
+                    define();
+                    return new Promise(...[
+                        function (resolve) {
+
+                            migrate(1, resolve);
+                        }
+                    ]);
+                }).then(function () {
+
                     return sync(Object.keys(...[
                         sequelize.models
                     ]).filter(function (model) {
@@ -223,8 +238,11 @@ module.exports = function (columns, options) {
                     }));
                 }).then(function () {
 
-                    define();
-                    migrate(1, cb);
+                    cb();
+                }).catch(function (err) {
+
+                    debug(err);
+                    cb();
                 });
             };
         };

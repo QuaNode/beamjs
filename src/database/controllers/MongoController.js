@@ -731,7 +731,8 @@ var getExecuteQuery = function (session) {
             queryExpressions,
             ObjectConstructor,
             features,
-            callback
+            callback,
+            context
         ] = arguments;
         var {
             distinct,
@@ -836,7 +837,8 @@ var getExecuteQuery = function (session) {
                 ]);
                 if (typeof callback === "function") callback({
 
-                    modelObjects: modelObjects,
+                    ...context,
+                    modelObjects,
                     pageCount: total / limit
                 }, error);
                 session.idle(time);
@@ -849,7 +851,11 @@ var getExecuteQuery = function (session) {
             ]);
             if (typeof callback === "function") {
 
-                callback(modelObjects, error);
+                callback(context ? {
+
+                    ...context,
+                    modelObjects
+                } : modelObjects, error);
             }
             session.idle(time);
         });
@@ -859,11 +865,14 @@ var getExecuteQuery = function (session) {
 var getQueryUniqueArray = function () {
 
     var [
+        filterExpressions,
         queryExpressions,
         features
     ] = arguments;
     var uniqueArray = [
-        ...queryExpressions.map(function () {
+        ...filterExpressions.concat(...[
+            queryExpressions
+        ]).map(function () {
 
             var [queryExpression] = arguments;
             return queryExpression.fieldValue;
@@ -902,7 +911,8 @@ var getMapReduce = function (session) {
             filterExpressions,
             ObjectConstructor,
             features,
-            callback
+            callback,
+            context
         ] = arguments;
         var options = {};
         var {
@@ -917,14 +927,17 @@ var getMapReduce = function (session) {
             page,
             output
         } = features.mapReduce;
-        if (!sort) sort = features.sort;
         if (!scope) scope = {};
-        if (typeof paginate !== "boolean") {
+        if (!output) {
 
-            paginate = features.paginate;
+            if (!sort) sort = features.sort;
+            if (typeof paginate !== "boolean") {
+
+                paginate = features.paginate;
+            }
+            if (!limit) limit = features.limit;
+            if (!page) page = features.page;
         }
-        if (!limit) limit = features.limit;
-        if (!page) page = features.page;
         var collection;
         var many = queryExpressions.length > 0;
         var empty = filterExpressions.length === 0;
@@ -1000,6 +1013,7 @@ var getMapReduce = function (session) {
         if (output) {
 
             var queryUniqueArray = getQueryUniqueArray(...[
+                filterExpressions,
                 queryExpressions,
                 features
             ]);
@@ -1026,6 +1040,14 @@ var getMapReduce = function (session) {
             function (error, out) {
 
                 delete options.scope._;
+                var {
+                    results,
+                    stats
+                } = out || {};
+                var {
+                    input
+                } = (stats || {}).counts || {};
+                var pageCount = input / limit;
                 var callingBack = !out;
                 if (!callingBack) callingBack |= !out.model;
                 if (!callingBack) callingBack |= !collection;
@@ -1034,17 +1056,11 @@ var getMapReduce = function (session) {
                     callingBack = typeof callback === "function";
                     if (callingBack) {
 
-                        var {
-                            results,
-                            stats
-                        } = out || {};
-                        var {
-                            input
-                        } = (stats || {}).counts || {};
-                        callback(paginating ? {
+                        callback(context || paginating ? {
 
+                            ...context,
                             modelObjects: results,
-                            pageCount: input / limit
+                            ...(paginating ? { pageCount } : {})
                         } : results, error);
                     }
                     session.idle(time);
@@ -1054,7 +1070,12 @@ var getMapReduce = function (session) {
                         filter && empty ? [] : queryExpressions,
                         out.model,
                         features,
-                        callback
+                        callback,
+                        context || !isNaN(pageCount) ? {
+
+                            ...context,
+                            mapReduce: { pageCount }
+                        } : undefined
                     ]);
                 });
             }
@@ -1229,17 +1250,20 @@ var getExecuteAggregate = function (session) {
             page,
             output
         } = features.aggregate || {};
-        if (!include) include = features.include;
-        if (!exclude) exclude = features.exclude;
-        if (!distinct) distinct = features.distinct;
-        if (!sort) sort = features.sort;
-        if (!populate) populate = features.populate;
-        if (typeof paginate !== "boolean") {
+        if (!output) {
 
-            paginate = features.paginate;
+            if (!include) include = features.include;
+            if (!exclude) exclude = features.exclude;
+            if (!distinct) distinct = features.distinct;
+            if (!sort) sort = features.sort;
+            if (!populate) populate = features.populate;
+            if (typeof paginate !== "boolean") {
+
+                paginate = features.paginate;
+            }
+            if (!limit) limit = features.limit;
+            if (!page) page = features.page;
         }
-        if (!limit) limit = features.limit;
-        if (!page) page = features.page;
         var { mapReduce } = features;
         var aggregate = ObjectConstructor.aggregate();
         var many = queryExpressions.length > 0;
@@ -1450,6 +1474,7 @@ var getExecuteAggregate = function (session) {
         if (output) {
 
             var queryUniqueArray = getQueryUniqueArray(...[
+                filterExpressions,
                 queryExpressions,
                 features
             ]);
@@ -1473,22 +1498,23 @@ var getExecuteAggregate = function (session) {
         var time = session.busy();
         aggregate.exec(function (error, result) {
 
+            var {
+                modelObjects,
+                pagination
+            } = (result || [])[0] || {};
+            var {
+                total
+            } = (pagination || [])[0] || {};
+            var pageCount = total / limit;
             if (!result || !collection) {
 
                 var callingBack = typeof callback === "function";
                 if (callingBack) {
 
-                    var {
-                        modelObjects,
-                        pagination
-                    } = (result || [])[0] || {};
-                    var {
-                        total
-                    } = (pagination || [])[0] || {};
                     callback(paginating ? {
 
-                        modelObjects: modelObjects,
-                        pageCount: total / limit
+                        modelObjects,
+                        pageCount
                     } : result, error);
                 }
                 session.idle(time);
@@ -1516,12 +1542,20 @@ var getExecuteAggregate = function (session) {
                     [],
                     Model,
                     features,
-                    callback
+                    callback,
+                    !isNaN(pageCount) ? {
+
+                        aggregate: { pageCount }
+                    } : undefined
                 ]); else getExecuteQuery(session)(...[
                     filter && empty ? [] : queryExpressions,
                     Model,
                     features,
-                    callback
+                    callback,
+                    !isNaN(pageCount) ? {
+
+                        aggregate: { pageCount }
+                    } : undefined
                 ]);
             });
         });

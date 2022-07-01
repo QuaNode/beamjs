@@ -262,6 +262,27 @@ module.exports = function (key, options) {
             next(error);
             return true;
         }
+        var path;
+        if (out.path) path = decode(out.path);
+        if (!path && out.filename) {
+
+            path = decode(out.filename);
+        }
+        if (!path) {
+
+            var originalUrl = parseUrl.original(req);
+            path = parseUrl(req).pathname;
+            var resetting = path === "/";
+            var { pathname } = originalUrl;
+            resetting &= pathname.substr(-1) !== "/";
+            if (resetting) path = "";
+        }
+        var type = out.mime || out.type;
+        if (!type && path) type = mime.getType(path);
+        if (type && !res.getHeader("Content-Type")) {
+
+            res.setHeader("Content-Type", type);
+        }
         var accepting = !!options.acceptRanges;
         accepting &= !res.getHeader("Accept-Ranges");
         if (accepting) {
@@ -270,7 +291,12 @@ module.exports = function (key, options) {
         }
         var caching = !!options.cacheControl;
         caching &= !res.getHeader("Cache-Control");
-        if (caching) {
+        var no_caching = !!type;
+        if (no_caching) {
+
+            no_caching = type.toLowerCase() === 'text/html';
+        }
+        if (caching && !no_caching) {
 
             var maxage = options.maxAge;
             if (!maxage) maxage = options.maxage;
@@ -294,6 +320,9 @@ module.exports = function (key, options) {
             }
             if (immutable) cacheControl += ", immutable";
             res.setHeader("Cache-Control", cacheControl);
+        } else if (caching && no_caching) {
+
+            res.setHeader("Cache-Control", "no-cache");
         }
         var stat = out.stat || out.stats;
         var mtime = out.mtime || out.lastModified;
@@ -317,23 +346,6 @@ module.exports = function (key, options) {
             var val = etag(stat);
             res.setHeader("ETag", val);
         }
-        var path;
-        if (out.path) path = decode(out.path);
-        if (!path && out.filename) {
-
-            path = decode(out.filename);
-        }
-        if (!path) {
-
-            var originalUrl = parseUrl.original(req);
-            path = parseUrl(req).pathname;
-            var resetting = path === "/";
-            var { pathname } = originalUrl;
-            resetting &= pathname.substr(-1) !== "/";
-            if (resetting) path = "";
-        }
-        var type = out.mime || out.type;
-        if (!type && path) type = mime.getType(path);
         var attaching = !!options.attachment;
         attaching &= !res.getHeader("Content-Disposition");
         if (attaching) {
@@ -343,10 +355,6 @@ module.exports = function (key, options) {
                 "Content-Transfer-Encoding",
                 "binary"
             ]);
-        }
-        if (type && !res.getHeader("Content-Type")) {
-
-            res.setHeader("Content-Type", type);
         }
         if (typeof out.modified !== "boolean") {
 

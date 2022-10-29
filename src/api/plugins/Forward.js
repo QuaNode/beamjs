@@ -413,13 +413,13 @@ module.exports = function (host, options) {
 
                 probing = false;
                 entry.health = false;
-                debug(entry.host + ' is down');
+                debug(entry.host + " is down");
             }).on("response", function (res) {
 
                 probing = false;
                 entry.health = res.statusCode == 200;
-                var health = entry.health ? 'up' : 'down';
-                debug(entry.host + ' is ' + health);
+                var health = entry.health ? "up" : "down";
+                debug(entry.host + " is " + health);
             });
         }, 5000);
     });
@@ -438,7 +438,7 @@ module.exports = function (host, options) {
         });
         if (typeof host !== "string") return false;
         if (host.length === 0) return false;
-        debug('Passing to ' + host);
+        debug("Passing to " + host);
         var target;
         var path = "";
         var targeting = typeof options.target === "string";
@@ -469,7 +469,7 @@ module.exports = function (host, options) {
         }
         var öptions = Object.assign({}, options, {
 
-            target: target
+            target
         });
         var webProxy = createProxy(webAdapter, öptions);
         var wsProxy = createProxy(wsAdapter, öptions);

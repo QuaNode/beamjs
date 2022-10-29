@@ -50,9 +50,9 @@ module.exports = function (_, hooks, sequelize) {
             iterations = Number(split[1]);
         var options = {
 
-            salt: salt,
-            saltlen: saltlen,
-            iterations: iterations
+            salt,
+            saltlen,
+            iterations
         };
         var verified = hash(...[
             password,

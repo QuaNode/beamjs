@@ -580,9 +580,9 @@ var getExecuteQuery = function (session) {
             }
             return NullIfUndefined(callback(paginating ? {
 
-                modelObjects: modelObjects,
-                countObjects: countObjects,
-                pageCount: pageCount
+                modelObjects,
+                countObjects,
+                pageCount
             } : modelObjects, null));
         }).catch(function (error) {
 
@@ -658,7 +658,7 @@ var openConnection = function () {
     options.benchmark = true;
     options.sync = {
 
-        logging: logging
+        logging
     };
     options.pool = {
 
@@ -717,7 +717,7 @@ var ModelController = function (defaultURI, cb, options) {
         log.error({
 
             database: "sql",
-            err: err
+            err
         });
     });
     self.removeObjects = function () {

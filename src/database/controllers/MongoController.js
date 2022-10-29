@@ -1581,7 +1581,7 @@ var openConnection = function () {
         };
         try {
 
-            var connection = mongoose.connection;
+            let cönnection = mongoose.connection;
             mongoose.connect(...[
                 defaultURI,
                 options,
@@ -1589,7 +1589,7 @@ var openConnection = function () {
 
                     if (typeof closeCallback == "function") {
 
-                        closeCallback(connection);
+                        closeCallback(cönnection);
                     }
                     if (typeof callback === "function") {
 
@@ -1605,15 +1605,15 @@ var openConnection = function () {
             }
         }
     };
-    var connecting;
+    var connection;
     var { connections } = mongoose;
-    if (connections.every(function (connection) {
+    if (connections.every(function (cönnection) {
 
-        return connection.readyState === 0;
+        return cönnection.readyState === 0;
     })) connect(); else if (connections.some(...[
-        function (connection) {
+        function (cönnection) {
 
-            return connection.readyState === 1;
+            return cönnection.readyState === 1;
         }
     ])) {
 
@@ -1628,12 +1628,12 @@ var openConnection = function () {
             }
         });
         connect();
-    } else if (connecting = connections.find(...[
-        function (connection) {
+    } else if (connection = connections.find(...[
+        function (cönnection) {
 
-            return connection.readyState === 2;
+            return cönnection.readyState === 2;
         }
-    ])) connecting.once("connected", callback); else {
+    ])) connection.once("connected", callback); else {
 
         mongoose.disconnect(connect);
     }
@@ -2179,7 +2179,7 @@ var resolveAttributes = function (attributes) {
                         " it should not be an field");
                 }
                 break;
-        };
+        }
         return Type;
     };
     var resolving = Array.isArray(attributes);
@@ -2315,7 +2315,7 @@ ModelController.defineEntity = function () {
                                         } else modelObject[
                                             property
                                         ] = value;
-                                        if (wrapper.markModified == false) {
+                                        if (wrapper.markModified === false) {
 
                                             wrapper.markModified = true;
                                             self.markModified(path);
@@ -2353,7 +2353,7 @@ ModelController.defineEntity = function () {
                         }, {
 
                             modelObjects: [self],
-                            attributes: attributes
+                            attributes
                         });
                     }
                 }

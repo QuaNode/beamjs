@@ -145,7 +145,7 @@ module.exports = function (columns, options) {
                             tableName,
                             [columnName],
                             {
-                                type: 'FOREIGN KEY',
+                                type: "FOREIGN KEY",
                                 name: constraint,
                                 references: {
 
@@ -179,13 +179,13 @@ module.exports = function (columns, options) {
                     var {
                         on_delete, on_update
                     } = (details || [])[0] || {};
-                    if (!on_delete) on_delete = 'SET NULL';
-                    if (!on_update) on_update = 'CASCADE';
+                    if (!on_delete) on_delete = "SET NULL";
+                    if (!on_update) on_update = "CASCADE";
                     return add(on_delete, on_update);
                 }).catch(function (err) {
 
                     debug(err);
-                    return add('SET NULL', 'CASCADE');
+                    return add("SET NULL", "CASCADE");
                 });
             };
             var promise = new Promise(...[

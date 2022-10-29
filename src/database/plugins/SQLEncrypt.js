@@ -7,6 +7,26 @@ var { sha1 } = require("@fnando/keyring");
 
 var queue = [];
 var processing = false;
+var getFKQuery = function (constraint, table, catalog) {
+
+    return "SELECT DISTINCT " +
+        "rc.delete_rule AS on_delete, " +
+        "rc.update_rule AS on_update " +
+        "FROM information_schema" +
+        ".table_constraints AS tc " +
+        "LEFT JOIN information_schema" +
+        ".referential_constraints rc " +
+        "ON tc.CONSTRAINT_CATALOG = " +
+        "rc.CONSTRAINT_CATALOG " +
+        "AND tc.CONSTRAINT_SCHEMA = " +
+        "rc.CONSTRAINT_SCHEMA " +
+        "AND tc.CONSTRAINT_NAME = " +
+        "rc.CONSTRAINT_NAME WHERE " +
+        "constraint_type = 'FOREIGN KEY' " +
+        "AND tc.CONSTRAINT_NAME = '" + constraint +
+        "' AND tc.TABLE_NAME = '" + table + "' " +
+        "AND tc.table_catalog = '" + catalog + "'";
+};
 
 module.exports = function (columns, options) {
 
@@ -69,6 +89,7 @@ module.exports = function (columns, options) {
         var {
             renameTable,
             addConstraint,
+            removeConstraint,
             getForeignKeyReferencesForTable: getFKs
         } = queryI;
         var sync = function (models) {
@@ -106,7 +127,8 @@ module.exports = function (columns, options) {
                     tableName,
                     constraintName: cN,
                     columnName,
-                    referencedColumnName: rC
+                    referencedColumnName: rC,
+                    tableCatalog
                 } = ref;
                 var constraint = cN;
                 if (!constraint.endsWith(...[
@@ -115,22 +137,56 @@ module.exports = function (columns, options) {
 
                     constraint += "_encrypted";
                 }
-                return addConstraint.apply(...[
-                    queryI,
-                    [
-                        tableName,
-                        [columnName],
-                        {
-                            type: 'FOREIGN KEY',
-                            name: constraint,
-                            references: {
+                var add = function (onDelete, onUpdate) {
 
-                                table: name,
-                                field: rC
+                    return addConstraint.apply(...[
+                        queryI,
+                        [
+                            tableName,
+                            [columnName],
+                            {
+                                type: 'FOREIGN KEY',
+                                name: constraint,
+                                references: {
+
+                                    table: name,
+                                    field: rC
+                                },
+                                onDelete,
+                                onUpdate
                             }
-                        }
-                    ]
-                ]);
+                        ]
+                    ]).then(function () {
+
+                        return removeConstraint.apply(...[
+                            queryI, [tableName, cN]
+                        ]);
+                    }).catch(function (err) {
+
+                        debug(err);
+                        return null;
+                    });
+                };
+                return sequelize.query(...[
+                    getFKQuery(...[
+                        cN, tableName, tableCatalog
+                    ]), {
+
+                        type: sequelize.QueryTypes.SELECT
+                    }
+                ]).then(function (details) {
+
+                    var {
+                        on_delete, on_update
+                    } = (details || [])[0] || {};
+                    if (!on_delete) on_delete = 'SET NULL';
+                    if (!on_update) on_update = 'CASCADE';
+                    return add(on_delete, on_update);
+                }).catch(function (err) {
+
+                    debug(err);
+                    return add('SET NULL', 'CASCADE');
+                });
             };
             var promise = new Promise(...[
                 function (resolve) {

@@ -291,11 +291,7 @@ module.exports = function (key, options) {
         }
         var caching = !!options.cacheControl;
         caching &= !res.getHeader("Cache-Control");
-        var no_caching = !!type;
-        if (no_caching) {
-
-            no_caching = type.toLowerCase() === 'text/html';
-        }
+        var no_caching = out.cache === false;
         if (caching && !no_caching) {
 
             var maxage = options.maxAge;

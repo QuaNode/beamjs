@@ -267,7 +267,7 @@ var getBinaryOperator = function (operator, acceptArray) {
             }
             if ([
                 ...(leftValue || []),
-                ...(rightValue || [])
+                ...[].concat(rightValue || [])
             ].length === 0) {
 
                 throw new Error("Invalid values in aggregate" +
@@ -279,7 +279,7 @@ var getBinaryOperator = function (operator, acceptArray) {
 
             operation[operator] = [
                 ...(leftValue || []),
-                ...(rightValue || [])
+                ...[].concat(rightValue || [])
             ];
         } else if (validLeft && validRight) {
 
@@ -2074,12 +2074,12 @@ var DataType = function (datatype, options, resolve) {
                     throw new Error("Invalid field custom" +
                         " data type name");
                 }
-                var Type = function (key, options) {
+                var Type = function (key, öptions) {
 
                     mongoose.SchemaType.call(...[
                         this,
                         key,
-                        options,
+                        öptions,
                         typeName
                     ]);
                 };
@@ -2332,10 +2332,11 @@ ModelController.defineEntity = function () {
 
                                         return [
                                             ...modelObjects,
-                                            ...modelObject[property]
+                                            ...[].concat(...[
+                                                modelObject[property]
+                                            ])
                                         ];
-                                    }
-                                    else modelObjects.push(...[
+                                    } else modelObjects.push(...[
                                         modelObject[property]
                                     ]);
                                     return modelObjects;

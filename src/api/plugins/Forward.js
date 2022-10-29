@@ -392,6 +392,7 @@ module.exports = function (host, options) {
         if (entry.path.length === 0) return;
         entry.health = true;
         hosts.push(entry);
+        var probing = false;
         setInterval(function () {
 
             var {
@@ -402,16 +403,23 @@ module.exports = function (host, options) {
                 entry.path,
                 entry.host
             ]).href;
+            if (probing) return;
+            probing = true;
             (isSSL.test(...[
                 health_url
             ]) ? https : http).get(...[
                 health_url
             ]).on("error", function () {
 
+                probing = false;
                 entry.health = false;
+                debug(entry.host + ' is down');
             }).on("response", function (res) {
 
+                probing = false;
                 entry.health = res.statusCode == 200;
+                var health = entry.health ? 'up' : 'down';
+                debug(entry.host + ' is ' + health);
             });
         }, 5000);
     });
@@ -430,6 +438,7 @@ module.exports = function (host, options) {
         });
         if (typeof host !== "string") return false;
         if (host.length === 0) return false;
+        debug('Passing to ' + host);
         var target;
         var path = "";
         var targeting = typeof options.target === "string";

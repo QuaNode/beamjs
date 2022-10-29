@@ -380,7 +380,7 @@ module.exports = function (columns, options) {
                 ]).findOrCreate({
 
                     where: defaults.id,
-                    defaults: defaults
+                    defaults
                 }).then(function (result) {
 
                     var created = !!result;

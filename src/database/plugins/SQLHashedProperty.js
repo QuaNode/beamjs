@@ -90,7 +90,7 @@ module.exports = function (_, hooks, sequelize) {
         attributes.password = {
 
             type: VIRTUAL,
-            set: function (password) {
+            set(password) {
 
                 this.setDataValue(...[
                     "hashed_password",

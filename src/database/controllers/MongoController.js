@@ -54,7 +54,7 @@ module.exports.LogicalOperators = {
 var ComparisonOperators = module.exports.ComparisonOperators = {
 
     EQUAL: "=",
-    EQUALIGNORECASE: function (value, options, expression) {
+    EQUALIGNORECASE(value, options, expression) {
 
         var regex;
         if (value instanceof RegExp) regex = value;
@@ -71,7 +71,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         return query;
     },
     NE: "$ne",
-    NEIGNORECASE: function (value, options, expression) {
+    NEIGNORECASE(value, options, expression) {
 
         return {
 
@@ -87,7 +87,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     GT: "$gt",
     GE: "$gte",
     IN: "$in",
-    INIGNORECASE: function (value, options, expression) {
+    INIGNORECASE(value, options, expression) {
 
         if (!Array.isArray(value)) {
 
@@ -115,7 +115,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         return query;
     },
     NIN: "$nin",
-    NINIGNORECASE: function (value, options, expression) {
+    NINIGNORECASE(value, options, expression) {
 
         var query = this.INIGNORECASE(...[
             value,
@@ -127,7 +127,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         return query;
     },
     CONTAINS: "$regex",
-    ANY: function (value, options, expression) {
+    ANY(value, options, expression) {
 
         var query = Array.isArray(value) ? {
 
@@ -146,21 +146,21 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         };
     },
     ALL: "$all",
-    ANYMATCH: function (query) {
+    ANYMATCH(query) {
 
         return {
 
             $elemMatch: query
         };
     },
-    ANYMATCHIGNORECASE: function (query) {
+    ANYMATCHIGNORECASE(query) {
 
         return {
 
             $elemMatch: this.CASEINSENSITIVECOMPARE(query)
         };
     },
-    CASEINSENSITIVECOMPARE: function (query) {
+    CASEINSENSITIVECOMPARE(query) {
 
         if (Array.isArray(query.$in)) {
 
@@ -187,7 +187,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
         }
         return query;
     },
-    SOME: function (query, expression) {
+    SOME(query, expression) {
 
         var attributes = expression.fieldName.split(".");
         var one = !Array.isArray(attributes);
@@ -329,7 +329,7 @@ var getTrimOperator = function (operator) {
 
 var ComputationOperators = module.exports.ComputationOperators = {
 
-    FIELD: function (fieldName) {
+    FIELD(fieldName) {
 
         var invalid = typeof fieldName !== "string";
         if (!invalid) invalid |= fieldName.length === 0;
@@ -340,7 +340,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
         }
         return "$" + fieldName;
     },
-    VAR: function (variable) {
+    VAR(variable) {
 
         var invalid = typeof variable !== "string";
         if (!invalid) invalid |= variable.length === 0;
@@ -352,7 +352,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
         return "$$" + variable;
     },
     EQUAL: getBinaryOperator("$eq"),
-    EQUALIGNORECASE: function (leftValue, rightValue) {
+    EQUALIGNORECASE(leftValue, rightValue) {
 
         return this.EQUAL(this.CASEINSENSITIVECOMPARE(...[
             leftValue,
@@ -360,7 +360,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
         ]), 0);
     },
     NE: getBinaryOperator("$ne"),
-    NEIGNORECASE: function (leftValue, rightValue) {
+    NEIGNORECASE(leftValue, rightValue) {
 
         return this.NE(this.CASEINSENSITIVECOMPARE(...[
             leftValue,
@@ -372,7 +372,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
     GT: getBinaryOperator("$gt"),
     GE: getBinaryOperator("$gte"),
     IN: getBinaryOperator("$in"),
-    INIGNORECASE: function (leftValue, rightValue) {
+    INIGNORECASE(leftValue, rightValue) {
 
         if (!Array.isArray(rightValue)) {
 
@@ -384,18 +384,18 @@ var ComputationOperators = module.exports.ComputationOperators = {
             return self.EQUALIGNORECASE(leftValue, value);
         }), true);
     },
-    NIN: function (leftValue, rightValue) {
+    NIN(leftValue, rightValue) {
 
         return this.NOT(this.IN(leftValue, rightValue));
     },
-    NINIGNORECASE: function (leftValue, rightValue) {
+    NINIGNORECASE(leftValue, rightValue) {
 
         return this.NOT(this.INIGNORECASE(...[
             leftValue,
             rightValue
         ]));
     },
-    CONTAINS: function (leftValue, rightValue) {
+    CONTAINS(leftValue, rightValue) {
 
         return {
 
@@ -406,7 +406,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
             }
         };
     },
-    CONTAINSIGNORECASE: function (leftValue, rightValue) {
+    CONTAINSIGNORECASE(leftValue, rightValue) {
 
         var operation = this.CONTAINS(...[
             leftValue,
@@ -415,7 +415,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
         operation.$regexMatch.options = "i";
         return operation;
     },
-    SOME: function (variable) {
+    SOME(variable) {
 
         var invalid = typeof variable !== "string";
         if (!invalid) invalid |= variable.length === 0;
@@ -502,7 +502,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
     MINWITH: getBinaryOperator("$min"),
     DEV: getUnaryOperator("$stdDevPop"),
     DEVSAMP: getUnaryOperator("$stdDevSamp"),
-    IF: function (leftValue, rightValue) {
+    IF(leftValue, rightValue) {
 
         var valid = typeof rightValue === "object";
         if (valid) {
@@ -522,7 +522,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
             }
         };
     },
-    ELSE: function (leftValue, rightValue) {
+    ELSE(leftValue, rightValue) {
 
         var valid = typeof leftValue === "object";
         if (valid) {
@@ -553,7 +553,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
     UNEMBED: "$$DESCEND",
     HIDE: "$$PRUNE",
     SHOW: "$$KEEP",
-    CONVERT: function (type) {
+    CONVERT(type) {
 
         var invalid = typeof type != "number";
         invalid |= type < 1;
@@ -584,7 +584,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
             };
         });
     },
-    OPERATOR: function (name, operator) {
+    OPERATOR(name, operator) {
 
         var key = name + new Date().getTime();
         setTimeout(function () {
@@ -2224,12 +2224,12 @@ ModelController.defineEntity = function () {
     Object.defineProperty(Model.prototype, "self", {
 
         enumerable: true,
-        get: function () {
+        get() {
 
             var self = this;
             return {
 
-                set: function (path, value) {
+                set(path, value) {
 
                     var setting = typeof path === "string";
                     if (setting) setting &= path.length > 0;

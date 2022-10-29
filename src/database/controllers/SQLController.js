@@ -54,7 +54,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     BETWEEN: Op.between,
     NBETWEEN: Op.notBetween,
     FROM: "from",
-    THROUGH: function (entity) {
+    THROUGH(entity) {
 
         if (!(entity instanceof Entity)) {
 
@@ -67,7 +67,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 var ComputationOperators = module.exports.ComputationOperators = {
 
     COLUMN: Sequelize.col,
-    CAST: function (value, type) {
+    CAST(value, type) {
 
         var typë = DataType(type);
         return Sequelize.cast(...[
@@ -75,7 +75,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
             typë ? typë.toString() : type
         ]);
     },
-    FUNCTION: function (option) {
+    FUNCTION(option) {
 
         var many = Array.isArray(option.of);
         return Sequelize.fn(...[
@@ -177,7 +177,7 @@ var getManipulator = function () {
 
 var adapter = {
 
-    getQuery: function () {
+    getQuery() {
 
         var [
             queryExpressions,
@@ -259,7 +259,7 @@ var adapter = {
         }
         return null;
     },
-    constructJoin: function (queryExpressions) {
+    constructJoin(queryExpressions) {
 
         var many = Array.isArray(queryExpressions);
         if (many) {
@@ -307,7 +307,7 @@ var adapter = {
         }
         return null;
     },
-    constructQuery: function () {
+    constructQuery() {
 
         var [
             queryExpressions,
@@ -1029,7 +1029,7 @@ ModelController.defineEntity = function () {
     var hooks = {
 
         handlers: {},
-        on: function (hook, handler, general) {
+        on(hook, handler, general) {
 
             if (typeof handler !== "function") {
 
@@ -1258,11 +1258,11 @@ ModelController.defineEntity = function () {
                     property,
                     {
                         enumerable: true,
-                        set: function (value) {
+                        set(value) {
 
                             this["_" + property] = value;
                         },
-                        get: function () {
+                        get() {
 
                             if (this["_" + property]) {
 

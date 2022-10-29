@@ -55,14 +55,14 @@ var setupOutgoing = function (req, options) {
 
 var responseAdaper = {
 
-    removeChunked: function (req, _, proxyRes) {
+    removeChunked(req, _, proxyRes) {
 
         if (req.httpVersion === "1.0") {
 
             delete proxyRes.headers["transfer-encoding"];
         }
     },
-    setConnection: function (req, _, proxyRes) {
+    setConnection(req, _, proxyRes) {
 
         var headers = proxyRes.headers;
         var { connection } = req.headers;
@@ -75,7 +75,7 @@ var responseAdaper = {
             headers.connection = connection || "keep-alive";
         }
     },
-    setRedirectHostRewrite: function (req, _, proxyRes, options) {
+    setRedirectHostRewrite(req, _, proxyRes, options) {
 
         var redirecting = !options.reverse;
         redirecting &= !!proxyRes.headers["location"];
@@ -89,7 +89,7 @@ var responseAdaper = {
             proxyRes.headers["location"] = location.href;
         }
     },
-    writeHeaders: function (_, res, proxyRes) {
+    writeHeaders(_, res, proxyRes) {
 
         var rawHeaderKeyMap;
         var setHeader = function (key, header) {
@@ -113,7 +113,7 @@ var responseAdaper = {
             setHeader(key, header);
         });
     },
-    writeStatusCode: function (_, res, proxyRes) {
+    writeStatusCode(_, res, proxyRes) {
 
         res.statusCode = proxyRes.statusCode;
         if (proxyRes.statusMessage) {
@@ -125,7 +125,7 @@ var responseAdaper = {
 
 var webAdapter = {
 
-    deleteLength: function (req) {
+    deleteLength(req) {
 
         var deleting = req.method === "DELETE";
         deleting |= req.method === "OPTIONS";
@@ -135,14 +135,14 @@ var webAdapter = {
             delete req.headers["transfer-encoding"];
         }
     },
-    timeout: function timeout(req, _, __, options) {
+    timeout(req, _, __, options) {
 
         if (!isNaN(parseInt(options.timeout))) {
 
             req.socket.setTimeout(options.timeout);
         }
     },
-    XHeaders: function (req, _, __, options) {
+    XHeaders(req, _, __, options) {
 
         if (!options.reverse) return;
         var encrypted = req.isSpdy || hasEncryptedConnection(req);
@@ -173,7 +173,7 @@ var webAdapter = {
         if (!x_forwarded_host) x_forwarded_host = "";
         req.headers["x-forwarded-host"] = x_forwarded_host;
     },
-    stream: function (req, res, next, options) {
+    stream(req, res, next, options) {
 
         var agents = nativeAgents;
         if (options.followRedirects) agents = followRedirects;
@@ -238,7 +238,7 @@ var setupSocket = function (socket) {
 
 var wsAdapter = {
 
-    checkMethodAndHeader: function (req, socket) {
+    checkMethodAndHeader(req, socket) {
 
         var { upgrade } = req.headers;
         var destroying = req.method !== "GET";
@@ -253,7 +253,7 @@ var wsAdapter = {
             return true;
         }
     },
-    XHeaders: function (req, _, __, options) {
+    XHeaders(req, _, __, options) {
 
         if (!options.reverse) return;
         var { remoteAddress } = req.connection;
@@ -276,7 +276,7 @@ var wsAdapter = {
             req.headers["x-forwarded-" + header] = x_forwarded;
         });
     },
-    stream: function (req, socket, next, options, head) {
+    stream(req, socket, next, options, head) {
 
         var createHttpHeader = function (line, headers) {
 

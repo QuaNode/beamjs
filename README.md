@@ -16,7 +16,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 ## Why BeamJS and Backend-JS?
 
 - It is built for agility and highly configrable, modular, and adapting systems.
-- **Backend-JS is providing a deep route-based load balancing through a built-in queuing service.**
+- Backend-JS is providing a deep route-based load balancing through a built-in queuing service.
 - It provides a built-in static files server decoubling the file source that could be local file system or cloud storage from http static request handling. Also it supports complex files streaming and transformations within the built-in queue system and load balancing.
 - It provides a built-in forward and reverse proxy server utilizing the queuing system for fast load-balancing, virtual hosts and complex domain routing. 
 - It provides a built-in data mapping pipeline.

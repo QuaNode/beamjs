@@ -4,32 +4,33 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 
 # Introduction
 
-- BeamJS is built above Backend-JS to provide data controllers for SQL and No-SQL databases. It also provides file system controllers that works on local file system or on cloud storage.
-- These data controllers are abstract adapters above ODM/ORM patterns of MongooseJS and SequelizeJS. The objective of these adapters is to define a unified query APIs to work across different database engines even across NO-SQL and SQL.
+- BeamJS is built above Backend-JS to provide data controllers for SQL and No-SQL databases. It also provides file system controllers that work on a local file system or cloud storage.
+- These data controllers are abstract adapters above ODM/ORM patterns of MongooseJS and SequelizeJS. The objective of these adapters is to define unified query APIs to work across different database engines even across NO-SQL and SQL.
 - BeamJS is an abbreviation for the following technology stack:
   - Backend-JS - A NodeJS module and library built above ExpressJS [check here](https://github.com/quaNode/Backend-JS).
   - ExpressJS - A minimal and flexible Node.js web application framework [check here](https://github.com/expressjs/expressjs.com).
-  - Angular - A single page application front-end framework [check here](https://github.com/angular/angular).
+  - Angular - A single-page application front-end framework [check here](https://github.com/angular/angular).
   - MongoDB - A NO-SQL database engine [check here](https://github.com/mongodb/mongo).
 - BeamJS can be configured to work within different technology stacks of database engines and front-end frameworks.
 
 ## Why BeamJS and Backend-JS?
 
-- It is built for agility and highly configrable, modular, and adapting systems.
-- Backend-JS is providing a deep route-based load balancing through a built-in queuing service.
-- It provides a built-in static files server decoubling the file source that could be local file system or cloud storage from http static request handling. 
-- It supports complex files streaming and transformations within the built-in queue system and load balancing.
-- It provides a built-in forward and reverse proxy server utilizing the queuing system for fast load-balancing, virtual hosts and complex domain routing. 
+- It is built for agility and highly configurable, modular, and adapting systems.
+- It is an enterprise-level framework so you can code your organizational and customer behaviors seamlessly.
+- It supports DB encryption for pseudonymization and GDPR compliance.
 - It provides a built-in data mapping pipeline.
-- It supports long pulling HTTP requests.
+- It supports CQRS architecture through mixed model definitions over different DBs. 
+- It provides a deep route-based load balancing through a built-in queuing service.
+- It provides a built-in static files server decoupling the file source that could be a local file system or cloud storage from HTTP static request handling. 
+- It supports complex file streaming and transformations within the built-in queue system and load balancing.
+- It provides a built-in forward- and reverse-proxy server utilizing the queuing system for fast load-balancing, virtual hosts, and complex domain routing. 
+- It supports long-pulling HTTP requests.
 - It supports event-driven architecture above mixed protocols HTTP/WebSocket for pulling and pushing.
 - It is ready for event-sourcing applications.
-- It supports CQRS architecture through mixed model definitions over different DBs. 
-- It supports DB encryption for pseudonymization and GDPR-compliance.
-- Introducing a new terminology in technology space is not hard as the age of whole digital industry is still young but making so is not easy. Considering this, Backend-JS introduces the terminology of **Behavior** coming from the business space specially marketing where users/customers have behaviors. These behaviors are sometimes functional on the digital product/service and sometimes unrelated to the product. Simply the functional behaviors are called by developers business logic or APIs so our Behavior means normal API but implemented vertically and the objective is to narrow the space between business and technology as inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
+- Introducing a new terminology in the technology space is not hard as the age of the whole digital industry is still young but making so is not easy. Considering this, Backend-JS introduces the terminology of API **Behavior** represents organizational and customer behavior that is implemented vertically based on a built-in customizable enterprise algorithmic mental model inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
 - It supports micro-services architecture through the vertical implementation of **Behaviors** (APIs) and built-in services abstraction layer.
 - To define a **Behavior** (API), The framework drives you to write the contract/specification first which can be viewed later by integrators for simple REST integrations.
-- Integrating to applications made using BeamJS and Backend-JS are a **SOAP-like above REST APIs**. It comes with 7 front-end integration libraries as following:
+- Integrating applications made using BeamJS and Backend-JS is a **SOAP-like above REST APIs**. It comes with 7 front-end integration libraries as follows:
   - [ng-behaviours](https://github.com/QuaNode/ng-behaviours) for Angular and Angular-based (e,g, ionic) applications.
   - [js-behaviours](https://github.com/QuaNode/js-behaviours) for NodeJS, NodeJS-based (e.g. ElectronJS), and browser.
   - [dotnet-behaviours](https://github.com/QuaNode/dotnet-behaviours) for .Net core.
@@ -39,7 +40,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
   - titanium-behaviours for Appcelerator Titanium.
   - [more coming.](https://github.com/QuaNode)
 - Integration between applications made using BeamJS and Backend-JS is like calling internal function.
-- The whole framework is the backbone of Behaviours product where code is generated by dragging and dropping. Taking in mind that the code generated is downloadable, editable, and maintainable not like other code generators you know.
+- The whole framework is the backbone of the Behaviours product where code is generated by dragging and dropping. Taking in mind that the code generated is downloadable, editable, and maintainable not like other code generators you know.
 
 ## Benchmarking
 
@@ -88,7 +89,7 @@ behaviour(
 
 ## Starter project
 
-A sample project that you can learn from examples how to use BeamJS.
+A sample project that you can learn from examples of how to use BeamJS.
 
 #### [https://github.com/QuaNode/BeamJS-Start](https://github.com/QuaNode/BeamJS-Start)
 

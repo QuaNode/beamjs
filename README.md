@@ -45,7 +45,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 ## Benchmarking
 
 - The code of the framework is scoring between class **A and C** in the static analyzer of [Codacy](https://github.com/marketplace/codacy).
-- The load testing of applications made using this framework scored **10k** sessions per minute on 1G RAM 1vCPU AWS EC2.
+- The load testing of applications made using this framework scored **10k** sessions per minute on 1G RAM 1vCPU AWS EC2 and above **1K** concurrent connections.
 - The dependencies of the framework do not exceed **30** and vulnerabilities **0 or 1**.
 
 ## Installation

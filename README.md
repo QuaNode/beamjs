@@ -24,7 +24,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 - It provides a built-in static files server decoupling the file source that could be a local file system or cloud storage from HTTP static request handling. 
 - It supports complex file streaming and transformations within the built-in queue system and load balancing.
 - It provides a built-in forward- and reverse-proxy server utilizing the queuing system for fast load-balancing, virtual hosts, and complex domain routing. 
-- It supports long-pulling HTTP requests.
+- It supports long-polling HTTP requests.
 - It supports event-driven architecture above mixed protocols HTTP/WebSocket for pulling and pushing.
 - It is ready for event-sourcing applications.
 - Introducing a new terminology in the technology space is not hard as the age of the whole digital industry is still young but making so is not easy. Considering this, Backend-JS introduces the terminology of API **Behavior** represents organizational and customer behavior that is implemented vertically based on a built-in customizable enterprise algorithmic mental model inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).

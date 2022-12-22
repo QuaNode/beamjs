@@ -187,7 +187,7 @@ var webAdapter = {
         ]);
         req.on("aborted", function () {
 
-            proxyReq.abort();
+            proxyReq.destroy();
         });
         var proxyError = function (err) {
 
@@ -195,9 +195,8 @@ var webAdapter = {
             aborting &= err.code === "ECONNRESET";
             if (aborting) {
 
-                proxyReq.abort();
+                proxyReq.destroy();
                 next(err);
-                return;
             }
         };
         req.on("error", proxyError);
@@ -313,6 +312,10 @@ var wsAdapter = {
             options.target,
             setupOutgoing(req, options)
         ]);
+        socket.on("error", function (err) {
+
+            if (next) next(err);
+        });
         proxyReq.on("error", onOutgoingError);
         proxyReq.on("response", function (res) {
 
@@ -336,10 +339,9 @@ var wsAdapter = {
                 proxyHead
             ] = arguments;
             proxySocket.on("error", onOutgoingError);
-            socket.on("error", function (err) {
+            socket.on("error", function () {
 
                 proxySocket.end();
-                if (next) next(err);
             });
             setupSocket(proxySocket);
             var unshifting = !!proxyHead;
@@ -438,7 +440,7 @@ module.exports = function (host, options) {
         });
         if (typeof host !== "string") return false;
         if (host.length === 0) return false;
-        debug("Passing to " + host);
+        debug(host);
         var target;
         var path = "";
         var targeting = typeof options.target === "string";

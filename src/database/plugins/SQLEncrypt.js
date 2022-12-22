@@ -375,16 +375,38 @@ module.exports = function (columns, options) {
                     sequelize.Sequelize,
                     [model]
                 ]);
+                let cäse = function (where) {
+
+                    if (where) return {
+
+                        function: 'findOrCreate',
+                        argument: {
+
+                            where,
+                            defaults
+                        }
+                    }; else return {
+
+                        function: 'create',
+                        argument: defaults
+                    };
+                }(function () {
+
+                    var { id, _id } = defaults;
+                    if (_id) return { _id };
+                    else if (id) return { id };
+                    return;
+                }());
                 sequelize.model(...[
                     name
-                ]).findOrCreate({
+                ])[cäse.function](...[
+                    cäse.argument
+                ]).then(function (result) {
 
-                    where: defaults.id,
-                    defaults
-                }).then(function (result) {
-
-                    var created = !!result;
-                    if (created) {
+                    let created = !!result;
+                    if (cäse[
+                        'function'
+                    ] === 'findOrCreate') {
 
                         created &= !!result[1];
                     }
@@ -488,8 +510,14 @@ module.exports = function (columns, options) {
                             } = options;
                             query[key] = undefined;
                             delete query[key];
+                            var key_digest = key;
+                            var typeOfK = typeof key;
+                            if (typeOfK !== 'symbol') {
+
+                                key_digest += "_digest";
+                            }
                             query[
-                                key + "_digest"
+                                key_digest
                             ] = sha1(value.toString(), {
 
                                 digestSalt

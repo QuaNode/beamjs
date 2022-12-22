@@ -1309,6 +1309,26 @@ var getExecuteAggregate = function (session) {
                     return _id;
                 }() : "$" + distinct
             };
+            if (Array.isArray(sort)) {
+
+                sort.forEach(function (option) {
+
+                    if (typeof option.by !== "string") {
+
+                        throw new Error("Invalid sort" +
+                            " by field name");
+                    }
+                    var accum = "$min";
+                    if (option.order === "desc") {
+
+                        accum = "$max";
+                    }
+                    group[option.by] = {
+
+                        [accum]: "$" + option.by
+                    };
+                });
+            }
         }
         if (aggregateExpressions.length > 0) {
 

@@ -13,7 +13,9 @@ var {
 var Sequelize = require("sequelize");
 require("sequelize-values")(Sequelize);
 var VariableAdaptor = require("sequelize-transparent-cache-variable");
-var { withCache } = require("sequelize-transparent-cache")(new VariableAdaptor());
+var {
+    withCache
+} = require("sequelize-transparent-cache")(new VariableAdaptor());
 
 if (!fs.existsSync("./logs")) fs.mkdirSync("./logs");
 
@@ -67,6 +69,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 var ComputationOperators = module.exports.ComputationOperators = {
 
     COLUMN: Sequelize.col,
+    LITERAL: Sequelize.literal,
     CAST(value, type) {
 
         var typë = DataType(type);
@@ -132,11 +135,34 @@ var getManipulator = function () {
             var nëw = value !== null;
             nëw &= value !== undefined;
             nëw &= !(value instanceof Sequelize.Model)
-            if (nëw) return Model.create(...[
-                value,
-                /*options*/
-            ]).then(function (model) {
+            let cäse;
+            if (nëw) return Model[
+                (cäse = function (where) {
 
+                    if (where) return {
+
+                        function: 'findOrCreate',
+                        argument: { where, value }
+                    }; else return {
+
+                        function: 'create',
+                        argument: value
+                    };
+                }(function () {
+
+                    var { id, _id } = value;
+                    if (_id) return { _id };
+                    else if (id) return { id };
+                    return;
+                }())).function
+            ](cäse.argument).then(function (model) {
+
+                if (cäse[
+                    'function'
+                ] === 'findOrCreate') {
+
+                    ([model] = model);
+                }
                 if (Array.isArray(model)) {
 
                     session = session.concat(model);
@@ -394,9 +420,9 @@ var adapter = {
 
                 if (!(have instanceof QueryExpression)) {
 
-                    return true;
+                    return false;
                 }
-                return index > 0 && !have.logicalOperator;
+                return index === 0 || !!have.logicalOperator;
             }
         ])) {
 
@@ -410,15 +436,17 @@ var adapter = {
                 include: including.map(...[
                     function (option) {
 
+                        let get = option.get;
+                        if (typeof get !== 'object') {
+
+                            get = Sequelize.col(get);
+                        }
                         return option.of ? [
                             ComputationOperators.FUNCTION(...[
                                 option
                             ]),
                             option.as
-                        ] : [
-                            Sequelize.col(option.get),
-                            option.as
-                        ];
+                        ] : [get, option.as];
                     }
                 ])
             };
@@ -432,15 +460,17 @@ var adapter = {
 
                         return option;
                     }
+                    let get = option.get;
+                    if (typeof get !== 'object') {
+
+                        get = Sequelize.col(get);
+                    }
                     return option.of ? [
                         ComputationOperators.FUNCTION(...[
                             option
                         ]),
                         option.as
-                    ] : [
-                        Sequelize.col(option.get),
-                        option.as
-                    ];
+                    ] : [get, option.as];
                 }
             ]);
         }
@@ -473,24 +503,40 @@ var adapter = {
 
                     order = option.in;
                 }
-                if (option.of) order.push(...[
-                    ComputationOperators.FUNCTION({
+                if (option.of) {
 
-                        get: option.by,
-                        of: option.of
-                    })
-                ]); else if (option.order !== "asc") {
+                    var one = !Array.isArray(option.of);
+                    var many = false;
+                    if (!one) {
 
-                    order.push(option.by);
-                    if (typeof option.order === "string") {
+                        many |= option.of.length > 0;
+                    }
+                    if (one || many) {
+
+                        order.push(...[
+                            ComputationOperators.FUNCTION({
+
+                                get: option.by,
+                                of: option.of
+                            })
+                        ]);
+                    } else order.push(...[
+                        ComputationOperators.LITERAL(...[
+                            option.by
+                        ])
+                    ]);
+                } else order.push(...[
+                    Sequelize.col(option.by)
+                ]);
+                if (typeof option.order === "string") {
+
+                    if (option.order !== "asc") {
 
                         order.push(...[
                             option.order.toUpperCase()
                         ]);
                     }
-                } else order.push(...[
-                    Sequelize.col(option.by)
-                ]);
+                }
                 if (order.length === 1) return order[0];
                 return order;
             });

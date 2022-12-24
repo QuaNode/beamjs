@@ -392,7 +392,7 @@ module.exports = function (columns, options) {
                     };
                 }(function () {
 
-                    var { id, _id } = defaults;
+                    let { id, _id } = defaults;
                     if (_id) return { _id };
                     else if (id) return { id };
                     return;
@@ -510,8 +510,8 @@ module.exports = function (columns, options) {
                             } = options;
                             query[key] = undefined;
                             delete query[key];
-                            var key_digest = key;
-                            var typeOfK = typeof key;
+                            let key_digest = key;
+                            let typeOfK = typeof key;
                             if (typeOfK !== 'symbol') {
 
                                 key_digest += "_digest";

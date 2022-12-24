@@ -150,7 +150,7 @@ var getManipulator = function () {
                     };
                 }(function () {
 
-                    var { id, _id } = value;
+                    let { id, _id } = value;
                     if (_id) return { _id };
                     else if (id) return { id };
                     return;
@@ -219,7 +219,7 @@ var adapter = {
 
                 var filter = {};
                 var subFilter = {};
-                var queryExpression = queryExpressions[0];
+                let queryExpression = queryExpressions[0];
                 var {
                     fieldName,
                     fieldValue,
@@ -255,8 +255,10 @@ var adapter = {
 
                 for (var i = 1; i < queryExpressions.length; i++) {
 
-                    var queryExpression = queryExpressions[i];
-                    if (queryExpression.contextualLevel === j) {
+                    let queryExpression = queryExpressions[i];
+                    var splitting = queryExpressions.length === 2;
+                    splitting |= queryExpression.contextualLevel === j;
+                    if (splitting) {
 
                         var { logicalOperator } = queryExpression;
                         var rightFilter = this.getQuery(...[

@@ -614,7 +614,7 @@ var getQuery = function () {
 
             var filter = {};
             var subFilter = {};
-            var queryExpression = queryExpressions[0];
+            let queryExpression = queryExpressions[0];
             var {
                 fieldName,
                 fieldValue,
@@ -663,8 +663,10 @@ var getQuery = function () {
 
             for (var i = 1; i < queryExpressions.length; i++) {
 
-                var queryExpression = queryExpressions[i];
-                if (queryExpression.contextualLevel === j) {
+                let queryExpression = queryExpressions[i];
+                var splitting = queryExpressions.length === 2;
+                splitting |= queryExpression.contextualLevel === j;
+                if (splitting) {
 
                     var { logicalOperator } = queryExpression;
                     var rightFilter = getQuery(...[

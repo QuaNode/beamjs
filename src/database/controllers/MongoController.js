@@ -833,6 +833,7 @@ var getExecuteQuery = function (session) {
             limit,
             function (error, modelObjects, total) {
 
+                session.idle(time);
                 if (!readonly) Array.prototype.push.apply(...[
                     session,
                     modelObjects
@@ -843,10 +844,10 @@ var getExecuteQuery = function (session) {
                     modelObjects,
                     pageCount: total / limit
                 }, error);
-                session.idle(time);
             }
         ]); else query.exec(function (error, modelObjects) {
 
+            session.idle(time);
             if (!readonly) Array.prototype.push.apply(...[
                 session,
                 modelObjects
@@ -859,7 +860,6 @@ var getExecuteQuery = function (session) {
                     modelObjects
                 } : modelObjects, error);
             }
-            session.idle(time);
         });
     };
 };
@@ -1055,6 +1055,7 @@ var getMapReduce = function (session) {
                 if (!callingBack) callingBack |= !collection;
                 if (callingBack) {
 
+                    session.idle(time);
                     callingBack = typeof callback === "function";
                     if (callingBack) {
 
@@ -1065,7 +1066,6 @@ var getMapReduce = function (session) {
                             ...(paginating ? { pageCount } : {})
                         } : results, error);
                     }
-                    session.idle(time);
                 } else session.idle(time, function () {
 
                     getExecuteQuery(session)(...[
@@ -1530,6 +1530,7 @@ var getExecuteAggregate = function (session) {
             var pageCount = total / limit;
             if (!result || !collection) {
 
+                session.idle(time);
                 var callingBack = typeof callback === "function";
                 if (callingBack) {
 
@@ -1539,7 +1540,6 @@ var getExecuteAggregate = function (session) {
                         pageCount
                     } : result, error);
                 }
-                session.idle(time);
             } else session.idle(time, function () {
 
                 var Model = mongoose.models[collection];
@@ -1607,7 +1607,7 @@ var openConnection = function () {
             mongoose.connect(...[
                 defaultURI,
                 options,
-                function (error, response) {
+                function (error) {
 
                     if (typeof closeCallback == "function") {
 
@@ -1615,7 +1615,7 @@ var openConnection = function () {
                     }
                     if (typeof callback === "function") {
 
-                        callback(error, response);
+                        callback(error);
                     }
                 }
             ]);
@@ -1671,8 +1671,7 @@ var checkConnection = function (defaultURI, callback) {
 
         openConnection(defaultURI, function () {
 
-            var [error, response] = arguments;
-            if (response) debug(response);
+            var [error] = arguments;
             if (typeof callback === "function") {
 
                 callback(error);

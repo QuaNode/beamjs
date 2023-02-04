@@ -1,6 +1,6 @@
 {
     "name": "beamjs",
-    "version": "1.2.8",
+    "version": "1.2.9",
     "description": "Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
@@ -17,7 +17,7 @@
         "http-gzip-maybe": "latest",
         "mime": "latest",
         "mongodb-autoincrement": "github:quaNode/mongodb-autoincrement",
-        "mongoose": "^5.12.2",
+        "mongoose": "^5.13.15",
         "mongoose-cache": "github:quaNode/mongoose-cache",
         "mongoose-pagination": "github:quaNode/mongoose-pagination",
         "ms": "^2.1.3",

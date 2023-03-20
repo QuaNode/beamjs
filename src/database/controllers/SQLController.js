@@ -4,6 +4,7 @@
 
 var fs = require("fs");
 var debug = require("debug")("beam:SQLController");
+var inform = require("debug")("beam:SQLController:info");
 var bunyan = require("bunyan");
 var backend = require("backend-js");
 var {
@@ -16,6 +17,8 @@ var VariableAdaptor = require("sequelize-transparent-cache-variable");
 var {
     withCache
 } = require("sequelize-transparent-cache")(new VariableAdaptor());
+
+inform.log = console.log.bind(console);
 
 if (!fs.existsSync("./logs")) fs.mkdirSync("./logs");
 
@@ -699,7 +702,10 @@ var openConnection = function () {
             if (callingBack) callback(...[
                 new Error(message),
                 duration
-            ]); else debug(message);
+            ]); else if (process.env.NODE_ENV != 'production') {
+
+                inform(message);
+            }
         }
     };
     options.logging = logging;
@@ -947,7 +953,7 @@ var ModelController = function (defaultURI, cb, options) {
         else workingSession = session.slice();
         if (workingSession.length === 0) {
 
-            debug("Model controller session has " +
+            inform("Model controller session has " +
                 "no objects to be saved!");
         }
         var currentSession = [];
@@ -1115,7 +1121,7 @@ ModelController.defineEntity = function () {
 
                     if (configuration.hooks[hook]) {
 
-                        debug("Overwritting hook " +
+                        inform("Overwriting hook " +
                             hook + " in model " +
                             name + "!");
                     }

@@ -6,6 +6,7 @@
 
 var fs = require("fs");
 var debug = require("debug")("beam:MongoController");
+var inform = require("debug")("beam:MongoController:info");
 var bunyan = require("bunyan");
 var define = require("define-js");
 var backend = require("backend-js");
@@ -16,6 +17,8 @@ var {
 } = backend;
 var mongoose = require("mongoose");
 var autoIncrement = require("mongodb-autoincrement");
+
+inform.log = console.log.bind(console);
 
 if (!fs.existsSync("./logs")) fs.mkdirSync("./logs");
 
@@ -1943,7 +1946,7 @@ var ModelController = function (defaultURI, cb) {
         else workingSession = session.slice();
         if (workingSession.length === 0) {
 
-            debug("Model controller session has " +
+            inform("Model controller session has " +
                 "no objects to be saved!");
         }
         var currentSession = [];

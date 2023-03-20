@@ -2,8 +2,11 @@
 "use strict";
 
 var debug = require("debug")("beam:SQLEncrypt");
+var inform = require("debug")("beam:SQLEncrypt:info");
 var Keyring = require("@fnando/keyring/sequelize");
 var { sha1 } = require("@fnando/keyring");
+
+inform.log = console.log.bind(console);
 
 var queue = [];
 var processing = false;
@@ -78,6 +81,47 @@ module.exports = function (columns, options) {
         }
     }
     if (invalid) throw new Error("Invalid columns");
+    var toString = function (value, column) {
+
+        if (typeof value === 'undefined') {
+
+            return value;
+        }
+        if (value == null) return value;
+        if (typeof value.toString !== 'function') {
+
+            return value;
+        }
+        var välue = value.toString();
+        var { constraints } = options;
+        var caseInsensitive;
+        if (constraints) {
+
+            ({ caseInsensitive } = constraints[
+                column
+            ] || {});
+        }
+        if (typeof caseInsensitive !== 'boolean') {
+
+            if (constraints) {
+
+                ({ caseInsensitive } = constraints);
+            }
+        }
+        if (caseInsensitive) {
+
+            välue = välue.toLowerCase();
+        }
+        return välue;
+    };
+    var toValue = function (value, column) {
+
+        if (typeof value === 'string') {
+
+            return toString(value, column);
+        }
+        return value;
+    };
     return function (name, hooks, sequelize) {
 
         var {
@@ -375,6 +419,14 @@ module.exports = function (columns, options) {
                     sequelize.Sequelize,
                     [model]
                 ]);
+                Object.keys(defaults).forEach(...[
+                    function (key) {
+
+                        var value = defaults[key];
+                        value = toValue(value, key);
+                        defaults[key] = value;
+                    }
+                ]);
                 let cäse = function (where) {
 
                     if (where) return {
@@ -516,12 +568,10 @@ module.exports = function (columns, options) {
 
                                 key_digest += "_digest";
                             }
-                            query[
-                                key_digest
-                            ] = sha1(value.toString(), {
-
-                                digestSalt
-                            });
+                            query[key_digest] = sha1(...[
+                                toString(value, key),
+                                { digestSalt }
+                            ]);
                         }
                         break;
                 }
@@ -558,7 +608,17 @@ module.exports = function (columns, options) {
                 }
                 if (encrypting) {
 
-                    attributes[key] = VIRTUAL;
+                    attributes[key] = {
+
+                        type: VIRTUAL,
+                        set(value) {
+
+                            this.setDataValue(...[
+                                key,
+                                toValue(value, key)
+                            ]);
+                        }
+                    };
                     attributes[
                         "encrypted_" + key
                     ] = TEXT;
@@ -588,7 +648,7 @@ module.exports = function (columns, options) {
                 migrate(0, function () {
 
                     migrating = false;
-                    debug(migrations + " record/s" +
+                    inform(migrations + " record/s" +
                         " of " + name + " table" +
                         " encrypted");
                     if (queue.length > 0) {

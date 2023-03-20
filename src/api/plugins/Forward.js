@@ -3,9 +3,12 @@
 
 var { URL } = require("url");
 var debug = require("debug")("beam:Forward");
+var inform = require("debug")("beam:Forward:info");
 var httpNative = require("http");
 var httpsNative = require("https");
 var followRedirects = require("follow-redirects");
+
+inform.log = console.log.bind(console);
 
 var upgradeHeader = /(^|,)\s*upgrade\s*($|,)/i;
 var isSSL = /^https|wss/;
@@ -421,7 +424,7 @@ module.exports = function (host, options) {
                 probing = false;
                 entry.health = res.statusCode == 200;
                 var health = entry.health ? "up" : "down";
-                debug(entry.host + " is " + health);
+                inform(entry.host + " is " + health);
             });
         }, 5000);
     });
@@ -440,7 +443,7 @@ module.exports = function (host, options) {
         });
         if (typeof host !== "string") return false;
         if (host.length === 0) return false;
-        debug(host);
+        inform(host);
         var target;
         var path = "";
         var targeting = typeof options.target === "string";

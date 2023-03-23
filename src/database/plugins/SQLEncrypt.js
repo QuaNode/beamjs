@@ -132,6 +132,7 @@ module.exports = function (columns, options) {
         ]);
         var {
             renameTable,
+            describeTable: getSchema,
             addConstraint,
             removeConstraint,
             getForeignKeyReferencesForTable: getFKs
@@ -284,11 +285,29 @@ module.exports = function (columns, options) {
                 attributes,
                 configuration
             ] = arguments;
-            var define = function () {
+            var define = function (schema) {
 
+                var {
+                    BOOLEAN
+                } = sequelize.Sequelize.DataTypes;
+                var schema_flags = Object.keys(...[
+                    schema
+                ]).reduce(function () {
+
+                    var [
+                        flags,
+                        key
+                    ] = arguments;
+                    if (key.startsWith(...[
+                        'encrypt_'
+                    ])) flags[key] = BOOLEAN;
+                    return flags;
+                }, {});
                 sequelize.define(...[
                     "unencrypted_" + name,
-                    attributes,
+                    Object.assign(...[
+                        schema_flags, attributes
+                    ]),
                     Object.assign(configuration, {
 
                         modelName: undefined,
@@ -308,12 +327,9 @@ module.exports = function (columns, options) {
                     ]).sync();
                 }).then(function () {
 
-                    define();
-                    return new Promise(...[
-                        function (resolve) {
-
-                            migrate(1, resolve);
-                        }
+                    return getSchema.apply(...[
+                        queryI,
+                        ["unencrypted_" + name]
                     ]);
                 }).catch(function (err) {
 
@@ -321,7 +337,13 @@ module.exports = function (columns, options) {
                     if (message.indexOf(...[
                         "exist"
                     ]) === -1) debug(err);
-                    define();
+                    return getSchema.apply(...[
+                        queryI,
+                        ["unencrypted_" + name]
+                    ]);
+                }).then(function (schema) {
+
+                    define(schema);
                     return new Promise(...[
                         function (resolve) {
 
@@ -422,6 +444,13 @@ module.exports = function (columns, options) {
                 Object.keys(defaults).forEach(...[
                     function (key) {
 
+                        if (key.startsWith(...[
+                            'encrypt_'
+                        ])) {
+
+                            delete defaults[key];
+                            return;
+                        }
                         var value = defaults[key];
                         value = toValue(value, key);
                         defaults[key] = value;
@@ -456,16 +485,48 @@ module.exports = function (columns, options) {
                 ]).then(function (result) {
 
                     let created = !!result;
+                    let encrypted_model;
                     if (cäse[
                         'function'
                     ] === 'findOrCreate') {
 
                         created &= !!result[1];
+                        [encrypted_model] = result;
                     }
                     if (created) migrations++;
+                    let save = !created;
+                    save &= !!encrypted_model;
+                    save &= Object.keys(...[
+                        defaults
+                    ]).filter(function (key) {
+
+                        let {
+                            ['encrypt_' + key]: enK
+                        } = model;
+                        if (columns.indexOf(...[
+                            key
+                        ]) > -1 && enK) {
+
+                            encrypted_model[
+                                key
+                            ] = defaults[key];
+                            model[
+                                'encrypt_' + key
+                            ] = false;
+                            return true;
+                        }
+                        return false;
+                    }).length > 0;
+                    if (save) return Promise.all([
+                        encrypted_model.save(),
+                        model.save()
+                    ]); else return null;
+                }).then(function (result) {
+
+                    let updated = !!result;
+                    if (updated) migrations++;
                     models.shift();
                     migrate(models, cb);
-                    return null;
                 }).catch(function (err) {
 
                     debug(err);

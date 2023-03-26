@@ -1,6 +1,6 @@
 # beamjs [![Codacy Badge](https://app.codacy.com/project/badge/Grade/518c2b67f61142ca833c75c6c07ccd43)](https://www.codacy.com/gh/QuaNode/beamjs/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=QuaNode/beamjs&amp;utm_campaign=Badge_Grade)
 
-![0_00](https://user-images.githubusercontent.com/3101473/227795912-86cdb3da-7806-4e71-a016-d0bc1357d466.png)
+![0_00](https://user-images.githubusercontent.com/3101473/227795966-12f87168-4b4a-454f-a806-0a72f5a1fe5d.png)
 
 Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)
 

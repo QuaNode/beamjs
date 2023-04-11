@@ -12,7 +12,6 @@ var {
     QueryExpression
 } = backend;
 var Sequelize = require("sequelize");
-require("sequelize-values")(Sequelize);
 var VariableAdaptor = require("sequelize-transparent-cache-variable");
 var {
     withCache
@@ -345,7 +344,8 @@ var adapter = {
             features,
             ObjectConstructor,
             fieldName,
-            comparisonOperator
+            comparisonOperator,
+            logicalOperator
         ] = arguments;
         var many = Array.isArray(queryExpressions);
         if (many && queryExpressions.some(function () {
@@ -415,10 +415,17 @@ var adapter = {
         ]);
         if (where) {
 
+            var or = joining;
+            or &= logicalOperator === Op.or;
             if (query.through) {
 
                 query.through.where = where;
-            } else query.where = where;
+                if (or) query.through.required = false;
+            } else {
+
+                query.where = where;
+                if (or) query.required = false;
+            }
         }
         if (Array.isArray(having) && having.every(...[
             function (have, index) {
@@ -581,7 +588,8 @@ var getExecuteQuery = function (session) {
             limit,
             page,
             cache,
-            readonly
+            readonly,
+            subFilter
         } = features;
         var func = "findAll";
         if (paginate) {
@@ -594,6 +602,10 @@ var getExecuteQuery = function (session) {
 
             query.limit = limit;
             query.offset = (page - 1) * limit;
+        }
+        if (typeof subFilter === 'boolean') {
+
+            query.subQuery = subFilter; // Note: undocumented
         }
         return (cache ? withCache(...[
             ObjectConstructor
@@ -625,8 +637,17 @@ var getExecuteQuery = function (session) {
             }
             if (readonly) {
 
-                modelObjects = Sequelize.getValues(...[
-                    modelObjects
+                modelObjects = modelObjects.map(...[
+                    function (modelObject) {
+
+                        return JSON.parse(...[
+                            JSON.stringify(...[
+                                modelObject.get(...[
+                                    { plain: true }
+                                ])
+                            ])
+                        ]);
+                    }
                 ]);
             }
             return NullIfUndefined(callback(paginating ? {
@@ -1230,7 +1251,11 @@ ModelController.defineEntity = function () {
     ]);
     Model.prototype.toObject = function () {
 
-        return Sequelize.getValues(this);
+        return JSON.parse(...[
+            JSON.stringify(this.get(...[
+                { plain: true }
+            ]))
+        ]);
     };
     Object.keys(hooks.handlers).forEach(...[
         function (hook) {

@@ -434,12 +434,10 @@ module.exports = function (columns, options) {
                 var models = context;
                 var model = models[0];
                 if (!model) return cb();
-                var {
-                    getValues
-                } = sequelize.Sequelize;
-                var defaults = getValues.apply(...[
-                    sequelize.Sequelize,
-                    [model]
+                var defaults = JSON.parse(...[
+                    JSON.stringify(model.get(...[
+                        { plain: true }
+                    ]))
                 ]);
                 Object.keys(defaults).forEach(...[
                     function (key) {
@@ -448,6 +446,7 @@ module.exports = function (columns, options) {
                             'encrypt_'
                         ])) {
 
+                            defaults[key] = undefined;
                             delete defaults[key];
                             return;
                         }

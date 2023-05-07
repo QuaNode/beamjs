@@ -28,6 +28,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 - It provides a built-in forward- and reverse-proxy server utilizing the queuing system for fast load-balancing, virtual hosts, and complex domain routing. 
 - It supports long-polling HTTP requests.
 - It supports event-driven architecture above mixed protocols HTTP/WebSocket for pulling and pushing.
+- It provides abstract HTTP-secured WebSockets for highly secured and scalable real-time events and other unique features like sub-rooms.
 - It is ready for event-sourcing applications.
 - Introducing a new terminology in the technology space is not hard as the age of the whole digital industry is still young but making so is not easy. Considering this, Backend-JS introduces the terminology of API **Behavior** represents organizational and customer behavior that is implemented vertically based on a built-in customizable enterprise algorithmic mental model inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
 - It supports micro-services architecture through the vertical implementation of **Behaviors** (APIs) and built-in services abstraction layer.

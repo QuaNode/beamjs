@@ -1288,14 +1288,14 @@ ModelController.defineEntity = function () {
             var lazy = typeof entity === "function";
             if (lazy) {
 
-                var { prototype } = entity;
+                let { prototype } = entity;
                 lazy &= !(prototype instanceof Entity);
             }
             if (lazy) entity = entity(name);
             var valid = !!entity;
             if (valid) {
 
-                var { prototype } = entity;
+                let { prototype } = entity;
                 valid &= prototype instanceof Entity;
             }
             if (valid) {

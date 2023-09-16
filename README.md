@@ -6,7 +6,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 
 # Introduction
 
-- BeamJS is built above Backend-JS to provide data controllers for SQL and No-SQL databases. It also provides file system controllers that work on a local file system or cloud storage.
+- BeamJS is built above Backend-JS to provide data controllers for SQL and No-SQL databases. It also includes file system controllers that work on a local file system or cloud storage.
 - These data controllers are abstract adapters above ODM/ORM patterns of MongooseJS and SequelizeJS. The objective of these adapters is to define unified query APIs to work across different database engines even across NO-SQL and SQL.
 - BeamJS is an abbreviation for the following technology stack:
   - Backend-JS - A NodeJS module and library built above ExpressJS [check here](https://github.com/quaNode/Backend-JS).
@@ -21,7 +21,8 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 - It is an enterprise-level framework so you can code your organizational and customer behaviors seamlessly.
 - It supports DB encryption for pseudonymization and GDPR compliance.
 - It provides a built-in data mapping pipeline.
-- It supports CQRS architecture through mixed model definitions over different DBs. 
+- It supports CQRS architecture through mixed model definitions over different DBs.
+- It supports Horizontal/DB multi-tenancy by automatically handling multi-DB connection mapping.
 - It provides a deep route-based load balancing through a built-in queuing service.
 - It provides a built-in static files server decoupling the file source that could be a local file system or cloud storage from HTTP static request handling. 
 - It supports complex file streaming and transformations within the built-in queue system and load balancing.
@@ -30,8 +31,8 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 - It supports event-driven architecture above mixed protocols HTTP/WebSocket for pulling and pushing.
 - It provides abstract HTTP-secured WebSockets for highly secured and scalable real-time events and other unique features like sub-rooms.
 - It is ready for event-sourcing applications.
-- Introducing a new terminology in the technology space is not hard as the age of the whole digital industry is still young but making so is not easy. Considering this, Backend-JS introduces the terminology of API **Behavior** represents organizational and customer behavior that is implemented vertically based on a built-in customizable enterprise algorithmic mental model inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
-- It supports micro-services architecture through the vertical implementation of **Behaviors** (APIs) and built-in services abstraction layer.
+- Backend-JS introduces the terminology of API **Behavior** represents organizational and customer behavior that is implemented vertically based on a built-in customizable enterprise algorithmic mental model inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
+- It supports micro-services architecture by vertically implementing **Behaviors** (APIs) besides the built-in services abstraction layer.
 - To define a **Behavior** (API), The framework drives you to write the contract/specification first which can be viewed later by integrators for simple REST integrations.
 - Integrating applications made using BeamJS and Backend-JS is a **SOAP-like above REST APIs**. It comes with 7 front-end integration libraries as follows:
   - [ng-behaviours](https://github.com/QuaNode/ng-behaviours) for Angular and Angular-based (e,g, ionic) applications.

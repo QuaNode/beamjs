@@ -1,13 +1,13 @@
 {
     "name": "beamjs",
-    "version": "1.3.3",
+    "version": "1.4.0",
     "description": "Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)",
     "main": "index.js",
     "scripts": {
         "test": "test"
     },
     "dependencies": {
-        "backend-js": "latest",
+        "backend-js": "^1.3.0",
         "bunyan": "latest",
         "debug": "latest",
         "define-js": "latest",
@@ -17,15 +17,15 @@
         "http-gzip-maybe": "latest",
         "mime": "latest",
         "mongodb-autoincrement": "github:quaNode/mongodb-autoincrement",
-        "mongoose": "^5.13.15",
+        "mongoose": "^5.13.20",
         "mongoose-cache": "github:quaNode/mongoose-cache",
         "mongoose-pagination": "github:quaNode/mongoose-pagination",
-        "ms": "^2.1.3",
+        "ms": "latest",
         "mysql2": "latest",
         "pg": "latest",
         "pump": "latest",
         "range-parser": "latest",
-        "sequelize": "5.15.1",
+        "sequelize": "latest",
         "sequelize-transparent-cache": "github:quaNode/sequelize-transparent-cache",
         "sequelize-transparent-cache-variable": "github:quaNode/sequelize-transparent-cache-variable",
         "@fnando/keyring": "latest"

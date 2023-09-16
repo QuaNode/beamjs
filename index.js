@@ -148,9 +148,10 @@ beam.database = function (KEY, options) {
                                     err: error
                                 });
                             }
-                        }
+                        },
+                        KEY || "main"
                     ]),
-                    KEY
+                    KEY || "main"
                 ]);
             }
         }
@@ -228,9 +229,10 @@ beam.storage = function (KEY, options) {
                                     err: error
                                 });
                             }
-                        }
+                        },
+                        KEY || "local"
                     ]),
-                    KEY
+                    KEY || "local"
                 ]);
             }
         }
@@ -245,7 +247,7 @@ beam.backend = function (database, storage) {
 
         if (storage) {
 
-            var {
+            let {
                 type,
                 id,
                 key,
@@ -269,7 +271,7 @@ beam.backend = function (database, storage) {
 
         if (database) {
 
-            var {
+            let {
                 dbType: type,
                 dbURI: uri,
                 dbName: name

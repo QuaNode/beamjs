@@ -35,7 +35,7 @@ var getPort = function (req, target) {
 
 var setupOutgoing = function (req, options) {
 
-    var { target } = options;
+    var { target, setHost } = options;
     var outgoing = {};
     outgoing.port = parseInt(getPort(req, target));
     if (!outgoing.port) {
@@ -44,6 +44,10 @@ var setupOutgoing = function (req, options) {
     }
     outgoing.method = req.method;
     outgoing.headers = Object.assign({}, req.headers || {});
+    if (setHost) {
+
+        outgoing.headers["host"] = new URL(target).host;
+    }
     outgoing.agent = false;
     var { headers } = outgoing;
     var { connection } = headers;
@@ -410,11 +414,14 @@ module.exports = function (host, options) {
             ]).href;
             if (probing) return;
             probing = true;
-            (isSSL.test(...[
+            var health_req = (isSSL.test(...[
                 health_url
             ]) ? https : http).get(...[
                 health_url
-            ]).on("error", function () {
+            ]).on("timeout", function () {
+
+                health_req.destroy(new Error("Timeout"));
+            }).on("error", function () {
 
                 probing = false;
                 entry.health = false;
@@ -426,6 +433,7 @@ module.exports = function (host, options) {
                 var health = entry.health ? "up" : "down";
                 inform(entry.host + " is " + health);
             });
+            health_req.setTimeout(4000);
         }, 5000);
     });
     if (hosts.length > 0) host = hosts[0].host;

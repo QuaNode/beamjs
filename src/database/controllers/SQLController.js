@@ -6,6 +6,7 @@ var fs = require("fs");
 var debug = require("debug")("beam:SQLController");
 var inform = require("debug")("beam:SQLController:info");
 var bunyan = require("bunyan");
+var define = require("define-js");
 var backend = require("backend-js");
 var {
     ModelEntity: Entity,
@@ -16,6 +17,14 @@ var VariableAdaptor = require("sequelize-transparent-cache-variable");
 var {
     withCache
 } = require("sequelize-transparent-cache")(new VariableAdaptor());
+
+var sessions = {};
+var HOOKTYPES = [
+    "beforeDefine",
+    "afterDefine",
+    "beforeBulkSync",
+    "afterBulkSync"
+];
 
 inform.log = console.log.bind(console);
 
@@ -58,13 +67,13 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     BETWEEN: Op.between,
     NBETWEEN: Op.notBetween,
     FROM: "from",
-    THROUGH(entity) {
+    THROUGH(entity, database) {
 
         if (!(entity instanceof Entity)) {
 
             throw new Error("Invalid through entity");
         }
-        return entity.getObjectConstructor();
+        return entity.getObjectConstructor(database);
     }
 };
 
@@ -98,23 +107,14 @@ var NullIfUndefined = function (value) {
     return value === undefined ? null : value;
 };
 
-var sequelize = null;
-var session = [];
-var hookTypes = [
-    "beforeDefine",
-    "afterDefine",
-    "beforeBulkSync",
-    "afterBulkSync"
-];
-var hookHandlers = {};
-
 var getManipulator = function () {
 
     var self = this;
     var [
         property,
         prefix,
-        Model
+        Model,
+        database
     ] = arguments;
     var method = property.slice(0, 1).toUpperCase();
     if (property.length > 1) {
@@ -143,11 +143,11 @@ var getManipulator = function () {
 
                     if (where) return {
 
-                        function: 'findOrCreate',
+                        function: "findOrCreate",
                         argument: { where, value }
                     }; else return {
 
-                        function: 'create',
+                        function: "create",
                         argument: value
                     };
                 }(function () {
@@ -160,15 +160,16 @@ var getManipulator = function () {
             ](cäse.argument).then(function (model) {
 
                 if (cäse[
-                    'function'
-                ] === 'findOrCreate') {
+                    "function"
+                ] === "findOrCreate") {
 
                     ([model] = model);
                 }
-                if (Array.isArray(model)) {
+                var { session } = sessions[database];
+                if (session && Array.isArray(model)) {
 
                     session = session.concat(model);
-                } else session.push(model);
+                } else if (session) session.push(model);
                 return manipulator(model)(callback);
             }).catch(function (error) {
 
@@ -315,7 +316,9 @@ var adapter = {
                         join.push(self.constructQuery(...[
                             fieldValue.getObjectQuery(),
                             fieldValue.getObjectFeatures(),
-                            fieldValue.getObjectConstructor(),
+                            fieldValue.getObjectConstructor(...[
+                                self.database
+                            ]),
                             fieldName,
                             comparisonOperator,
                             logicalOperator
@@ -449,7 +452,7 @@ var adapter = {
                     function (option) {
 
                         let get = option.get;
-                        if (typeof get !== 'object') {
+                        if (typeof get !== "object") {
 
                             get = Sequelize.col(get);
                         }
@@ -473,7 +476,7 @@ var adapter = {
                         return option;
                     }
                     let get = option.get;
-                    if (typeof get !== 'object') {
+                    if (typeof get !== "object") {
 
                         get = Sequelize.col(get);
                     }
@@ -579,7 +582,7 @@ var getExecuteQuery = function (session) {
             features,
             callback
         ] = arguments;
-        var query = adapter.constructQuery(...[
+        var query = session.adapter.constructQuery(...[
             queryExpressions,
             features
         ]);
@@ -603,7 +606,7 @@ var getExecuteQuery = function (session) {
             query.limit = limit;
             query.offset = (page - 1) * limit;
         }
-        if (typeof subFilter === 'boolean') {
+        if (typeof subFilter === "boolean") {
 
             query.subQuery = subFilter; // Note: undocumented
         }
@@ -723,7 +726,7 @@ var openConnection = function () {
             if (callingBack) callback(...[
                 new Error(message),
                 duration
-            ]); else if (process.env.NODE_ENV != 'production') {
+            ]); else if (process.env.NODE_ENV != "production") {
 
                 inform(message);
             }
@@ -742,16 +745,43 @@ var openConnection = function () {
     return new Sequelize(defaultURI, options);
 };
 
-var ModelController = function (defaultURI, cb, options) {
+var ModelController = function (defaultURI, cb, options, KEY) {
 
     var self = this;
     self.type = options.type;
-    sequelize = openConnection(...[
-        defaultURI,
-        cb,
-        options
-    ]);
-    hookTypes.forEach(function (hook) {
+    var Session = define(function (init) {
+
+        return function () {
+
+            var self = init.apply(...[
+                this,
+                arguments
+            ]).self();
+            self.database = KEY;
+            self.adapter = Object.assign(...[
+                {}, adapter, {
+
+                    database: KEY
+                }
+            ]);
+        };
+    }).extend(Array).defaults();
+    var session = new Session();
+    var sequelize, hookHandlers;
+    if (!sessions[KEY]) sessions[KEY] = {
+
+        sequelize: sequelize = openConnection(...[
+            defaultURI,
+            cb,
+            options
+        ]),
+        session: new Session(),
+        hookHandlers: hookHandlers = {}
+    }; else ({
+        sequelize,
+        hookHandlers
+    } = sessions[KEY]);
+    HOOKTYPES.forEach(function (hook) {
 
         sequelize.addHook(...[
             hook,
@@ -826,8 +856,8 @@ var ModelController = function (defaultURI, cb, options) {
                     ...(entity.getObjectQuery() || [])
                 ];
                 var features = entity.getObjectFeatures() || {};
-                entity.getObjectConstructor().destroy(...[
-                    adapter.constructQuery(...[
+                entity.getObjectConstructor(KEY).destroy(...[
+                    session.adapter.constructQuery(...[
                         queryExpressions,
                         features
                     ])
@@ -851,7 +881,7 @@ var ModelController = function (defaultURI, cb, options) {
         }, session.filter(function (modelObject) {
 
             var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor();
+            var ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
@@ -872,7 +902,7 @@ var ModelController = function (defaultURI, cb, options) {
             try {
 
                 var { getObjectConstructor } = entity;
-                var ObjectConstructor = getObjectConstructor();
+                var ObjectConstructor = getObjectConstructor(KEY);
                 var modelObject = new ObjectConstructor(...[
                     objAttributes
                 ]);
@@ -954,7 +984,7 @@ var ModelController = function (defaultURI, cb, options) {
                         "implemented yet");
                 } else return getExecuteQuery(session)(...[
                     queryExpressions,
-                    entity.getObjectConstructor(),
+                    entity.getObjectConstructor(KEY),
                     features,
                     callback
                 ]);
@@ -962,16 +992,21 @@ var ModelController = function (defaultURI, cb, options) {
         }, session.filter(function (modelObject) {
 
             var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor();
+            var ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
     self.save = function (callback, oldSession) {
 
+        var {
+            session: sëssion
+        } = sessions[KEY];
         var many = Array.isArray(oldSession);
         var workingSession;
-        if (many) workingSession = oldSession
-        else workingSession = session.slice();
+        if (many) workingSession = oldSession; else {
+
+            workingSession = session.concat(sëssion);
+        }
         if (workingSession.length === 0) {
 
             inform("Model controller session has " +
@@ -983,7 +1018,11 @@ var ModelController = function (defaultURI, cb, options) {
 
             var workingModelObject = workingSession[index];
             var i = session.indexOf(workingModelObject);
-            if (i > -1) session.splice(i, 1);
+            if (i > -1) session.splice(i, 1); else {
+
+                i = sëssion.indexOf(workingModelObject);
+                if (i > -1) sëssion.splice(i, 1);
+            }
             setTimeout(function () {
 
                 var { Model } = Sequelize;
@@ -1069,13 +1108,86 @@ var DataType = function (datatype) {
     }
 };
 
+var resolveAttributes = function (attributes, directives) {
+
+    var { constraints, validate } = directives;
+    var id = {};
+    var key;
+    if (constraints.id) {
+
+        key = "id";
+        if (typeof constraints.id === "object") {
+
+            id = constraints.id;
+        }
+    } else key = "_id";
+    return Object.keys(attributes).concat([
+        key
+    ]).reduce(function (filteredAttributes, property) {
+
+        var type = attributes[property];
+        if (property === key) {
+
+            type = Object.assign({
+
+                type: Sequelize.DataTypes.BIGINT,
+                autoIncrement: true,
+                primaryKey: true
+            }, id);
+        } else {
+
+            var constraint = {};
+            var constraining = !!constraints;
+            var rule;
+            if (constraining) {
+
+                rule = constraints[property];
+                constraining &= !!rule;
+                constraining &= typeof rule === "object";
+            }
+            if (constraining) {
+
+                constraint = rule;
+            }
+            var unique = type === String;
+            unique &= constraint.unique;
+            if (unique) type = Object.assign({
+
+                type: Sequelize.DataTypes.STRING(125)
+            }, constraint); else if (DataType(type)) {
+
+                type = Object.assign({
+
+                    type: DataType(type)
+                }, constraint);
+            }
+        }
+        if (validate && Object.values(...[
+            Sequelize.DataTypes
+        ]).includes(type.type)) {
+
+            if (property.startsWith("has")) {
+
+                throw new Error('Remove/rename "has"' +
+                    ' from field ' + property);
+            }
+            filteredAttributes[property] = type;
+        } else if (!validate) {
+
+            filteredAttributes[property] = type;
+        }
+        return filteredAttributes;
+    }, {});
+};
+
 ModelController.defineEntity = function () {
 
     var [
         name,
         attributes,
         plugins,
-        constraints
+        constraints,
+        database
     ] = arguments;
     if (typeof name !== "string") {
 
@@ -1089,10 +1201,11 @@ ModelController.defineEntity = function () {
 
         throw new Error("Invalid entity constraints");
     }
-    if (!sequelize) {
+    if (!sessions[database]) {
 
         throw new Error("Sequelize is not initialized");
     }
+    var { sequelize, hookHandlers } = sessions[database];
     var configuration = {
 
         hooks: {}
@@ -1124,7 +1237,7 @@ ModelController.defineEntity = function () {
                 }
                 return result;
             };
-            if (hookTypes.indexOf(hook) > -1) {
+            if (HOOKTYPES.indexOf(hook) > -1) {
 
                 if (!general) {
 
@@ -1169,84 +1282,12 @@ ModelController.defineEntity = function () {
             }
         }
     }
-    Object.keys(attributes).forEach(...[
-        function (property) {
-
-            var constraint = {};
-            var constraining = !!constraints;
-            var rule;
-            if (constraining) {
-
-                rule = constraints[property];
-                constraining &= !!rule;
-                constraining &= typeof rule === "object";
-            }
-            if (constraining) {
-
-                constraint = rule;
-            }
-            var type = attributes[property];
-            var unique = type === String;
-            unique &= constraint.unique;
-            if (unique) {
-
-                attributes[property] = Object.assign({
-
-                    type: Sequelize.DataTypes.STRING(125)
-                }, constraint);
-            } else if (DataType(type)) {
-
-                attributes[property] = Object.assign({
-
-                    type: DataType(type)
-                }, constraint);
-            }
-        }
-    ]);
-    var id = {};
-    var key;
-    if (constraints.id) {
-
-        key = "id";
-        if (typeof constraints.id === "object") {
-
-            id = constraints.id;
-        }
-    } else key = "_id";
-    attributes[key] = Object.assign({
-
-        type: Sequelize.DataTypes.BIGINT,
-        autoIncrement: true,
-        primaryKey: true
-    }, id);
     var Model = sequelize.define(...[
         name,
-        Object.keys(...[
-            attributes
-        ]).reduce(function () {
-
-            var [
-                filteredAttributes,
-                property
-            ] = arguments;
-            if (Object.values(...[
-                Sequelize.DataTypes
-            ]).includes(...[
-                attributes[property].type
-            ])) {
-
-                if (property.startsWith("has")) {
-
-                    throw new Error("Remove/rename" +
-                        ' "has" from field ' +
-                        property);
-                }
-                filteredAttributes[
-                    property
-                ] = attributes[property];
-            }
-            return filteredAttributes;
-        }, {}),
+        resolveAttributes(attributes, {
+            constraints,
+            validate: true
+        }),
         configuration
     ]);
     Model.prototype.toObject = function () {
@@ -1271,20 +1312,23 @@ ModelController.defineEntity = function () {
             }
         }
     ]);
+    var attributes_copy = resolveAttributes(...[
+        attributes, { constraints, validate: false }
+    ]);
     setTimeout(function () {
 
         Object.keys(...[
-            attributes
+            attributes_copy
         ]).forEach(function (property) {
 
             var toMany = Array.isArray(...[
-                attributes[property]
+                attributes_copy[property]
             ]);
             var entity;
             if (toMany) {
 
-                entity = attributes[property][0];
-            } else entity = attributes[property];
+                entity = attributes_copy[property][0];
+            } else entity = attributes_copy[property];
             var lazy = typeof entity === "function";
             if (lazy) {
 
@@ -1327,7 +1371,9 @@ ModelController.defineEntity = function () {
                 var {
                     getObjectConstructor
                 } = entity.prototype;
-                var otherModel = getObjectConstructor();
+                var otherModel = getObjectConstructor(...[
+                    database
+                ]);
                 Model[func](...[
                     otherModel,
                     Object.assign(options, constraint)
@@ -1355,7 +1401,8 @@ ModelController.defineEntity = function () {
                                     [
                                         property,
                                         "get",
-                                        otherModel
+                                        otherModel,
+                                        database
                                     ]
                                 ]),
                                 set: getManipulator.apply(...[
@@ -1363,7 +1410,8 @@ ModelController.defineEntity = function () {
                                     [
                                         property,
                                         "set",
-                                        otherModel
+                                        otherModel,
+                                        database
                                     ]
                                 ])
                             };
@@ -1374,7 +1422,8 @@ ModelController.defineEntity = function () {
                                     [
                                         property,
                                         "add",
-                                        otherModel
+                                        otherModel,
+                                        database
                                     ]
                                 ]);
                                 relation.remove = getManipulator.apply(...[
@@ -1382,7 +1431,8 @@ ModelController.defineEntity = function () {
                                     [
                                         property,
                                         "remove",
-                                        otherModel
+                                        otherModel,
+                                        database
                                     ]
                                 ]);
                             }
@@ -1400,7 +1450,7 @@ ModelController.prototype.constructor = ModelController;
 
 module.exports.getModelControllerObject = function () {
 
-    var [options, cb] = arguments;
+    var [options, cb, KEY] = arguments;
     if (typeof options !== "object") {
 
         throw new Error("Invalid options");
@@ -1454,6 +1504,7 @@ module.exports.getModelControllerObject = function () {
 
             cb.apply(this, arguments);
         },
-        options
+        options,
+        KEY
     ]);
 };

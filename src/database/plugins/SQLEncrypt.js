@@ -83,12 +83,12 @@ module.exports = function (columns, options) {
     if (invalid) throw new Error("Invalid columns");
     var toString = function (value, column) {
 
-        if (typeof value === 'undefined') {
+        if (typeof value === "undefined") {
 
             return value;
         }
         if (value == null) return value;
-        if (typeof value.toString !== 'function') {
+        if (typeof value.toString !== "function") {
 
             return value;
         }
@@ -101,7 +101,7 @@ module.exports = function (columns, options) {
                 column
             ] || {});
         }
-        if (typeof caseInsensitive !== 'boolean') {
+        if (typeof caseInsensitive !== "boolean") {
 
             if (constraints) {
 
@@ -116,7 +116,7 @@ module.exports = function (columns, options) {
     };
     var toValue = function (value, column) {
 
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
 
             return toString(value, column);
         }
@@ -188,8 +188,8 @@ module.exports = function (columns, options) {
                         queryI,
                         [
                             tableName,
-                            [columnName],
                             {
+                                fields: [columnName],
                                 type: "FOREIGN KEY",
                                 name: constraint,
                                 references: {
@@ -299,7 +299,7 @@ module.exports = function (columns, options) {
                         key
                     ] = arguments;
                     if (key.startsWith(...[
-                        'encrypt_'
+                        "encrypt_"
                     ])) flags[key] = BOOLEAN;
                     return flags;
                 }, {});
@@ -443,7 +443,7 @@ module.exports = function (columns, options) {
                     function (key) {
 
                         if (key.startsWith(...[
-                            'encrypt_'
+                            "encrypt_"
                         ])) {
 
                             defaults[key] = undefined;
@@ -459,7 +459,7 @@ module.exports = function (columns, options) {
 
                     if (where) return {
 
-                        function: 'findOrCreate',
+                        function: "findOrCreate",
                         argument: {
 
                             where,
@@ -467,7 +467,7 @@ module.exports = function (columns, options) {
                         }
                     }; else return {
 
-                        function: 'create',
+                        function: "create",
                         argument: defaults
                     };
                 }(function () {
@@ -486,8 +486,8 @@ module.exports = function (columns, options) {
                     let created = !!result;
                     let encrypted_model;
                     if (cäse[
-                        'function'
-                    ] === 'findOrCreate') {
+                        "function"
+                    ] === "findOrCreate") {
 
                         created &= !!result[1];
                         [encrypted_model] = result;
@@ -500,7 +500,7 @@ module.exports = function (columns, options) {
                     ]).filter(function (key) {
 
                         let {
-                            ['encrypt_' + key]: enK
+                            ["encrypt_" + key]: enK
                         } = model;
                         if (columns.indexOf(...[
                             key
@@ -510,7 +510,7 @@ module.exports = function (columns, options) {
                                 key
                             ] = defaults[key];
                             model[
-                                'encrypt_' + key
+                                "encrypt_" + key
                             ] = false;
                             return true;
                         }
@@ -624,7 +624,7 @@ module.exports = function (columns, options) {
                             delete query[key];
                             let key_digest = key;
                             let typeOfK = typeof key;
-                            if (typeOfK !== 'symbol') {
+                            if (typeOfK !== "symbol") {
 
                                 key_digest += "_digest";
                             }

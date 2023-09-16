@@ -16,7 +16,11 @@ var {
     AggregateExpression
 } = backend;
 var mongoose = require("mongoose");
-var autoIncrement = require("mongodb-autoincrement");
+var autoIncrementPlugin = require("mongodb-autoincrement");
+var cachePlugin = require("mongoose-cache");
+require("mongoose-pagination");
+
+var sessions = {};
 
 inform.log = console.log.bind(console);
 
@@ -32,20 +36,6 @@ var log = bunyan.createLogger({
     }],
     serializers: bunyan.stdSerializers
 });
-
-require("mongoose-pagination");
-
-mongoose.Promise = global.Promise;
-var Schema = mongoose.Schema;
-mongoose.plugin(autoIncrement.mongoosePlugin);
-
-var cacheOpts = {
-
-    max: 50,
-    maxAge: 1000 * 60 * 2
-};
-
-require("mongoose-cache").install(mongoose, cacheOpts);
 
 module.exports.LogicalOperators = {
 
@@ -1545,8 +1535,12 @@ var getExecuteAggregate = function (session) {
                 }
             } else session.idle(time, function () {
 
-                var Model = mongoose.models[collection];
-                if (!Model) Model = mongoose.model(...[
+                var {
+                    mongoose: möngoose
+                } = sessions[session.database];
+                var Schema = möngoose.Schema;
+                var Model = möngoose.models[collection];
+                if (!Model) Model = möngoose.model(...[
                     collection,
                     new Schema({}, {
 
@@ -1590,10 +1584,13 @@ var getExecuteAggregate = function (session) {
 var openConnection = function () {
 
     var [
-        defaultURI,
+        { defaultURI, database },
         callback,
-        closeCallback
+        closeCb
     ] = arguments;
+    var {
+        mongoose: möngoose
+    } = sessions[database];
     var connect = function () {
 
         var options = {
@@ -1606,15 +1603,15 @@ var openConnection = function () {
         };
         try {
 
-            let cönnection = mongoose.connection;
-            mongoose.connect(...[
+            let cönnection = möngoose.connection;
+            möngoose.connect(...[
                 defaultURI,
                 options,
                 function (error) {
 
-                    if (typeof closeCallback == "function") {
+                    if (typeof closeCb === "function") {
 
-                        closeCallback(cönnection);
+                        closeCb(cönnection);
                     }
                     if (typeof callback === "function") {
 
@@ -1631,48 +1628,53 @@ var openConnection = function () {
         }
     };
     var connection;
-    var { connections } = mongoose;
+    var { connections } = möngoose;
     if (connections.every(function (cönnection) {
 
-        return cönnection.readyState === 0;
-    })) connect(); else if (connections.some(...[
-        function (cönnection) {
+        var { readyState } = cönnection;
+        return readyState === 0 || readyState === 3;
+    })) return connect();
+    var disconnect = typeof closeCb === "function";
+    if (disconnect && connections.some(function () {
 
-            return cönnection.readyState === 1;
-        }
-    ])) {
+        var [cönnection] = arguments;
+        return cönnection.readyState === 1;
+    })) {
 
         log.error({
 
             database: "mongodb",
             err: {
 
-                message: "DB needs disconnecting due to latency",
+                message: "Reconnecting due to latency",
                 name: "ReadyState",
                 code: 1
             }
         });
-        connect();
-    } else if (connection = connections.find(...[
-        function (cönnection) {
+        return connect();
+    }
+    if (connection = connections.find(function () {
 
-            return cönnection.readyState === 2;
-        }
-    ])) connection.once("connected", callback); else {
+        var [cönnection] = arguments;
+        return cönnection.readyState === 2;
+    })) connection.once("connected", callback); else {
 
-        mongoose.disconnect(connect);
+        if (disconnect) möngoose.disconnect(connect);
     }
 };
 
-var checkConnection = function (defaultURI, callback) {
+var checkConnection = function (options, callback) {
 
-    var { connections } = mongoose;
+    var {
+        mongoose: möngoose
+    } = sessions[options.database];
+    var { connections } = möngoose;
     if (!connections.some(function (connection) {
 
         return connection.readyState === 1;
     })) {
 
-        openConnection(defaultURI, function () {
+        openConnection(options, function () {
 
             var [error] = arguments;
             if (typeof callback === "function") {
@@ -1685,7 +1687,7 @@ var checkConnection = function (defaultURI, callback) {
     return true;
 };
 
-var ModelController = function (defaultURI, cb) {
+var ModelController = function (defaultURI, cb, options, KEY) {
 
     var self = this;
     self.type = "mongodb";
@@ -1698,6 +1700,7 @@ var ModelController = function (defaultURI, cb) {
             var reconnect = false;
             var MAX_LATENCY = 10000;
             var connections = [];
+            self.database = KEY;
             self.busy = function () {
 
                 busy++;
@@ -1726,12 +1729,21 @@ var ModelController = function (defaultURI, cb) {
                         });
                         connections = [];
                         openConnection(...[
-                            defaultURI,
+                            { defaultURI, database: KEY },
                             next,
                             function (connection) {
 
                                 if (connection) {
 
+                                    var {
+                                        readyState
+                                    } = cönnection;
+                                    if ([1, 2].indexOf(...[
+                                        readyState
+                                    ]) === -1) {
+
+                                        return;
+                                    }
                                     if (busy === 0) {
 
                                         connection.close();
@@ -1752,7 +1764,24 @@ var ModelController = function (defaultURI, cb) {
         };
     }).extend(Array).defaults();
     var session = new Session();
-    openConnection(defaultURI, cb);
+    if (!sessions[KEY]) {
+
+        var möngoose = new mongoose.Mongoose();
+        möngoose.plugin(autoIncrementPlugin.mongoosePlugin);
+        möngoose.Promise = global.Promise;
+        var cacheOpts = {
+
+            max: 50,
+            maxAge: 1000 * 60 * 2
+        };
+        cachePlugin.install(möngoose, cacheOpts);
+        sessions[KEY] = {
+
+            mongoose: möngoose,
+            session: new Session()
+        };
+    }
+    openConnection({ defaultURI, database: KEY }, cb);
     self.removeObjects = function () {
 
         var [
@@ -1783,7 +1812,7 @@ var ModelController = function (defaultURI, cb) {
                     ...(objWrapper.getObjectQuery() || []),
                     ...(entity.getObjectQuery() || [])
                 ];
-                entity.getObjectConstructor().remove(...[
+                entity.getObjectConstructor(KEY).remove(...[
                     constructQuery(queryExpressions),
                     function (error) {
 
@@ -1797,7 +1826,7 @@ var ModelController = function (defaultURI, cb) {
         }, session.filter(function (modelObject) {
 
             var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor();
+            var ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
@@ -1818,7 +1847,7 @@ var ModelController = function (defaultURI, cb) {
             try {
 
                 var { getObjectConstructor } = entity;
-                var ObjectConstructor = getObjectConstructor();
+                var ObjectConstructor = getObjectConstructor(KEY);
                 var modelObject = new ObjectConstructor(...[
                     objAttributes
                 ]);
@@ -1904,7 +1933,7 @@ var ModelController = function (defaultURI, cb) {
                     queryExpressions,
                     aggregateExpressions,
                     filterExpressions,
-                    entity.getObjectConstructor(),
+                    entity.getObjectConstructor(KEY),
                     entity.getObjectAttributes(),
                     features,
                     callback
@@ -1920,12 +1949,12 @@ var ModelController = function (defaultURI, cb) {
                     if (mapReducing) getMapReduce(session)(...[
                         queryExpressions,
                         filterExpressions,
-                        entity.getObjectConstructor(),
+                        entity.getObjectConstructor(KEY),
                         features,
                         callback
                     ]); else getExecuteQuery(session)(...[
                         queryExpressions,
-                        entity.getObjectConstructor(),
+                        entity.getObjectConstructor(KEY),
                         features,
                         callback
                     ]);
@@ -1934,16 +1963,22 @@ var ModelController = function (defaultURI, cb) {
         }, session.filter(function (modelObject) {
 
             var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor();
+            var ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
     self.save = function (callback, oldSession) {
 
+        var {
+            mongoose: möngoose,
+            session: sëssion
+        } = sessions[KEY];
         var many = Array.isArray(oldSession);
         var workingSession;
-        if (many) workingSession = oldSession
-        else workingSession = session.slice();
+        if (many) workingSession = oldSession; else {
+
+            workingSession = session.concat(sëssion);
+        }
         if (workingSession.length === 0) {
 
             inform("Model controller session has " +
@@ -1955,10 +1990,14 @@ var ModelController = function (defaultURI, cb) {
 
             var workingModelObject = workingSession[index];
             var i = session.indexOf(workingModelObject);
-            if (i > -1) session.splice(i, 1);
+            if (i > -1) session.splice(i, 1); else {
+
+                i = sëssion.indexOf(workingModelObject);
+                if (i > -1) sëssion.splice(i, 1);
+            }
             setTimeout(function () {
 
-                var { Model } = mongoose;
+                var { Model } = möngoose;
                 var saving = workingModelObject instanceof Model;
                 if (saving) {
 
@@ -1999,7 +2038,7 @@ var ModelController = function (defaultURI, cb) {
                             session.idle(time, function () {
 
                                 if (checkConnection(...[
-                                    defaultURI,
+                                    { defaultURI, database: KEY },
                                     save.bind(self, index + 1)
                                 ])) save(index + 1);
                             });
@@ -2008,25 +2047,26 @@ var ModelController = function (defaultURI, cb) {
                 } else if (workingSession.length > index + 1) {
 
                     if (checkConnection(...[
-                        defaultURI,
+                        { defaultURI, database: KEY },
                         save.bind(self, index + 1)
                     ])) save(index + 1);
                 } else if (callingBack && checkConnection(...[
-                    defaultURI,
+                    { defaultURI, database: KEY },
                     callback.bind(self, null, currentSession)
                 ])) callback(null, currentSession);
             }, 0);
         };
-        if (checkConnection(defaultURI, save.bind(self, 0))) {
-
-            save(0);
-        }
+        if (checkConnection(...[
+            { defaultURI, database: KEY },
+            save.bind(self, 0)
+        ])) save(0);
         return workingSession;
     };
 };
 
-var DataType = function (datatype, options, resolve) {
+var DataType = function (datatype, options, resolve, directives) {
 
+    var { database } = directives;
     var Generator = Object.getPrototypeOf(...[
         function* () { }
     ]).constructor;
@@ -2047,7 +2087,7 @@ var DataType = function (datatype, options, resolve) {
             };
             if (ValueType !== undefined) {
 
-                resolve(value);
+                resolve(value, directives);
             }
             return {
 
@@ -2066,7 +2106,8 @@ var DataType = function (datatype, options, resolve) {
                     return DataType(...[
                         type,
                         options.concat(otherOptions),
-                        resolve
+                        resolve,
+                        directives
                     ]);
                 }
                 if (typeof otherOptions[0] === "function") {
@@ -2078,10 +2119,11 @@ var DataType = function (datatype, options, resolve) {
                             ...[type],
                             ...otherOptions.slice(1)
                         ],
-                        resolve
+                        resolve,
+                        directives
                     ]);
                 }
-                resolve(type);
+                resolve(type, directives);
                 return type;
             }
             if (datatype instanceof Function) {
@@ -2098,9 +2140,12 @@ var DataType = function (datatype, options, resolve) {
                     throw new Error("Invalid field custom" +
                         " data type name");
                 }
+                var {
+                    mongoose: möngoose
+                } = sessions[database];
                 var Type = function (key, öptions) {
 
-                    mongoose.SchemaType.call(...[
+                    möngoose.SchemaType.call(...[
                         this,
                         key,
                         öptions,
@@ -2108,18 +2153,19 @@ var DataType = function (datatype, options, resolve) {
                     ]);
                 };
                 Type.prototype = Object.create(...[
-                    mongoose.SchemaType.prototype
+                    möngoose.SchemaType.prototype
                 ]);
                 Type.prototype.cast = datatype;
-                mongoose.Schema.Types[typeName] = Type;
+                möngoose.Schema.Types[typeName] = Type;
                 return Type;
             }
             break;
     }
 };
 
-var resolveAttributes = function (attributes) {
+var resolveAttributes = function (attributes, directives) {
 
+    var { database, validate, copy } = directives;
     var resolveType = function (property) {
 
         var value;
@@ -2141,10 +2187,11 @@ var resolveAttributes = function (attributes) {
 
                 return false;
             }
-            PropertyType = DataType(...[
+            if (database) PropertyType = DataType(...[
                 PropertyType,
                 options,
-                resolveAttributes
+                resolveAttributes,
+                { database, validate, copy: {} }
             ]);
             if (property === undefined) {
 
@@ -2153,9 +2200,50 @@ var resolveAttributes = function (attributes) {
             }
             if (isArray && noExtra) {
 
-                attributes[property] = [PropertyType];
+                PropertyType = [PropertyType];
+            }
+            if (copy) {
+
+                copy[property] = PropertyType;
             } else attributes[property] = PropertyType;
             return true;
+        };
+        var getCopy = function () {
+
+            if (!copy) return;
+            var nested_copy = {};
+            if (Array.isArray(Type)) {
+
+                var [, ...TypeOptions] = Type;
+                if (Array.isArray(Type[0])) {
+
+                    nested_copy = [];
+                }
+                nested_copy = [
+                    nested_copy, ...TypeOptions
+                ];
+            }
+            if (property && !Array.isArray(copy)) {
+
+                if (isArray) {
+
+                    copy[property] = [
+                        nested_copy, ...options
+                    ];
+                } else copy[property] = nested_copy;
+            } else if (Array.isArray(copy)) {
+
+                copy[0] = nested_copy;
+                if (copy.length === 1) {
+
+                    copy.push(...options);
+                }
+            } else {
+
+                throw new Error("Error while copying" +
+                    " attributes");
+            }
+            return nested_copy;
         };
         switch (type) {
 
@@ -2165,20 +2253,27 @@ var resolveAttributes = function (attributes) {
                     throw new Error("Invalid field data" +
                         " type");
                 }
-                if (!Array.isArray(Type)) {
+                if (!Array.isArray(Type) && validate) {
 
                     switch (Object.keys(Type).length) {
 
                         case 2:
                             if (!("ref" in Type)) break;
                         case 1:
-                            if (("type" in Type) && setType(...[
-                                Type.type,
-                                true
-                            ])) return;
+                            if (("type" in Type)) {
+
+                                if (setType(...[
+                                    Type.type, true
+                                ])) return;
+                            }
                     }
                 }
-                setType(resolveAttributes(Type), false);
+                resolveAttributes(Type, {
+
+                    database,
+                    validate,
+                    copy: getCopy()
+                });
                 break;
             case "string":
                 if (typeof options[0] !== "function") {
@@ -2191,7 +2286,7 @@ var resolveAttributes = function (attributes) {
             case "function":
                 setType(Type, isArray && value.length === 1);
             default:
-                if (property === "type") {
+                if (property === "type" && validate) {
 
                     throw new Error("type is a reserved word" +
                         " if it is used as an field so " +
@@ -2209,8 +2304,11 @@ var resolveAttributes = function (attributes) {
     var resolving = Array.isArray(attributes);
     resolving |= attributes instanceof Date;
     resolving |= typeof attributes !== "object";
-    if (resolving) return resolveType();
-    else Object.keys(attributes).forEach(resolveType);
+    if (resolving) return resolveType(); else {
+
+        Object.keys(attributes).forEach(resolveType);
+    }
+    return copy;
 };
 
 ModelController.defineEntity = function () {
@@ -2218,7 +2316,9 @@ ModelController.defineEntity = function () {
     var [
         name,
         attributes,
-        plugins
+        plugins, ,
+        database,
+        resolve
     ] = arguments;
     if (typeof name !== "string") {
 
@@ -2228,11 +2328,18 @@ ModelController.defineEntity = function () {
 
         throw new Error("Invalid entity schema");
     }
-    var schema = new Schema(attributes, {
+    if (!sessions[database]) {
 
-        autoIndex: false,
-        usePushEach: true
-    });
+        throw new Error("mongoose is not initialized");
+    }
+    var {
+        mongoose: möngoose
+    } = sessions[database];
+    var Schema = möngoose.Schema;
+    var schema = new Schema(resolveAttributes(...[
+        attributes,
+        { database, validate: false, copy: {} }
+    ]), { autoIndex: false, usePushEach: true });
     if (Array.isArray(plugins)) {
 
         for (var i = 0; i < plugins.length; i++) {
@@ -2243,8 +2350,15 @@ ModelController.defineEntity = function () {
             }
         }
     }
-    var Model = mongoose.model(name, schema);
-    resolveAttributes(attributes);
+    var Model = möngoose.model(name, schema);
+    var attributes_copy = {};
+    resolveAttributes(attributes, {
+
+        database,
+        validate: true,
+        copy: resolve ? undefined : attributes_copy
+    });
+    if (!resolve) attributes = attributes_copy;
     Object.defineProperty(Model.prototype, "self", {
 
         enumerable: true,
@@ -2391,7 +2505,7 @@ ModelController.prototype.constructor = ModelController;
 
 module.exports.getModelControllerObject = function () {
 
-    var [options, cb] = arguments;
+    var [options, cb, KEY] = arguments;
     var { uri, name } = options;
     if (!uri) {
 
@@ -2401,5 +2515,5 @@ module.exports.getModelControllerObject = function () {
     return new ModelController(uri, function () {
 
         cb.apply(this, arguments);
-    });
+    }, options, KEY);
 };

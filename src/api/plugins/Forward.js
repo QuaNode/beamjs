@@ -35,7 +35,7 @@ var getPort = function (req, target) {
 
 var setupOutgoing = function (req, options) {
 
-    var { target, setHost } = options;
+    var { target, setHost, reverse } = options;
     var outgoing = {};
     outgoing.port = parseInt(getPort(req, target));
     if (!outgoing.port) {
@@ -47,7 +47,7 @@ var setupOutgoing = function (req, options) {
     if (setHost) {
 
         outgoing.headers["host"] = new URL(target).host;
-    }
+    } else if (reverse) outgoing.rejectUnauthorized = false;
     outgoing.agent = false;
     var { headers } = outgoing;
     var { connection } = headers;
@@ -200,10 +200,10 @@ var webAdapter = {
 
             var aborting = req.socket.destroyed;
             aborting &= err.code === "ECONNRESET";
-            if (aborting) {
+            aborting &= !proxyReq.socket.destroyed;
+            if (aborting) proxyReq.destroy(); else {
 
-                proxyReq.destroy();
-                next(err);
+                if (!req.socket.destroyed) next(err);
             }
         };
         req.on("error", proxyError);
@@ -304,8 +304,7 @@ var wsAdapter = {
         };
         var onOutgoingError = function (err) {
 
-            if (next) next(err);
-            else socket.end();
+            if (next) next(err); else socket.end();
         };
         setupSocket(socket);
         if (head && head.length) socket.unshift(head);
@@ -319,14 +318,15 @@ var wsAdapter = {
             options.target,
             setupOutgoing(req, options)
         ]);
+        var proxyResUpgraded = false;
         socket.on("error", function (err) {
 
-            if (next) next(err);
+            if (!proxyResUpgraded) proxyReq.destroy();
         });
         proxyReq.on("error", onOutgoingError);
         proxyReq.on("response", function (res) {
 
-            if (!res.upgrade) {
+            if (!(proxyResUpgraded = res.upgrade)) {
 
                 var httpHeader = "HTTP/" + res.httpVersion;
                 httpHeader += " " + res.statusCode;

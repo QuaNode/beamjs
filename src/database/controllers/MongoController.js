@@ -218,11 +218,11 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
                 "$$item." + property,
                 regex
             ];
-        } else if (Object.keys[query].length === 1) {
+        } else if (Object.keys(query).length === 1) {
 
-            query[Object.keys[query][0]] = [
+            query[Object.keys(query)[0]] = [
                 "$$item." + property,
-                query[Object.keys[query][0]]
+                query[Object.keys(query)[0]]
             ];
         } else throw new Error("Invalid filter condition");
         return {
@@ -1347,15 +1347,15 @@ var getExecuteAggregate = function (session) {
                 ]);
             } else if (filter && Array.isArray(exclude)) {
 
-                aggregate = aggregate.project(...[
+                aggregate = aggregate.project([
                     ...Object.keys(attributes),
                     ...exclude
                 ].reduce(function (project, field) {
 
                     if (exclude.indexOf(field) === -1) {
 
-                        project[field] = true;
-                    } else project[field] = false;
+                        project[field] = 1;
+                    }
                     return project;
                 }, constructedAggregate));
             } else aggregate = aggregate.addFields(...[
@@ -1737,7 +1737,7 @@ var ModelController = function (defaultURI, cb, options, KEY) {
 
                                     var {
                                         readyState
-                                    } = cönnection;
+                                    } = connection;
                                     if ([1, 2].indexOf(...[
                                         readyState
                                     ]) === -1) {

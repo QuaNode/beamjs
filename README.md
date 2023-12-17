@@ -27,7 +27,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 - It provides a built-in static files server decoupling the file source that could be a local file system or cloud storage from HTTP static request handling. 
 - It supports complex file streaming and transformations within the built-in queue system and load balancing.
 - It provides a built-in forward- and reverse-proxy server utilizing the queuing system for fast load-balancing, virtual hosts, and complex domain routing. 
-- It supports long-polling HTTP requests.
+- It supports connectionless long-polling HTTP requests.
 - It supports event-driven architecture above mixed protocols HTTP/WebSocket for pulling and pushing.
 - It provides abstract HTTP-secured WebSockets for highly secured and scalable real-time events and other unique features like sub-rooms.
 - It is ready for event-sourcing applications.

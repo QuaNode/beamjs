@@ -139,15 +139,15 @@ module.exports = function (columns, options) {
         } = queryI;
         var sync = function (models) {
 
+            var table = "unencrypted_" + name;
             let filter = function (ref, _, refs) {
 
-                var {
+                let {
+                    tableName,
                     constraintName: cN,
                     referencedTableName: rN
                 } = ref;
-                var table = "unencrypted_";
-                table += name;
-                var constraint = cN;
+                let constraint = cN;
                 if (!constraint.endsWith(...[
                     "_encrypted"
                 ])) {
@@ -155,6 +155,7 @@ module.exports = function (columns, options) {
                     constraint += "_encrypted";
                 }
                 var include = rN === table;
+                include |= tableName === table;
                 include &= !refs.some(...[
                     function (rëf) {
 
@@ -166,16 +167,35 @@ module.exports = function (columns, options) {
                 ]);
                 return include;
             };
-            let map = function (ref) {
+            let sort = function (ref_1, ref_2) {
 
                 var {
+                    tableName: tableName_1
+                } = ref_1;
+                var {
+                    tableName: tableName_2
+                } = ref_2;
+                if (tableName_1 === table) {
+
+                    return 1
+                }
+                if (tableName_2 === table) {
+
+                    return -1
+                }
+                return 0;
+            };
+            let map = function (ref) {
+
+                let {
                     tableName,
                     constraintName: cN,
                     columnName,
                     referencedColumnName: rC,
+                    referencedTableName: rN,
                     tableCatalog
                 } = ref;
-                var constraint = cN;
+                let constraint = cN;
                 if (!constraint.endsWith(...[
                     "_encrypted"
                 ])) {
@@ -184,17 +204,24 @@ module.exports = function (columns, options) {
                 }
                 var add = function (onDelete, onUpdate) {
 
+                    var altTable = tableName;
+                    var refTable = name;
+                    if (tableName === table) {
+
+                        altTable = name;
+                        refTable = rN
+                    }
                     return addConstraint.apply(...[
                         queryI,
                         [
-                            tableName,
+                            altTable,
                             {
                                 fields: [columnName],
                                 type: "FOREIGN KEY",
                                 name: constraint,
                                 references: {
 
-                                    table: name,
+                                    table: refTable,
                                     field: rC
                                 },
                                 onDelete,
@@ -250,6 +277,8 @@ module.exports = function (columns, options) {
                         ])) return Promise.all(...[
                             refs.filter(...[
                                 filter
+                            ]).sort(...[
+                                sort
                             ]).map(...[
                                 map
                             ])

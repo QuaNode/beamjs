@@ -122,7 +122,12 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     CONTAINS: "$regex",
     ANY(value, options, expression) {
 
-        var query = Array.isArray(value) ? {
+        var database = expression.database;
+        var many = Array.isArray(value);
+        var query = many && value.some(function (condition) {
+
+            return condition instanceof QueryExpression
+        }) ? constructQuery(value, database) : many ? {
 
             $in: value
         } : typeof value === "object" ? value : {
@@ -182,27 +187,35 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     },
     SOME(query, expression) {
 
-        var attributes = expression.fieldName.split(".");
+        var { fieldName, database } = expression;
+        var attributes = fieldName.split(".");
         var one = !Array.isArray(attributes);
         if (!one) one |= attributes.length < 2;
         if (one) {
 
-            throw new Error("Invalid field name in a " +
-                "query expression");
+            throw new Error("Invalid field name in" +
+                " a query expression");
         }
-        var property = attributes.splice(-1, 1)[0];
-        expression.fieldName = attributes.join(".");
+        fieldName = attributes[0];
+        expression.fieldName = fieldName;
+        var property = attributes.slice(1).join(".");
+        property = fieldName + "_item." + property;
         var newQuery = {
 
-            input: "$" + expression.fieldName,
-            as: "item",
+            input: "$" + fieldName,
+            as: property,
             cond: query
         };
         if (query["="]) newQuery.cond = {
 
-            $eq: ["$$item." + property, query["="]]
+            $eq: ["$$" + property, query["="]]
         }; else if (query.$regex) {
 
+            if (sessions[database].version < "4.2") {
+
+                throw new Error("Regex with SOME is" +
+                    "n't supported below MongoDB 4.2");
+            }
             var regex;
             if (query.$regex instanceof RegExp) {
 
@@ -214,17 +227,19 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
                 "^" + query.$regex + "$",
                 query.$options
             ]);
-            query.$regex = [
-                "$$item." + property,
-                regex
-            ];
+            query.$regexMatch = {
+                input: "$$" + property, regex
+            };
         } else if (Object.keys(query).length === 1) {
 
             query[Object.keys(query)[0]] = [
-                "$$item." + property,
+                "$$" + property,
                 query[Object.keys(query)[0]]
             ];
-        } else throw new Error("Invalid filter condition");
+        } else {
+
+            throw new Error("Invalid filter condition");
+        }
         return {
 
             $expr: {
@@ -689,7 +704,7 @@ var getQuery = function () {
     return null;
 };
 
-var constructQuery = function (queryExpressions) {
+var constructQuery = function (queryExpressions, database) {
 
     var many = Array.isArray(queryExpressions);
     if (many) queryExpressions.forEach(function () {
@@ -713,6 +728,7 @@ var constructQuery = function (queryExpressions) {
             throw new Error("Query expression missing " +
                 "contextual level");
         }
+        queryExpression.database = database;
     });
     var query = getQuery(queryExpressions, 0);
     return query || {};
@@ -742,7 +758,9 @@ var getExecuteQuery = function (session) {
             page
         } = features;
         var query = ObjectConstructor.find(...[
-            constructQuery(queryExpressions)
+            constructQuery(...[
+                queryExpressions, session.database
+            ])
         ]);
         if (typeof distinct === "string") {
 
@@ -909,6 +927,10 @@ var getMapReduce = function (session) {
             callback,
             context
         ] = arguments;
+        if (!ObjectConstructor.mapReduce) {
+
+            throw new Error('mapReduce is deprecated');
+        }
         var options = {};
         var {
             filter,
@@ -938,10 +960,14 @@ var getMapReduce = function (session) {
         var empty = filterExpressions.length === 0;
         if (filter && many && empty) {
 
-            options.query = constructQuery(queryExpressions);
+            options.query = constructQuery(...[
+                queryExpressions, session.database
+            ]);
         } else if (!empty) {
 
-            options.query = constructQuery(filterExpressions);
+            options.query = constructQuery(...[
+                filterExpressions, session.database
+            ]);
         }
         if (filter && Array.isArray(sort)) {
 
@@ -1029,20 +1055,40 @@ var getMapReduce = function (session) {
                 };
             }
         }
-        var time = session.busy();
-        ObjectConstructor.mapReduce(...[
-            options,
-            function (error, out) {
+        var getEmittedValuesCount = function (stats, cb) {
 
-                delete options.scope._;
-                var {
-                    results,
-                    stats
-                } = out || {};
-                var {
-                    input
-                } = (stats || {}).counts || {};
-                var pageCount = input / limit;
+            var {
+                input
+            } = (stats || {}).counts || {};
+            if (input == undefined && paginating) {
+
+                var countFunc = 'estimatedDocumentCount';
+                if (options.query) {
+
+                    countFunc = 'countDocuments';
+                }
+                ObjectConstructor[countFunc](...[
+                    options.query,
+                    function (error, count) {
+
+                        cb(count, error);
+                    }
+                ]);
+            } else cb(input);
+        };
+        var time = session.busy();
+        ObjectConstructor.mapReduce(options, function () {
+
+            var [error, out] = arguments;
+            delete options.scope._;
+            var {
+                results,
+                stats
+            } = out || {};
+            getEmittedValuesCount(stats, function () {
+
+                var [count, err] = arguments;
+                var pageCount = count / limit;
                 var callingBack = !out;
                 if (!callingBack) callingBack |= !out.model;
                 if (!callingBack) callingBack |= !collection;
@@ -1057,7 +1103,7 @@ var getMapReduce = function (session) {
                             ...context,
                             modelObjects: results,
                             ...(paginating ? { pageCount } : {})
-                        } : results, error);
+                        } : results, error || err);
                     }
                 } else session.idle(time, function () {
 
@@ -1073,8 +1119,8 @@ var getMapReduce = function (session) {
                         } : undefined
                     ]);
                 });
-            }
-        ]);
+            });
+        });
     };
 };
 
@@ -1266,12 +1312,16 @@ var getExecuteAggregate = function (session) {
         if (filter && many && empty) {
 
             aggregate = aggregate.match(...[
-                constructQuery(queryExpressions)
+                constructQuery(...[
+                    queryExpressions, session.database
+                ])
             ]);
         } else if (!empty) {
 
             aggregate = aggregate.match(...[
-                constructQuery(filterExpressions)
+                constructQuery(...[
+                    filterExpressions, session.database
+                ])
             ]);
         }
         var redact;
@@ -1617,6 +1667,21 @@ var openConnection = function () {
 
                         callback(error);
                     }
+                    if (möngoose.connection.db) {
+
+                        möngoose.connection.db.command({
+
+                            buildInfo: 1
+                        }).then(function (info) {
+
+                            sessions[
+                                database
+                            ].version = info.version;
+                        }).catch(function (err) {
+
+                            debug(err);
+                        });
+                    }
                 }
             ]);
         } catch (error) {
@@ -1813,7 +1878,7 @@ var ModelController = function (defaultURI, cb, options, KEY) {
                     ...(entity.getObjectQuery() || [])
                 ];
                 entity.getObjectConstructor(KEY).remove(...[
-                    constructQuery(queryExpressions),
+                    constructQuery(queryExpressions, KEY),
                     function (error) {
 
                         if (typeof callback === "function") {

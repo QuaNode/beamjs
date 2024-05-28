@@ -21,7 +21,7 @@
         "mongoose-cache": "github:quaNode/mongoose-cache",
         "mongoose-pagination": "github:quaNode/mongoose-pagination",
         "ms": "latest",
-        "mysql2": "latest",
+        "mysql2": "3.9.8",
         "pg": "latest",
         "pump": "latest",
         "range-parser": "latest",

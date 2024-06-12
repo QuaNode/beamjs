@@ -32,7 +32,7 @@ var log = bunyan.createLogger({
     streams: [{
 
         path: "./logs/error.log",
-        level: "error",
+        level: "error"
     }],
     serializers: bunyan.stdSerializers
 });
@@ -1028,7 +1028,7 @@ var getMapReduce = function (session) {
         if (filter && paginating) {
 
             options.scope._.limit = limit;
-            options.scope._.skip = ((page || 1) - 1) * limit;
+            options.scope._.skip = Math.round(((page || 1) - 1) * limit);
             options.scope._.count = 0;
         }
         if (output) {
@@ -1525,7 +1525,7 @@ var getExecuteAggregate = function (session) {
 
                 modelObjects: [{
 
-                    $skip: ((page || 1) - 1) * limit
+                    $skip: Math.round(((page || 1) - 1) * limit)
                 }, {
 
                     $limit: limit

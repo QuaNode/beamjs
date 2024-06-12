@@ -36,7 +36,7 @@ var log = bunyan.createLogger({
     streams: [{
 
         path: "./logs/error.log",
-        level: "error",
+        level: "error"
     }],
     serializers: bunyan.stdSerializers
 });
@@ -604,7 +604,7 @@ var getExecuteQuery = function (session) {
         if (paginating) {
 
             query.limit = limit;
-            query.offset = (page - 1) * limit;
+            query.offset = Math.round((page - 1) * limit);
         }
         if (typeof subFilter === "boolean") {
 

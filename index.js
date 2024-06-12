@@ -21,7 +21,7 @@ var log = bunyan.createLogger({
     streams: [{
 
         path: "./logs/error.log",
-        level: "error",
+        level: "error"
     }],
     serializers: bunyan.stdSerializers
 });

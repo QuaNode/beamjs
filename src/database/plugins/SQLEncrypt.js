@@ -122,6 +122,12 @@ module.exports = function (columns, options) {
         }
         return value;
     };
+    var copyOf = function (model) {
+
+        return JSON.parse(JSON.stringify(...[
+            model.get({ plain: true })
+        ]));
+    };
     return function (name, hooks, sequelize) {
 
         var {
@@ -316,7 +322,7 @@ module.exports = function (columns, options) {
             ] = arguments;
             var define = function (schema) {
 
-                var {
+                let {
                     BOOLEAN
                 } = sequelize.Sequelize.DataTypes;
                 var schema_flags = Object.keys(...[
@@ -331,8 +337,15 @@ module.exports = function (columns, options) {
                         "encrypt_"
                     ])) flags[key] = BOOLEAN;
                     return flags;
-                }, {});
-                sequelize.define(...[
+                }, {
+
+                    encrypt_me: {
+
+                        type: BOOLEAN,
+                        defaultValue: true
+                    }
+                });
+                return sequelize.define(...[
                     "unencrypted_" + name,
                     Object.assign(...[
                         schema_flags, attributes
@@ -342,7 +355,7 @@ module.exports = function (columns, options) {
                         modelName: undefined,
                         name: undefined
                     })
-                ]);
+                ]).sync({ alter: { drop: false } });
             };
             return function (cb) {
 
@@ -372,7 +385,9 @@ module.exports = function (columns, options) {
                     ]);
                 }).then(function (schema) {
 
-                    define(schema);
+                    return define(schema);
+                }).then(function () {
+
                     return new Promise(...[
                         function (resolve) {
 
@@ -413,6 +428,29 @@ module.exports = function (columns, options) {
                     if (rename) rename(cb);
                     return
                 }
+                let filter = function (model) {
+
+                    let defaults = copyOf(model);
+                    if (defaults.encrypt_me) {
+
+                        return true;
+                    }
+                    return Object.keys(...[
+                        defaults
+                    ]).some(function (key) {
+
+                        let {
+                            ["encrypt_" + key]: enK
+                        } = model;
+                        if (columns.indexOf(...[
+                            key
+                        ]) > -1 && enK) {
+
+                            return true;
+                        }
+                        return false;
+                    });
+                };
                 sequelize.model(...[
                     "unencrypted_" + name
                 ]).findAndCountAll({
@@ -429,16 +467,6 @@ module.exports = function (columns, options) {
                     var has_more = count > COUNT;
                     if (Array.isArray(models)) {
 
-                        let filter = function () {
-
-                            var [
-                                model
-                            ] = arguments;
-                            var {
-                                keyring_id
-                            } = model;
-                            return !keyring_id;
-                        };
                         if (has_more) {
 
                             cb = migrate.bind(...[
@@ -460,14 +488,10 @@ module.exports = function (columns, options) {
                 });
             } else if (Array.isArray(context)) {
 
-                var models = context;
-                var model = models[0];
+                let models = context;
+                let model = models[0];
                 if (!model) return cb();
-                var defaults = JSON.parse(...[
-                    JSON.stringify(model.get(...[
-                        { plain: true }
-                    ]))
-                ]);
+                let defaults = copyOf(model);
                 Object.keys(defaults).forEach(...[
                     function (key) {
 
@@ -522,9 +546,13 @@ module.exports = function (columns, options) {
                         [encrypted_model] = result;
                     }
                     if (created) migrations++;
+                    var {
+                        encrypt_me: save_me
+                    } = model;
+                    model.encrypt_me = false;
                     let save = !created;
                     save &= !!encrypted_model;
-                    save &= Object.keys(...[
+                    save = save && Object.keys(...[
                         defaults
                     ]).filter(function (key) {
 
@@ -548,7 +576,10 @@ module.exports = function (columns, options) {
                     if (save) return Promise.all([
                         encrypted_model.save(),
                         model.save()
-                    ]); else return null;
+                    ]); else if (save_me) {
+
+                        return model.save();
+                    } else return null;
                 }).then(function (result) {
 
                     let updated = !!result;
@@ -677,7 +708,7 @@ module.exports = function (columns, options) {
                 Object.assign({}, attributes),
                 Object.assign({}, configuration)
             ]);
-            var {
+            let {
                 VIRTUAL,
                 TEXT,
                 INTEGER
@@ -686,6 +717,11 @@ module.exports = function (columns, options) {
                 attributes
             ]).forEach(function (key) {
 
+                if (key == "encrypt_me") {
+
+                    throw new Error("encrypt_me is" +
+                        " reserved column name!");
+                }
                 var encrypting = !Array.isArray(...[
                     columns
                 ]);

@@ -206,8 +206,10 @@ var ResourceController = function () {
         var writing = stream instanceof Writable;
         if (writing || streaming) {
 
-            if (writing) reader.pipe(stream);
-            else if (streaming) stream(reader);
+            if (writing) reader.pipe(stream); else {
+
+                if (streaming) stream(reader);
+            }
             resource.stream = reader;
             callback(resource);
         } else {

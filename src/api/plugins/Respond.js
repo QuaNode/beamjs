@@ -205,12 +205,15 @@ module.exports = function (key, options) {
         if (typeof key !== "string") return false;
         if (Object.keys(out).indexOf(key) === -1) return false;
         var data = out[key];
+        if (data == undefined || data == null) return false;
         var data_size;
         var error;
         var stream;
         var many = Array.isArray(data);
-        if (data instanceof Readable) stream = data;
-        else stream = new Readable({
+        if (data instanceof Readable) {
+
+            stream = data;
+        } else stream = new Readable({
 
             highWaterMark: function () {
 

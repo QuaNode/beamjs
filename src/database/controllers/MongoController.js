@@ -50,8 +50,10 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     EQUALIGNORECASE(value, options, expression) {
 
         var regex;
-        if (value instanceof RegExp) regex = value;
-        else regex = new RegExp("^" + value + "$");
+        if (value instanceof RegExp) {
+
+            regex = value;
+        } else regex = new RegExp("^" + value + "$");
         var query = {
 
             $regex: regex,

@@ -526,8 +526,10 @@ module.exports = function (columns, options) {
                 }(function () {
 
                     let { id, _id } = defaults;
-                    if (_id) return { _id };
-                    else if (id) return { id };
+                    if (_id) return { _id }; else {
+
+                        if (id) return { id };
+                    }
                     return;
                 }());
                 sequelize.model(...[
@@ -576,13 +578,21 @@ module.exports = function (columns, options) {
                     if (save) return Promise.all([
                         encrypted_model.save(),
                         model.save()
-                    ]); else if (save_me) {
+                    ]).then(function (result) {
+
+                        let updated = false;
+                        if (result && result[0]) {
+
+                            updated = true;
+                        }
+                        return !created && updated;
+                    }); else if (save_me) {
 
                         return model.save();
                     } else return null;
                 }).then(function (result) {
 
-                    let updated = !!result;
+                    let updated = result == true;
                     if (updated) migrations++;
                     models.shift();
                     migrate(models, cb);

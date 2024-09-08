@@ -202,7 +202,20 @@ var ResourceController = function () {
                 end: ending ? end : undefined,
                 highWaterMark: buffering ? buffer_size : READ_SIZE
             }
-        ]);
+        ]).on("close", function () {
+
+            closed = true;
+            if (interval) {
+
+                clearInterval(interval);
+            }
+        }), interval = setInterval(function () {
+
+            if (!closed && reader.readableEnded) {
+
+                reader.destroy();
+            }
+        }, 60000), closed = false;
         var writing = stream instanceof Writable;
         if (writing || streaming) {
 
@@ -229,10 +242,7 @@ var ResourceController = function () {
         }
         return function () {
 
-            if (!reader.readableEnded) {
-
-                reader.destroy();
-            }
+            reader.destroy();
         };
     };
 };

@@ -2,7 +2,7 @@
 
 ![0_00](https://user-images.githubusercontent.com/3101473/227795966-12f87168-4b4a-454f-a806-0a72f5a1fe5d.png)
 
-IoB & Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)
+Private IoB & Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)
 
 # Introduction
 

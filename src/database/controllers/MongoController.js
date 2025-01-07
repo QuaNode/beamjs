@@ -628,28 +628,28 @@ var getQuery = function () {
             var {
                 fieldName,
                 fieldValue,
-                comparisonOperator,
-                comparisonOperatorOptions
+                comparisonOperator: comparisonOp,
+                comparisonOperatorOptions: comparisonOpt
             } = queryExpression;
             filter[fieldName] = fieldValue;
-            if (typeof comparisonOperator === "string") {
+            if (typeof comparisonOp === "string") {
 
-                subFilter[comparisonOperator] = fieldValue;
-                if (typeof comparisonOperatorOptions === "function") {
+                subFilter[comparisonOp] = fieldValue;
+                if (typeof comparisonOpt === "function") {
 
-                    subFilter = comparisonOperatorOptions.apply(...[
+                    subFilter = comparisonOpt.apply(...[
                         ComparisonOperators, [
                             subFilter,
                             queryExpression
                         ]
                     ]);
                 }
-            } else if (typeof comparisonOperator === "function") {
+            } else if (typeof comparisonOp === "function") {
 
-                subFilter = comparisonOperator.apply(...[
+                subFilter = comparisonOp.apply(...[
                     ComparisonOperators, [
                         fieldValue,
-                        comparisonOperatorOptions,
+                        comparisonOpt,
                         queryExpression
                     ]
                 ]);

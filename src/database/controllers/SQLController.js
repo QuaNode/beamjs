@@ -74,6 +74,40 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
             throw new Error("Invalid through entity");
         }
         return entity.getObjectConstructor(database);
+    },
+    SELECT: function (name, database) {
+
+        if (!name) {
+
+            throw new Error("Invalid sub query table name");
+        }
+        if (!database && Object.keys(sessions).length == 1) {
+
+            database = Object.keys(sessions)[0];
+        }
+        var session = sessions[database];
+        if (!session) {
+
+            throw new Error("Invalid database key");
+        }
+        var { session: { adapter } } = session;
+        return function (query, expression) {
+
+            var {
+                comparisonOperator: comparisonOp
+            } = expression;
+            var sql = adapter.constructSQL({
+
+                get: query[comparisonOp],
+                as: name
+            });
+            query[
+                comparisonOp
+            ] = ComputationOperators.LITERAL(...[
+                "(" + sql + ")"
+            ])
+            return query;
+        }
     }
 };
 
@@ -226,29 +260,40 @@ var adapter = {
                 var {
                     fieldName,
                     fieldValue,
-                    comparisonOperator,
-                    comparisonOperatorOptions
+                    comparisonOperator: comparisonOp,
+                    comparisonOperatorOptions: comparisonOpOpt
                 } = queryExpression;
                 if (typeof fieldName !== "object") {
 
                     filter[fieldName] = fieldValue;
                 }
-                if (typeof comparisonOperator === "symbol") {
+                if (typeof comparisonOp === "symbol") {
 
-                    subFilter[comparisonOperator] = fieldValue;
-                } else if (typeof comparisonOperator === "function") {
+                    subFilter[comparisonOp] = fieldValue;
+                    if (typeof comparisonOpOpt === "function") {
 
-                    subFilter = comparisonOperator(fieldValue);
-                }
-                if (typeof comparisonOperatorOptions === "function") {
+                        subFilter = comparisonOpOpt.apply(...[
+                            ComparisonOperators, [
+                                subFilter,
+                                queryExpression
+                            ]
+                        ]);
+                    }
+                } else if (typeof comparisonOp === "function") {
 
-                    comparisonOperatorOptions(subFilter);
+                    subFilter = comparisonOp.apply(...[
+                        ComparisonOperators, [
+                            fieldValue,
+                            comparisonOpOpt,
+                            queryExpression
+                        ]
+                    ]);
                 }
                 if (typeof fieldName === "object") {
 
                     return Sequelize.where(fieldName, subFilter);
                 }
-                if (comparisonOperator !== ComparisonOperators.EQUAL) {
+                if (comparisonOp !== ComparisonOperators.EQUAL) {
 
                     filter[fieldName] = subFilter;
                 }
@@ -307,21 +352,31 @@ var adapter = {
                     ] = arguments;
                     var {
                         fieldName,
-                        fieldValue,
-                        comparisonOperator,
-                        logicalOperator
+                        fieldValue: fValue,
+                        comparisonOperator: cOperator,
+                        logicalOperator: lOperator
                     } = queryExpression;
-                    if (fieldValue instanceof Entity) {
+                    var joining = fValue instanceof Entity;
+                    if (joining) {
+
+                        let { Model } = Sequelize;
+                        joining = cOperator instanceof Model;
+                        let {
+                            FROM
+                        } = ComparisonOperators;
+                        joining |= cOperator === FROM;
+                    }
+                    if (joining) {
 
                         join.push(self.constructQuery(...[
-                            fieldValue.getObjectQuery(),
-                            fieldValue.getObjectFeatures(),
-                            fieldValue.getObjectConstructor(...[
+                            fValue.getObjectQuery(),
+                            fValue.getObjectFeatures(),
+                            fValue.getObjectConstructor(...[
                                 self.database
                             ]),
                             fieldName,
-                            comparisonOperator,
-                            logicalOperator
+                            cOperator,
+                            lOperator
                         ]));
                         indexes.push(index);
                     }
@@ -367,7 +422,7 @@ var adapter = {
             throw new Error("Invalid query expressions");
         }
         var query = {};
-        var { Model } = Sequelize;
+        let { Model } = Sequelize;
         var joining = !!ObjectConstructor;
         if (joining) {
 
@@ -468,26 +523,35 @@ var adapter = {
         }
         if (Array.isArray(include)) {
 
-            attributes = include.map(...[
-                function (option) {
+            var self = this;
+            attributes = include.map(function (option) {
 
-                    if (typeof option === "string") {
+                if (option.get instanceof Entity) {
 
-                        return option;
-                    }
-                    let get = option.get;
-                    if (typeof get !== "object") {
-
-                        get = Sequelize.col(get);
-                    }
-                    return option.of ? [
-                        ComputationOperators.FUNCTION(...[
-                            option
+                    var sql = self.constructSQL(option);
+                    return [
+                        ComputationOperators.LITERAL(...[
+                            "(" + sql + ")"
                         ]),
                         option.as
-                    ] : [get, option.as];
+                    ];
                 }
-            ]);
+                if (typeof option === "string") {
+
+                    return option;
+                }
+                let get = option.get;
+                if (typeof get !== "object") {
+
+                    get = Sequelize.col(get);
+                }
+                return option.of ? [
+                    ComputationOperators.FUNCTION(...[
+                        option
+                    ]),
+                    option.as
+                ] : [get, option.as];
+            });
         }
         if (Array.isArray(exclude)) {
 
@@ -569,6 +633,97 @@ var adapter = {
             });
         }
         return query;
+    },
+    constructSQL: function (option) {
+
+        var {
+            getObjectConstructor: getC,
+            getObjectQuery: getQ,
+            getObjectFeatures: getF
+        } = option.get;
+        var self = this;
+        var SubConstructor = getC.apply(...[
+            option.get,
+            [self.database]
+        ]);
+        var subQuery = getQ.apply(option.get);
+        var subFeatures = getF.apply(...[
+            option.get
+        ]);
+        var {
+            subFilter
+        } = subFeatures || {};
+        if (typeof subFilter === "boolean") {
+
+            subQuery.subQuery = subFilter;
+        }
+        subQuery = self.constructQuery(...[
+            subQuery,
+            subFeatures,
+            SubConstructor,
+            option.as
+        ]);
+        var {
+            include
+        } = subQuery;
+        if (Array.isArray(include)) {
+
+            include.forEach(function () {
+
+                var [rel] = arguments;
+                var missing = !rel.association;
+                missing &= !!rel.as;
+                if (missing) {
+
+                    var {
+                        associations
+                    } = SubConstructor;
+                    Object.keys(associations)[
+                        "some"
+                    ](function (name) {
+
+                        if (name == rel.as) {
+
+                            rel[
+                                "association"
+                            ] = associations[
+                                name
+                                ];
+                            return true;
+                        }
+                        return false;
+                    });
+                }
+                missing = !rel.parent;
+                if (missing) {
+
+                    rel.parent = {
+
+                        as: option.as,
+                        model: SubConstructor
+                    };
+                }
+            });
+        }
+        var {
+            queryGenerator
+        } = SubConstructor;
+        var {
+            selectQuery
+        } = queryGenerator;
+        var sql = selectQuery.apply(...[
+            queryGenerator,
+            [
+                SubConstructor.getTableName(),
+                subQuery,
+                SubConstructor
+            ]
+        ]);
+        if (sql.endsWith(';')) {
+
+            sql = sql.slice(0, -1);
+        }
+        return sql;
     }
 };
 
@@ -1025,7 +1180,7 @@ var ModelController = function (defaultURI, cb, options, KEY) {
             }
             setTimeout(function () {
 
-                var { Model } = Sequelize;
+                let { Model } = Sequelize;
                 var saving = workingModelObject instanceof Model;
                 if (saving) {
 

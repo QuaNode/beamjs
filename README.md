@@ -2,7 +2,7 @@
 
 ![0_00](https://user-images.githubusercontent.com/3101473/227795966-12f87168-4b4a-454f-a806-0a72f5a1fe5d.png)
 
-Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)
+Private IoB & Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)
 
 # Introduction
 
@@ -18,7 +18,7 @@ Enterprise full stack web development framework (Backend-JS - ExpressJS - Angula
 ## Why BeamJS and Backend-JS?
 
 - It is built for agility and highly configurable, modular, and adapting systems.
-- It is an enterprise-level framework so you can code your organizational and customer behaviors seamlessly.
+- It is an enterprise-level framework for private IoB so you can code your organizational and customer behaviors seamlessly.
 - It supports DB encryption for pseudonymization and GDPR compliance.
 - It provides a built-in data mapping pipeline.
 - It supports CQRS architecture through mixed model definitions over different DBs.

@@ -61,6 +61,9 @@ Private IoB & Enterprise full stack web development framework (Backend-JS - Expr
 ```js
 var backend = require("beamjs").backend();
 var behaviour = backend.behaviour("/api/v1");
+var {
+    FunctionalChainBehaviour
+} = require('functional-chain-behaviour')();
 
 var model = backend.model();
 var User = model(
@@ -76,6 +79,7 @@ var User = model(
 behaviour(
   {
     name: "GetUsers",
+    inherits: FunctionalChainBehaviour,
     version: "1",
     path: "/users",
     method: "GET",
@@ -83,9 +87,7 @@ behaviour(
   function (init) {
     return function () {
       var self = init.apply(this, arguments).self();
-      self.begin("Query", function (key, businessController, operation) {
-        operation.entity(new User()).append(true).apply();
-      });
+      self.entity(new User()).query().pipe();
     };
   }
 );

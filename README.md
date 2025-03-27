@@ -54,7 +54,7 @@ Private IoB & Enterprise full stack web development framework (Backend-JS - Expr
 
 ## Installation
 
-    npm install beamjs
+    npm install beamjs functional-chain-behaviour
 
 ## Usage
 

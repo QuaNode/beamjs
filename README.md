@@ -18,7 +18,7 @@ Private IoB & Enterprise full stack web development framework (Backend-JS - Expr
 ## Why BeamJS and Backend-JS?
 
 - It is built for agility and highly configurable, modular, and adapting systems.
-- It is an enterprise-level declarative framework for private IoB so you can code your organizational and customer behaviors seamlessly.
+- It is an enterprise-level declarative framework for private IoB so you can code your organizational and customer behaviors seamlessly and securely specially when integrating with AI agents.
 - It supports DB encryption for pseudonymization and GDPR compliance.
 - It provides a built-in data mapping pipeline.
 - It supports CQRS architecture through mixed model definitions over different DBs.

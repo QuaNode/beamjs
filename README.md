@@ -18,7 +18,7 @@ Private IoB & Enterprise full stack web development framework (Backend-JS - Expr
 ## Why BeamJS and Backend-JS?
 
 - It is built for agility and highly configurable, modular, and adapting systems.
-- It is an enterprise-level declarative framework for private IoB so you can code your organizational and customer behaviors seamlessly and securely specially when integrating with AI agents.
+- It is enterprise-level abd declarative framework for private IoB so you can code your organizational and customer behaviors seamlessly and securely specially when integrating with AI agents.
 - It supports DB encryption for pseudonymization and GDPR compliance.
 - It provides a built-in data mapping pipeline.
 - It supports CQRS architecture through mixed model definitions over different DBs.
@@ -33,7 +33,7 @@ Private IoB & Enterprise full stack web development framework (Backend-JS - Expr
 - It is ready for event-sourcing applications.
 - Backend-JS introduces the terminology of API **Behavior** represents organizational and customer behavior that is implemented vertically based on a built-in customizable enterprise algorithmic mental model inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
 - It supports micro-services architecture by vertically implementing **Behaviors** (APIs) besides the built-in services abstraction layer.
-- To define a **Behavior** (API), The framework drives you to write the contract/specification first which can be viewed later by integrators for simple REST integrations.
+- To define a **Behavior** (API), The framework drives you to write the contract/specification first which can be viewed later by integrators for simple REST integrations. Designing APIs as organizational and customer behaviors is a technical design-mix to combine behavioural science, API-first, and headless architecture for a very robust and modern applications.
 - Integrating applications made using BeamJS and Backend-JS is a **SOAP-like above REST APIs**. It comes with 7 front-end integration libraries as follows:
   - [ng-behaviours](https://github.com/QuaNode/ng-behaviours) for Angular and Angular-based (e,g, ionic) applications.
   - [js-behaviours](https://github.com/QuaNode/js-behaviours) for NodeJS, NodeJS-based (e.g. ElectronJS), and browser.

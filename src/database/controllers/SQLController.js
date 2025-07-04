@@ -114,6 +114,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 var ComputationOperators = module.exports.ComputationOperators = {
 
     COLUMN: Sequelize.col,
+    FIELD: Sequelize.col,
     LITERAL: Sequelize.literal,
     CAST(value, type) {
 
@@ -125,7 +126,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
     },
     FUNCTION(option) {
 
-        var many = Array.isArray(option.of);
+        let many = Array.isArray(option.of);
         return Sequelize.fn(...[
             ...[option.get],
             ...(many ? option.of.map(function (öf) {
@@ -143,7 +144,7 @@ var NullIfUndefined = function (value) {
 
 var getManipulator = function () {
 
-    var self = this;
+    let self = this;
     var [
         property,
         prefix,
@@ -215,7 +216,7 @@ var getManipulator = function () {
             ]).then(function (values) {
 
                 var result = values;
-                var one = !!value;
+                let one = !!value;
                 one &= !Array.isArray(value);
                 one &= Array.isArray(result);
                 if (one) result = result[0];
@@ -337,10 +338,10 @@ var adapter = {
     },
     constructJoin(queryExpressions) {
 
-        var many = Array.isArray(queryExpressions);
+        let many = Array.isArray(queryExpressions);
         if (many) {
 
-            var self = this;
+            let self = this;
             var indexes = [];
             var join = queryExpressions.reduce(...[
                 function () {
@@ -405,7 +406,7 @@ var adapter = {
             comparisonOperator,
             logicalOperator
         ] = arguments;
-        var many = Array.isArray(queryExpressions);
+        let many = Array.isArray(queryExpressions);
         if (many && queryExpressions.some(function () {
 
             var [
@@ -523,7 +524,7 @@ var adapter = {
         }
         if (Array.isArray(include)) {
 
-            var self = this;
+            let self = this;
             attributes = include.map(function (option) {
 
                 if (option.get instanceof Entity) {
@@ -584,8 +585,8 @@ var adapter = {
                 }
                 if (option.of) {
 
-                    var one = !Array.isArray(option.of);
-                    var many = false;
+                    let one = !Array.isArray(option.of);
+                    let many = false;
                     if (!one) {
 
                         many |= option.of.length > 0;
@@ -636,12 +637,12 @@ var adapter = {
     },
     constructSQL: function (option) {
 
-        var {
+        let {
             getObjectConstructor: getC,
             getObjectQuery: getQ,
             getObjectFeatures: getF
         } = option.get;
-        var self = this;
+        let self = this;
         var SubConstructor = getC.apply(...[
             option.get,
             [self.database]
@@ -719,7 +720,7 @@ var adapter = {
                 SubConstructor
             ]
         ]);
-        if (sql.endsWith(';')) {
+        if (sql.endsWith(";")) {
 
             sql = sql.slice(0, -1);
         }
@@ -851,7 +852,7 @@ var openConnection = function () {
                             const seen = new WeakSet();
                             return function (_, value) {
 
-                                var one = typeof value === "object";
+                                let one = typeof value === "object";
                                 if (one) {
 
                                     one &= value !== null;
@@ -902,13 +903,13 @@ var openConnection = function () {
 
 var ModelController = function (defaultURI, cb, options, KEY) {
 
-    var self = this;
+    let self = this;
     self.type = options.type;
     var Session = define(function (init) {
 
         return function () {
 
-            var self = init.apply(...[
+            let self = init.apply(...[
                 this,
                 arguments
             ]).self();
@@ -1035,8 +1036,8 @@ var ModelController = function (defaultURI, cb, options, KEY) {
             }
         }, session.filter(function (modelObject) {
 
-            var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor(KEY);
+            let { getObjectConstructor } = entity;
+            let ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
@@ -1056,8 +1057,8 @@ var ModelController = function (defaultURI, cb, options, KEY) {
 
             try {
 
-                var { getObjectConstructor } = entity;
-                var ObjectConstructor = getObjectConstructor(KEY);
+                let { getObjectConstructor } = entity;
+                let ObjectConstructor = getObjectConstructor(KEY);
                 var modelObject = new ObjectConstructor(...[
                     objAttributes
                 ]);
@@ -1146,8 +1147,8 @@ var ModelController = function (defaultURI, cb, options, KEY) {
             }
         }, session.filter(function (modelObject) {
 
-            var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor(KEY);
+            let { getObjectConstructor } = entity;
+            let ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
@@ -1156,7 +1157,7 @@ var ModelController = function (defaultURI, cb, options, KEY) {
         var {
             session: sëssion
         } = sessions[KEY];
-        var many = Array.isArray(oldSession);
+        let many = Array.isArray(oldSession);
         var workingSession;
         if (many) workingSession = oldSession; else {
 
@@ -1244,8 +1245,7 @@ var DataType = function (datatype) {
                 var TYPE = Sequelize.DataTypes[
                     typeName
                 ];
-                if (TYPE) return TYPE;
-                else {
+                if (TYPE) return TYPE; else {
 
                     var {
                         ABSTRACT
@@ -1291,9 +1291,9 @@ var resolveAttributes = function (attributes, directives) {
             }, id);
         } else {
 
-            var constraint = {};
-            var constraining = !!constraints;
-            var rule;
+            let constraint = {};
+            let constraining = !!constraints;
+            let rule;
             if (constraining) {
 
                 rule = constraints[property];
@@ -1335,9 +1335,161 @@ var resolveAttributes = function (attributes, directives) {
     }, {});
 };
 
+var resolveRelations = function () {
+
+    let [
+        name,
+        attributes,
+        constraints,
+        Model,
+        database
+    ] = arguments;
+    var getter = function () {
+
+        let [
+            property,
+            otherModel,
+            toMany
+        ] = arguments;
+        if (this["_" + property]) {
+
+            return this["_" + property];
+        }
+        let self = this;
+        var relation = {
+
+            get: getManipulator.apply(...[
+                self,
+                [
+                    property,
+                    "get",
+                    otherModel,
+                    database
+                ]
+            ]),
+            set: getManipulator.apply(...[
+                self,
+                [
+                    property,
+                    "set",
+                    otherModel,
+                    database
+                ]
+            ])
+        };
+        if (toMany) {
+
+            relation.add = getManipulator.apply(...[
+                self,
+                [
+                    property,
+                    "add",
+                    otherModel,
+                    database
+                ]
+            ]);
+            relation.remove = getManipulator.apply(...[
+                self,
+                [
+                    property,
+                    "remove",
+                    otherModel,
+                    database
+                ]
+            ]);
+        }
+        return relation;
+    };
+    setTimeout(function () {
+
+        Object.keys(...[
+            attributes
+        ]).forEach(function (property) {
+
+            var toMany = Array.isArray(...[
+                attributes[property]
+            ]);
+            var entity;
+            if (toMany) {
+
+                entity = attributes[property][0];
+            } else entity = attributes[property];
+            var lazy = typeof entity === "function";
+            if (lazy) {
+
+                let { prototype } = entity;
+                lazy &= !(prototype instanceof Entity);
+            }
+            if (lazy) entity = entity(name);
+            var valid = !!entity;
+            if (valid) {
+
+                let { prototype } = entity;
+                valid &= prototype instanceof Entity;
+            }
+            if (valid) {
+
+                var func = "hasOne";
+                if (toMany) func = "hasMany";
+                else if (lazy) func = "belongsTo";
+                var options = {
+
+                    as: property
+                };
+                let constraint = {};
+                let constraining = !!constraints;
+                let rule;
+                if (constraining) {
+
+                    rule = constraints[property];
+                    constraining &= !!rule;
+                    constraining &= typeof rule === "object";
+                }
+                if (constraining) {
+
+                    constraint = rule;
+                }
+                if (toMany && constraint.through) {
+
+                    func = "belongsToMany";
+                }
+                let {
+                    getObjectConstructor
+                } = entity.prototype;
+                var otherModel = getObjectConstructor(...[
+                    database
+                ]);
+                Model[func](...[
+                    otherModel,
+                    Object.assign(options, constraint)
+                ]);
+                Object.defineProperty(...[
+                    Model.prototype,
+                    property,
+                    {
+                        enumerable: true,
+                        set(value) {
+
+                            this["_" + property] = value;
+                        },
+                        get() {
+
+                            return getter.apply(this, [
+                                property,
+                                otherModel,
+                                toMany
+                            ]);
+                        }
+                    }
+                ]);
+            }
+        });
+    }, 0);
+};
+
 ModelController.defineEntity = function () {
 
-    var [
+    let [
         name,
         attributes,
         plugins,
@@ -1433,15 +1585,17 @@ ModelController.defineEntity = function () {
 
             if (typeof plugins[i] === "function") {
 
-                plugins[i](name, hooks, sequelize);
+                plugins[i](...[
+                    name, hooks, sequelize, database
+                ]);
             }
         }
     }
     var Model = sequelize.define(...[
         name,
         resolveAttributes(attributes, {
-            constraints,
-            validate: true
+
+            constraints, validate: true
         }),
         configuration
     ]);
@@ -1467,137 +1621,11 @@ ModelController.defineEntity = function () {
             }
         }
     ]);
-    var attributes_copy = resolveAttributes(...[
-        attributes, { constraints, validate: false }
+    resolveRelations(...[
+        name, resolveAttributes(attributes, {
+            constraints, validate: false
+        }), constraints, Model, database
     ]);
-    setTimeout(function () {
-
-        Object.keys(...[
-            attributes_copy
-        ]).forEach(function (property) {
-
-            var toMany = Array.isArray(...[
-                attributes_copy[property]
-            ]);
-            var entity;
-            if (toMany) {
-
-                entity = attributes_copy[property][0];
-            } else entity = attributes_copy[property];
-            var lazy = typeof entity === "function";
-            if (lazy) {
-
-                let { prototype } = entity;
-                lazy &= !(prototype instanceof Entity);
-            }
-            if (lazy) entity = entity(name);
-            var valid = !!entity;
-            if (valid) {
-
-                let { prototype } = entity;
-                valid &= prototype instanceof Entity;
-            }
-            if (valid) {
-
-                var func = "hasOne";
-                if (toMany) func = "hasMany";
-                else if (lazy) func = "belongsTo";
-                var options = {
-
-                    as: property
-                };
-                var constraint = {};
-                var constraining = !!constraints;
-                var rule;
-                if (constraining) {
-
-                    rule = constraints[property];
-                    constraining &= !!rule;
-                    constraining &= typeof rule === "object";
-                }
-                if (constraining) {
-
-                    constraint = rule;
-                }
-                if (toMany && constraint.through) {
-
-                    func = "belongsToMany";
-                }
-                var {
-                    getObjectConstructor
-                } = entity.prototype;
-                var otherModel = getObjectConstructor(...[
-                    database
-                ]);
-                Model[func](...[
-                    otherModel,
-                    Object.assign(options, constraint)
-                ]);
-                Object.defineProperty(...[
-                    Model.prototype,
-                    property,
-                    {
-                        enumerable: true,
-                        set(value) {
-
-                            this["_" + property] = value;
-                        },
-                        get() {
-
-                            if (this["_" + property]) {
-
-                                return this["_" + property];
-                            }
-                            var self = this;
-                            var relation = {
-
-                                get: getManipulator.apply(...[
-                                    self,
-                                    [
-                                        property,
-                                        "get",
-                                        otherModel,
-                                        database
-                                    ]
-                                ]),
-                                set: getManipulator.apply(...[
-                                    self,
-                                    [
-                                        property,
-                                        "set",
-                                        otherModel,
-                                        database
-                                    ]
-                                ])
-                            };
-                            if (toMany) {
-
-                                relation.add = getManipulator.apply(...[
-                                    self,
-                                    [
-                                        property,
-                                        "add",
-                                        otherModel,
-                                        database
-                                    ]
-                                ]);
-                                relation.remove = getManipulator.apply(...[
-                                    self,
-                                    [
-                                        property,
-                                        "remove",
-                                        otherModel,
-                                        database
-                                    ]
-                                ]);
-                            }
-                            return relation;
-                        }
-                    }
-                ]);
-            }
-        });
-    }, 0);
     return Model;
 };
 
@@ -1648,7 +1676,13 @@ module.exports.getModelControllerObject = function () {
 
             auth &= password.length > 0;
         }
-        if (auth) options.uri += ":" + password;
+        if (auth) {
+
+            options.uri += ":";
+            options.uri += encodeURIComponent(...[
+                password
+            ]);
+        }
         options.uri += "@" + options.host;
         options.uri += ":" + port + "/";
         options.uri += options.database;

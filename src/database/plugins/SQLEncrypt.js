@@ -42,16 +42,24 @@ module.exports = function (columns, options) {
         options = columns;
     }
     columns = options.columns;
-    var { keys } = options;
-    var SIZE = 43;
-    var splitting = typeof keys === "string";
-    if (splitting) {
+    if (typeof options.keys !== "object") {
 
-        splitting &= keys.length >= SIZE;
+        options.keys = { main: options.keys };
     }
-    if (splitting) {
+    Object.keys(...[
+        options.keys
+    ]).forEach(function (database) {
 
-        options.keys = keys.match(...[
+        let keys = options.keys[database];
+        var SIZE = 43;
+        var splitting = typeof keys === "string";
+        if (splitting) {
+
+            splitting &= keys.length >= SIZE;
+        }
+        if (splitting) options.keys[
+            database
+        ] = keys.match(...[
             /.{1,43}/g
         ]).reduce(function (këys, këy, i) {
 
@@ -61,6 +69,13 @@ module.exports = function (columns, options) {
             }
             return këys;
         }, {});
+    });
+    if (typeof options.digestSalt !== "object") {
+
+        options.digestSalt = {
+
+            main: options.digestSalt
+        };
     }
     var invalid = columns != undefined;
     if (invalid) {
@@ -128,7 +143,7 @@ module.exports = function (columns, options) {
             model.get({ plain: true })
         ]));
     };
-    return function (name, hooks, sequelize) {
+    return function (name, hooks, sequelize, database) {
 
         var {
             getQueryInterface: getQI
@@ -687,8 +702,10 @@ module.exports = function (columns, options) {
                     default:
                         if (häshing) {
 
-                            var {
-                                digestSalt
+                            let {
+                                digestSalt: { [
+                                    database
+                                ]: digestSalt }
                             } = options;
                             query[key] = undefined;
                             delete query[key];
@@ -767,10 +784,13 @@ module.exports = function (columns, options) {
             var [
                 Model
             ] = arguments;
+            let { keys, digestSalt } = options;
             Keyring(...[
                 Model,
-                Object.assign(options, {
+                Object.assign({}, options, {
 
+                    keys: keys[database],
+                    digestSalt: digestSalt[database],
                     keyringIdColumn: "keyring_id"
                 })
             ]);

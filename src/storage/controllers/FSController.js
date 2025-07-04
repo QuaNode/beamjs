@@ -24,7 +24,7 @@ var decode = function (path) {
 
 var ResourceController = function () {
 
-    var self = this;
+    let self = this;
     self.loadResource = function () {
 
         var [

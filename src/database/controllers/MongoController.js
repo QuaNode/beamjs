@@ -125,7 +125,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
     ANY(value, options, expression) {
 
         var database = expression.database;
-        var many = Array.isArray(value);
+        let many = Array.isArray(value);
         var query = many && value.some(function (condition) {
 
             return condition instanceof QueryExpression
@@ -191,7 +191,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
 
         var { fieldName, database } = expression;
         var attributes = fieldName.split(".");
-        var one = !Array.isArray(attributes);
+        let one = !Array.isArray(attributes);
         if (!one) one |= attributes.length < 2;
         if (one) {
 
@@ -388,7 +388,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
 
             throw new Error("Invalid in operator array");
         }
-        var self = this;
+        let self = this;
         return self.OR(rightValue.map(function (value) {
 
             return self.EQUALIGNORECASE(leftValue, value);
@@ -629,15 +629,15 @@ var getQuery = function () {
                 fieldName,
                 fieldValue,
                 comparisonOperator: comparisonOp,
-                comparisonOperatorOptions: comparisonOpt
+                comparisonOperatorOptions: comparisonOpts
             } = queryExpression;
             filter[fieldName] = fieldValue;
             if (typeof comparisonOp === "string") {
 
                 subFilter[comparisonOp] = fieldValue;
-                if (typeof comparisonOpt === "function") {
+                if (typeof comparisonOpts === "function") {
 
-                    subFilter = comparisonOpt.apply(...[
+                    subFilter = comparisonOpts.apply(...[
                         ComparisonOperators, [
                             subFilter,
                             queryExpression
@@ -649,7 +649,7 @@ var getQuery = function () {
                 subFilter = comparisonOp.apply(...[
                     ComparisonOperators, [
                         fieldValue,
-                        comparisonOpt,
+                        comparisonOpts,
                         queryExpression
                     ]
                 ]);
@@ -708,7 +708,7 @@ var getQuery = function () {
 
 var constructQuery = function (queryExpressions, database) {
 
-    var many = Array.isArray(queryExpressions);
+    let many = Array.isArray(queryExpressions);
     if (many) queryExpressions.forEach(function () {
 
         var [queryExpression, index] = arguments;
@@ -838,7 +838,7 @@ var getExecuteQuery = function (session) {
         }
         if (cache) query = query.cache();
         if (readonly) query = query.lean();
-        var time = session.busy();
+        let time = session.busy();
         var paginating = paginate;
         paginating &= typeof limit === "number";
         if (paginating) query.paginate(...[
@@ -931,9 +931,9 @@ var getMapReduce = function (session) {
         ] = arguments;
         if (!ObjectConstructor.mapReduce) {
 
-            throw new Error('mapReduce is deprecated');
+            throw new Error("mapReduce is deprecated");
         }
-        var options = {};
+        let options = {};
         var {
             filter,
             sort,
@@ -958,7 +958,7 @@ var getMapReduce = function (session) {
             if (!page) page = features.page;
         }
         var collection;
-        var many = queryExpressions.length > 0;
+        let many = queryExpressions.length > 0;
         var empty = filterExpressions.length === 0;
         if (filter && many && empty) {
 
@@ -1064,10 +1064,10 @@ var getMapReduce = function (session) {
             } = (stats || {}).counts || {};
             if (input == undefined && paginating) {
 
-                var countFunc = 'estimatedDocumentCount';
+                var countFunc = "estimatedDocumentCount";
                 if (options.query) {
 
-                    countFunc = 'countDocuments';
+                    countFunc = "countDocuments";
                 }
                 ObjectConstructor[countFunc](...[
                     options.query,
@@ -1078,7 +1078,7 @@ var getMapReduce = function (session) {
                 ]);
             } else cb(input);
         };
-        var time = session.busy();
+        let time = session.busy();
         ObjectConstructor.mapReduce(options, function () {
 
             var [error, out] = arguments;
@@ -1206,7 +1206,7 @@ var constructAggregate = function () {
         aggregateExpressions,
         orderOrField
     ] = arguments;
-    var many = Array.isArray(aggregateExpressions);
+    let many = Array.isArray(aggregateExpressions);
     if (many) aggregateExpressions.forEach(function () {
 
         var [aggregateExpression] = arguments;
@@ -1215,7 +1215,7 @@ var constructAggregate = function () {
             throw new Error("Invalid aggregate expressions");
         }
         var { contextualLevels } = aggregateExpression;
-        var one = !Array.isArray(contextualLevels);
+        let one = !Array.isArray(contextualLevels);
         if (one || contextualLevels.some(function () {
 
             var [contextualLevel] = arguments;
@@ -1309,7 +1309,7 @@ var getExecuteAggregate = function (session) {
         }
         var { mapReduce } = features;
         var aggregate = ObjectConstructor.aggregate();
-        var many = queryExpressions.length > 0;
+        let many = queryExpressions.length > 0;
         var empty = filterExpressions.length === 0;
         if (filter && many && empty) {
 
@@ -1562,7 +1562,7 @@ var getExecuteAggregate = function (session) {
                 });
             }
         }
-        var time = session.busy();
+        let time = session.busy();
         aggregate.exec(function (error, result) {
 
             var {
@@ -1587,10 +1587,10 @@ var getExecuteAggregate = function (session) {
                 }
             } else session.idle(time, function () {
 
-                var {
+                let {
                     mongoose: möngoose
                 } = sessions[session.database];
-                var Schema = möngoose.Schema;
+                let Schema = möngoose.Schema;
                 var Model = möngoose.models[collection];
                 if (!Model) Model = möngoose.model(...[
                     collection,
@@ -1640,18 +1640,16 @@ var openConnection = function () {
         callback,
         closeCb
     ] = arguments;
-    var {
+    let {
         mongoose: möngoose
     } = sessions[database];
     var connect = function () {
 
-        var options = {
+        let options = {
 
-            useUnifiedTopology: true,
-            useNewUrlParser: true,
             keepAlive: true,
             heartbeatFrequencyMS: 5000,
-            poolSize: 25
+            maxPoolSize: 25
         };
         try {
 
@@ -1732,7 +1730,7 @@ var openConnection = function () {
 
 var checkConnection = function (options, callback) {
 
-    var {
+    let {
         mongoose: möngoose
     } = sessions[options.database];
     var { connections } = möngoose;
@@ -1756,13 +1754,13 @@ var checkConnection = function (options, callback) {
 
 var ModelController = function (defaultURI, cb, options, KEY) {
 
-    var self = this;
+    let self = this;
     self.type = "mongodb";
     var Session = define(function (init) {
 
         return function () {
 
-            var self = init.apply(this, arguments).self();
+            let self = init.apply(this, arguments).self();
             var busy = 0;
             var reconnect = false;
             var MAX_LATENCY = 10000;
@@ -1892,8 +1890,8 @@ var ModelController = function (defaultURI, cb, options, KEY) {
             }
         }, session.filter(function (modelObject) {
 
-            var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor(KEY);
+            let { getObjectConstructor } = entity;
+            let ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
@@ -1913,8 +1911,8 @@ var ModelController = function (defaultURI, cb, options, KEY) {
 
             try {
 
-                var { getObjectConstructor } = entity;
-                var ObjectConstructor = getObjectConstructor(KEY);
+                let { getObjectConstructor } = entity;
+                let ObjectConstructor = getObjectConstructor(KEY);
                 var modelObject = new ObjectConstructor(...[
                     objAttributes
                 ]);
@@ -2029,22 +2027,26 @@ var ModelController = function (defaultURI, cb, options, KEY) {
             }
         }, session.filter(function (modelObject) {
 
-            var { getObjectConstructor } = entity;
-            var ObjectConstructor = getObjectConstructor(KEY);
+            let { getObjectConstructor } = entity;
+            let ObjectConstructor = getObjectConstructor(KEY);
             return modelObject instanceof ObjectConstructor;
         }));
     };
-    self.save = function (callback, oldSession) {
+    self.save = function (callback, oldSession, opts) {
 
-        var {
+        let {
             mongoose: möngoose,
             session: sëssion
         } = sessions[KEY];
-        var many = Array.isArray(oldSession);
+        let many = Array.isArray(oldSession);
         var workingSession;
         if (many) workingSession = oldSession; else {
 
             workingSession = session.concat(sëssion);
+            if (typeof oldSession === "object") {
+
+                if (!opts) opts = oldSession;
+            }
         }
         if (workingSession.length === 0) {
 
@@ -2073,8 +2075,10 @@ var ModelController = function (defaultURI, cb, options, KEY) {
                 }
                 if (saving) {
 
-                    var time = session.busy();
-                    workingModelObject.save(function () {
+                    let time = session.busy();
+                    workingModelObject.save(...[...(opts ? [
+                        opts
+                    ] : []), function () {
 
                         var [
                             error,
@@ -2110,7 +2114,7 @@ var ModelController = function (defaultURI, cb, options, KEY) {
                                 ])) save(index + 1);
                             });
                         }
-                    });
+                    }]);
                 } else if (workingSession.length > index + 1) {
 
                     if (checkConnection(...[
@@ -2147,7 +2151,7 @@ var DataType = function (datatype, options, resolve, directives) {
             return datatype;
         case Map:
             var [ValueType] = options;
-            var many = options.length > 1;
+            let many = options.length > 1;
             var value = {
 
                 datatype: many ? options : ValueType
@@ -2207,10 +2211,10 @@ var DataType = function (datatype, options, resolve, directives) {
                     throw new Error("Invalid field custom" +
                         " data type name");
                 }
-                var {
+                let {
                     mongoose: möngoose
                 } = sessions[database];
-                var Type = function (key, öptions) {
+                let Type = function (key, öptions) {
 
                     möngoose.SchemaType.call(...[
                         this,
@@ -2242,7 +2246,7 @@ var resolveAttributes = function (attributes, directives) {
         } else value = attributes[property];
         var isArray = Array.isArray(value);
         var [, ...options] = isArray ? value : [];
-        var Type = isArray ? value[0] : value;
+        let Type = isArray ? value[0] : value;
         var type = typeof Type;
         var setType = function () {
 
@@ -2348,6 +2352,7 @@ var resolveAttributes = function (attributes, directives) {
                     throw new Error("Custom field data" +
                         " type needs cast function");
                 }
+                options[1] = Type;
                 Type = options[0];
                 options = [Type].concat(options.slice(1));
             case "function":
@@ -2378,60 +2383,140 @@ var resolveAttributes = function (attributes, directives) {
     return copy;
 };
 
-ModelController.defineEntity = function () {
+var resolveConstraints = function (schema, constraints) {
 
-    var [
-        name,
-        attributes,
-        plugins, ,
-        database,
-        resolve
-    ] = arguments;
-    if (typeof name !== "string") {
+    if (!constraints) return;
+    Object.keys(constraints).forEach(function (property) {
 
-        throw new Error("Invalid entity name");
-    }
-    if (typeof attributes !== "object") {
+        let constraint = constraints[property];
+        let constraining = !!constraint;
+        constraining &= typeof constraint === "object";
+        if (!constraining) return;
+        var path = schema.path(property);
+        if (!path) return;
+        Object.keys(constraint).forEach(function (key) {
 
-        throw new Error("Invalid entity schema");
-    }
-    if (!sessions[database]) {
+            constraining = !!constraint[key];
+            constraining &= typeof path[key] === "function";
+            if (constraining) {
 
-        throw new Error("mongoose is not initialized");
-    }
-    var {
-        mongoose: möngoose
-    } = sessions[database];
-    var Schema = möngoose.Schema;
-    var schema = new Schema(resolveAttributes(...[
-        attributes,
-        { database, validate: false, copy: {} }
-    ]), { autoIndex: false, usePushEach: true });
-    if (Array.isArray(plugins)) {
+                if (key === "validate") {
 
-        for (var i = 0; i < plugins.length; i++) {
+                    if (!Array.isArray(constraint[key])) {
 
-            if (typeof plugins[i] === "function") {
+                        constraint[key] = [constraint[key]];
+                    }
+                    constraint[key].forEach(function () {
 
-                schema.plugin(plugins[i]);
+                        var [validate] = arguments;
+                        var validation = validate;
+                        if (typeof validate === "object") {
+
+                            ({ validate } = validate);
+                        }
+                        if (typeof validate === "function") {
+
+                            path.validate(validation);
+                        }
+                    });
+                } else path[key](constraint[key]);
             }
-        }
-    }
-    var Model = möngoose.model(name, schema);
-    var attributes_copy = {};
-    resolveAttributes(attributes, {
-
-        database,
-        validate: true,
-        copy: resolve ? undefined : attributes_copy
+        });
     });
-    if (!resolve) attributes = attributes_copy;
+};
+
+var resolvePaths = function () {
+
+    let [
+        attributes,
+        Model
+    ] = arguments;
+    var getModelObjects = function () {
+
+        let [
+            wräpper,
+            wrapper,
+            properties,
+            property,
+            index,
+            value,
+            toMany
+        ] = arguments;
+        return wräpper.reduce(function () {
+
+            let [
+                modelObjects,
+                modelObject
+            ] = arguments;
+            if (typeof modelObject !== "object") {
+
+                return modelObjects;
+            }
+            if (modelObject instanceof Date) {
+
+                return modelObjects;
+            }
+            let many = Array.isArray(...[
+                modelObject
+            ]);
+            if (many && !integer) {
+
+                return [
+                    ...modelObjects,
+                    ...getModelObjects(...[
+                        modelObject,
+                        wrapper,
+                        properties,
+                        property,
+                        index,
+                        value,
+                        toMany
+                    ])
+                ];
+            }
+            if (index === properties.length - 1) {
+
+                if (typeof Type === "function") {
+
+                    modelObject[
+                        property
+                    ] = new Type(value);
+                } else modelObject[
+                    property
+                ] = value;
+                if (wrapper.markModified === false) {
+
+                    wrapper.markModified = true;
+                    self.markModified(path);
+                }
+            } else if (!modelObject[
+                property
+            ]) {
+
+                modelObject[
+                    property
+                ] = toMany ? [{}] : {};
+            }
+            if (toMany) {
+
+                return [
+                    ...modelObjects,
+                    ...[].concat(...[
+                        modelObject[property]
+                    ])
+                ];
+            } else modelObjects.push(...[
+                modelObject[property]
+            ]);
+            return modelObjects;
+        }, []);
+    };
     Object.defineProperty(Model.prototype, "self", {
 
         enumerable: true,
         get() {
 
-            var self = this;
+            let self = this;
             return {
 
                 set(path, value) {
@@ -2448,7 +2533,7 @@ ModelController.defineEntity = function () {
                                 index,
                                 properties
                             ] = arguments;
-                            var Type = wrapper.attributes;
+                            let Type = wrapper.attributes;
                             var toMany = Array.isArray(Type);
                             if (toMany) Type = Type[0];
                             if (typeof Type !== "object") {
@@ -2479,78 +2564,16 @@ ModelController.defineEntity = function () {
 
                                 wrapper.markModified = false;
                             }
-                            var getModelObjects = function () {
-
-                                var [
-                                    wräpper
-                                ] = arguments;
-                                return wräpper.reduce(function () {
-
-                                    var [
-                                        modelObjects,
-                                        modelObject
-                                    ] = arguments;
-                                    if (typeof modelObject !== "object") {
-
-                                        return modelObjects;
-                                    }
-                                    if (modelObject instanceof Date) {
-
-                                        return modelObjects;
-                                    }
-                                    var many = Array.isArray(...[
-                                        modelObject
-                                    ]);
-                                    if (many && !integer) {
-
-                                        return [
-                                            ...modelObjects,
-                                            ...getModelObjects(...[
-                                                modelObject
-                                            ])
-                                        ];
-                                    }
-                                    if (index === properties.length - 1) {
-
-                                        if (typeof Type === "function") {
-
-                                            modelObject[
-                                                property
-                                            ] = new Type(value);
-                                        } else modelObject[
-                                            property
-                                        ] = value;
-                                        if (wrapper.markModified === false) {
-
-                                            wrapper.markModified = true;
-                                            self.markModified(path);
-                                        }
-                                    } else if (!modelObject[
-                                        property
-                                    ]) {
-
-                                        modelObject[
-                                            property
-                                        ] = toMany ? [{}] : {};
-                                    }
-                                    if (toMany) {
-
-                                        return [
-                                            ...modelObjects,
-                                            ...[].concat(...[
-                                                modelObject[property]
-                                            ])
-                                        ];
-                                    } else modelObjects.push(...[
-                                        modelObject[property]
-                                    ]);
-                                    return modelObjects;
-                                }, []);
-                            };
                             return {
 
                                 modelObjects: getModelObjects(...[
-                                    wrapper.modelObjects
+                                    wrapper.modelObjects,
+                                    wrapper,
+                                    properties,
+                                    property,
+                                    index,
+                                    value,
+                                    toMany
                                 ]),
                                 attributes: Type || {},
                                 markModified: wrapper.markModified
@@ -2565,6 +2588,63 @@ ModelController.defineEntity = function () {
             };
         }
     });
+};
+
+ModelController.defineEntity = function () {
+
+    let [
+        name,
+        attributes,
+        plugins,
+        constraints,
+        database,
+        resolve
+    ] = arguments;
+    if (typeof name !== "string") {
+
+        throw new Error("Invalid entity name");
+    }
+    if (typeof attributes !== "object") {
+
+        throw new Error("Invalid entity schema");
+    }
+    if (constraints && typeof constraints !== "object") {
+
+        throw new Error("Invalid entity constraints");
+    }
+    if (!sessions[database]) {
+
+        throw new Error("mongoose is not initialized");
+    }
+    let {
+        mongoose: möngoose
+    } = sessions[database];
+    let Schema = möngoose.Schema;
+    var schema = new Schema(resolveAttributes(...[
+        attributes,
+        { database, validate: false, copy: {} }
+    ]), { autoIndex: false, usePushEach: true });
+    resolveConstraints(schema, constraints);
+    if (Array.isArray(plugins)) {
+
+        for (var i = 0; i < plugins.length; i++) {
+
+            if (typeof plugins[i] === "function") {
+
+                schema.plugin(plugins[i], { database });
+            }
+        }
+    }
+    var Model = möngoose.model(name, schema);
+    var attributes_copy = {};
+    resolveAttributes(attributes, {
+
+        database,
+        validate: true,
+        copy: resolve ? undefined : attributes_copy
+    });
+    if (!resolve) attributes = attributes_copy;
+    resolvePaths(attributes, Model);
     return Model;
 };
 

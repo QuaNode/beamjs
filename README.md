@@ -2,101 +2,103 @@
 
 ![0_00](https://user-images.githubusercontent.com/3101473/227795966-12f87168-4b4a-454f-a806-0a72f5a1fe5d.png)
 
-Private IoB & Enterprise full stack web development framework (Backend-JS - ExpressJS - AngularJS - MongoDB)
+**Private IoB & Enterprise Full-Stack Web Development Framework**  
+(Backend-JS – ExpressJS – AngularJS – MongoDB)
 
-# Introduction
+---
 
-- BeamJS is built above Backend-JS to provide data controllers for SQL and No-SQL databases. It also includes file system controllers that work on a local file system or cloud storage.
-- These data controllers are abstract adapters above ODM/ORM patterns of MongooseJS and SequelizeJS. The objective of these adapters is to define unified query APIs to work across different database engines even across NO-SQL and SQL.
-- BeamJS is an abbreviation for the following technology stack:
-  - Backend-JS - A NodeJS module and library built above ExpressJS [check here](https://github.com/quaNode/Backend-JS).
-  - ExpressJS - A minimal and flexible Node.js web application framework [check here](https://github.com/expressjs/expressjs.com).
-  - Angular - A single-page application front-end framework [check here](https://github.com/angular/angular).
-  - MongoDB - A NO-SQL database engine [check here](https://github.com/mongodb/mongo).
-- BeamJS can be configured to work within different technology stacks of database engines and front-end frameworks.
+## Introduction
+
+- BeamJS is built on top of Backend-JS, offering data controllers for both SQL and NoSQL databases. It also provides file system controllers that work with local or cloud storage.
+- These data controllers act as abstract adapters over ODM/ORM patterns from MongooseJS and SequelizeJS. Their purpose is to define a unified query API that works across different database engines—including both NoSQL and SQL.
+- **BeamJS** stands for the following technology stack:
+  - **Backend-JS** – A Node.js module built on ExpressJS. [Check it out](https://github.com/quaNode/Backend-JS).
+  - **ExpressJS** – A minimal and flexible Node.js web application framework. [Visit repo](https://github.com/expressjs/expressjs.com).
+  - **Angular** – A single-page front-end application framework. [View here](https://github.com/angular/angular).
+  - **MongoDB** – A NoSQL database engine. [More info](https://github.com/mongodb/mongo).
+- BeamJS is flexible and can be configured to work with different database engines and front-end frameworks.
+
+---
 
 ## Why BeamJS and Backend-JS?
 
-- It is built for agility and highly configurable, modular, and adapting systems.
-- It is an enterprise-level declarative framework for private IoB so you can code your organizational and customer behaviors seamlessly and securely specially when integrating with AI agents.
-- It supports DB encryption for pseudonymization and GDPR compliance.
-- It provides a built-in data mapping pipeline.
-- It supports CQRS architecture through mixed model definitions over different DBs.
-- It supports Horizontal/DB multi-tenancy by automatically handling multi-DB connection mapping.
-- It provides a deep route-based load balancing through a built-in queuing service.
-- It provides a built-in static files server decoupling the file source that could be a local file system or cloud storage from HTTP static request handling. 
-- It supports complex file streaming and transformations within the built-in queue system and load balancing.
-- It provides a built-in forward- and reverse-proxy server utilizing the queuing system for fast load-balancing, virtual hosts, and complex domain routing. 
-- It supports connectionless long-polling HTTP requests.
-- It supports event-driven architecture above mixed protocols HTTP/WebSocket for pulling and pushing.
-- It provides abstract HTTP-secured WebSockets for highly secured and scalable real-time events and other unique features like sub-rooms.
-- It is ready for event-sourcing applications.
-- Backend-JS introduces the terminology of API **Behavior** represents organizational and customer behavior that is implemented vertically based on a built-in customizable enterprise algorithmic mental model inspired by BDD applying Behavior-first pattern [check here](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
-- It supports micro-services architecture by vertically implementing **Behaviors** (APIs) besides the built-in services abstraction layer.
-- To define a **Behavior** (API), The framework drives you to write the contract/specification first which can be viewed later by integrators for simple REST integrations.
-- Integrating applications made using BeamJS and Backend-JS is a **SOAP-like above REST APIs**. It comes with 7 front-end integration libraries as follows:
-  - [ng-behaviours](https://github.com/QuaNode/ng-behaviours) for Angular and Angular-based (e,g, ionic) applications.
-  - [js-behaviours](https://github.com/QuaNode/js-behaviours) for NodeJS, NodeJS-based (e.g. ElectronJS), and browser.
-  - [dotnet-behaviours](https://github.com/QuaNode/dotnet-behaviours) for .Net core.
-  - [droid-behaviours](https://github.com/QuaNode/droid-behaviours) for Android.
-  - [ios-behaviours](https://github.com/QuaNode/ios-behaviours) for iOS.
-  - [php-behaviours](https://github.com/QuaNode/php-behaviours) for PHP.
-  - titanium-behaviours for Appcelerator Titanium.
-  - [more coming.](https://github.com/QuaNode)
-- Integration between applications made using BeamJS and Backend-JS is like calling internal functions and RPC in distributed systems.
-- The whole framework is the backbone of the Behaviours product where code is generated by dragging and dropping. Taking in mind that the code generated is downloadable, editable, and maintainable not like other code generators you know.
+- Designed for agility, BeamJS supports highly configurable, modular, and adaptive systems.
+- It is an enterprise-grade, declarative framework for private IoB, allowing you to implement organizational and customer behaviors seamlessly and securely—especially when integrating with AI agents.
+- Features include:
+  - Database encryption for pseudonymization and GDPR compliance.
+  - A built-in data mapping pipeline.
+  - Support for CQRS architecture with mixed model definitions across different databases.
+  - Horizontal/database multi-tenancy with automatic multi-DB connection mapping.
+  - Deep route-based load balancing using an integrated queuing system.
+  - A built-in static file server that decouples file sources (local or cloud) from HTTP static request handling.
+  - Complex file streaming and transformations managed within the queue system and load balancer.
+  - A built-in forward and reverse proxy server using the queue system for efficient load balancing, virtual hosting, and advanced domain routing.
+  - Support for connectionless long-polling HTTP requests.
+  - Event-driven architecture over mixed HTTP/WebSocket protocols for pulling and pushing data.
+  - Abstract, secure WebSocket handling for scalable real-time events, including features like sub-rooms.
+  - It is ready for event-sourcing applications.
+
+- Backend-JS introduces the concept of **API Behaviors**—organizational and customer behaviors implemented vertically using a customizable enterprise algorithmic mental model. This model follows a *Behavior-First* approach inspired by BDD. [Read more](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).
+
+- It supports a microservices architecture by vertically implementing **Behaviors** (APIs), along with a built-in service abstraction layer.
+- The framework encourages defining the API contract first. These contracts can then be viewed by integrators for straightforward REST integration. This Behavioral model combines behavioral science, API-first, and headless architecture principles to deliver highly robust and modern applications.
+
+- Integration between applications built with BeamJS and Backend-JS is akin to internal function calls or RPC in distributed systems. It supports SOAP-like behavior on top of REST APIs and provides several front-end integration libraries:
+  - [ng-behaviours](https://github.com/QuaNode/ng-behaviours) – For Angular and Ionic.
+  - [js-behaviours](https://github.com/QuaNode/js-behaviours) – For Node.js, ElectronJS, and browser.
+  - [dotnet-behaviours](https://github.com/QuaNode/dotnet-behaviours) – For .NET Core.
+  - [droid-behaviours](https://github.com/QuaNode/droid-behaviours) – For Android.
+  - [ios-behaviours](https://github.com/QuaNode/ios-behaviours) – For iOS.
+  - [php-behaviours](https://github.com/QuaNode/php-behaviours) – For PHP.
+  - **titanium-behaviours** – For Appcelerator Titanium.
+  - [More coming soon](https://github.com/QuaNode)
+
+- The framework powers the **Behaviours** product, where code is generated directly from user stories. Importantly, the generated code is fully editable and maintainable—unlike most other code generators.
+
+---
 
 ## Benchmarking
 
-- The code of the framework is scoring between class **A and C** in the static analyzer of [Codacy](https://github.com/marketplace/codacy).
-- The load testing of applications made using this framework with heavy server workload scored **10k** sessions per minute and above **1K** concurrent connections on 1G RAM 1vCPU AWS EC2.
-- The dependencies of the framework do not exceed **30** and vulnerabilities **0 or 1**.
+- Codacy static analysis rates the framework between **A and C**.
+- Load testing of applications built with BeamJS reached over **10,000 sessions per minute** and more than **1,000 concurrent connections** on a 1 GB RAM / 1 vCPU AWS EC2 instance.
+- The total number of dependencies is under **30**, with **0 or 1 known vulnerabilities**.
+
+---
 
 ## Installation
 
-    npm install beamjs functional-chain-behaviour
-
-## Usage
-
-```js
-var backend = require("beamjs").backend();
-var behaviour = backend.behaviour("/api/v1");
-var {
-    FunctionalChainBehaviour
-} = require('functional-chain-behaviour')();
-
-var model = backend.model();
-var User = model(
-  {
-    name: "User",
-  },
-  {
-    username: String,
-    password: String,
-  }
-);
-
-behaviour(
-  {
-    name: "GetUsers",
-    inherits: FunctionalChainBehaviour,
-    version: "1",
-    path: "/users",
-    method: "GET",
-  },
-  function (init) {
-    return function () {
-      var self = init.apply(this, arguments).self();
-      self.entity(new User()).query().pipe();
-    };
-  }
-);
+```bash
+npm install beamjs functional-chain-behaviour
 ```
 
 ## Starter project
 
-A sample project that you can learn from examples of how to use BeamJS.
+Explore a sample project with usage examples:
 
-#### [https://github.com/QuaNode/BeamJS-Start](https://github.com/QuaNode/BeamJS-Start)
+👉 [https://github.com/QuaNode/BeamJS-Start](https://github.com/QuaNode/BeamJS-Start)
 
-####
+---
+
+## Documentation
+
+### Table of Contents
+
+- **[Getting Started](./docs/installation/installation.md)**
+  - [Installation](./docs/installation/installation.md)
+  - [Starter](./docs/installation/starter.md)
+  - [Architecture](./docs/architecture.md)
+  - [Behaviors](./docs/behaviors.md)
+- **[Usage](./docs/usage/backend.md)**
+  - [Backend](./docs/usage/backend.md)
+  - [Model](./docs/usage/model.md)
+  - [Entity](./docs/usage/entity.md)
+  - [Query](./docs/usage/query.md)
+  - [Service](./docs/usage/service.md)
+  - [Data](./docs/usage/data.md)
+  - [Behavior](./docs/usage/behavior.md)
+
+  ---
+
+## 📄 License
+
+- [licensed as MIT](./LICENSE).

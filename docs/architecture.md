@@ -71,16 +71,16 @@ module.exports.processOrder = behavior({
 
 Continue reading the documentation:
 
-- **[Getting Started](./docs/installation/installation.md)**
-  - [Installation](./docs/installation/installation.md)
-  - [Starter](./docs/installation/starter.md)
-  - [Architecture](./docs/architecture.md)
-  - [Behaviors](./docs/behaviors.md)
-- **[Usage](./docs/usage/backend.md)**
-  - [Backend](./docs/usage/backend.md)
-  - [Model](./docs/usage/model.md)
-  - [Entity](./docs/usage/entity.md)
-  - [Query](./docs/usage/query.md)
-  - [Service](./docs/usage/service.md)
-  - [Data](./docs/usage/data.md)
-  - [Behavior](./docs/usage/behavior.md)
+- **[Getting Started](./installation/installation.md)**
+  - [Installation](./installation/installation.md)
+  - [Starter](./installation/starter.md)
+  - [Architecture](./architecture.md)
+  - [Behaviors](./behaviors.md)
+- **[Usage](./usage/backend.md)**
+  - [Backend](./usage/backend.md)
+  - [Model](./usage/model.md)
+  - [Entity](./usage/entity.md)
+  - [Query](./usage/query.md)
+  - [Service](./usage/service.md)
+  - [Data](./usage/data.md)
+  - [Behavior](./usage/behavior.md)

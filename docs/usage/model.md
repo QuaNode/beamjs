@@ -638,16 +638,16 @@ module.exports.user = model({
 
 Continue reading the documentation:
 
-- **[Getting Started](./docs/installation/installation.md)**
-  - [Installation](./docs/installation/installation.md)
-  - [Starter](./docs/installation/starter.md)
-  - [Architecture](./docs/architecture.md)
-  - [Behaviors](./docs/behaviors.md)
-- **[Usage](./docs/usage/backend.md)**
-  - [Backend](./docs/usage/backend.md)
-  - [Model](./docs/usage/model.md)
-  - [Entity](./docs/usage/entity.md)
-  - [Query](./docs/usage/query.md)
-  - [Service](./docs/usage/service.md)
-  - [Data](./docs/usage/data.md)
-  - [Behavior](./docs/usage/behavior.md)
+- **[Getting Started](../installation/installation.md)**
+  - [Installation](../installation/installation.md)
+  - [Starter](../installation/starter.md)
+  - [Architecture](../architecture.md)
+  - [Behaviors](../behaviors.md)
+- **[Usage](./backend.md)**
+  - [Backend](./backend.md)
+  - [Model](./model.md)
+  - [Entity](./entity.md)
+  - [Query](./query.md)
+  - [Service](./service.md)
+  - [Data](./data.md)
+  - [Behavior](./behavior.md)

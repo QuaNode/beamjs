@@ -1018,7 +1018,14 @@ var getMapReduce = function (session) {
 
             options.finalize = finalize;
         }
-        options.scope = scope;
+        options.scope = Object.keys(scope).reduce(function (scope, key) {
+
+            if (scope[key] === undefined || scope[key] === null) {
+
+                scope[key] = '';
+            }
+            return scope;
+        }, scope);
         if (options.scope._) {
 
             throw new Error("Invalid use of _ it is reserved");

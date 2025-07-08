@@ -14,9 +14,9 @@
 - **BeamJS** stands for the following technology stack:
   - **Backend-JS** – A Node.js module built on ExpressJS. [Check it out](https://github.com/quaNode/Backend-JS).
   - **ExpressJS** – A minimal and flexible Node.js web application framework. [Visit repo](https://github.com/expressjs/expressjs.com).
-  - **Angular** – A single-page front-end application framework. [View here](https://github.com/angular/angular).
-  - **MongoDB** – A NoSQL database engine. [More info](https://github.com/mongodb/mongo).
-- BeamJS is flexible and can be configured to work with different database engines and front-end frameworks.
+  - **Angular (or Any)** – A single-page front-end application framework. [View here](https://github.com/angular/angular).
+  - **MongoDB (or Many)** – A NoSQL database engine. [More info](https://github.com/mongodb/mongo).
+- BeamJS is a tech-agnostic framework that can be configured to work with different database engines and front-end frameworks.
 
 ---
 

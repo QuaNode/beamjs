@@ -1,6 +1,6 @@
 ## 🚀 Welcome to BeamJS
 
-BeamJS represents a revolutionary approach to backend development, combining the power of **behavior-first architecture** with enterprise-grade security and performance. Built from the ground up for modern applications, BeamJS transforms complex business logic into elegant, maintainable code through its innovative high-level declarative programming model that truely fits human developers and perfectly vibe coding.
+BeamJS represents a revolutionary approach to backend development, combining the power of **behavior-first architecture** with enterprise-grade security and performance. Built from the ground up for modern applications, BeamJS transforms complex business logic into elegant, maintainable code through its innovative high-level declarative programming model that truely fits human developers and perfectly vibe coding and context engineering.
 
 ### ✨ Why BeamJS Changes Everything
 

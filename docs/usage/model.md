@@ -164,7 +164,7 @@ When using reserved database words as field names, use the object notation:
 
 ## Constraints System
 
-Constraints provide database-specific configuration for SQL databases.
+Constraints provide database-specific configuration for SQL and NoSQL databases.
 
 ### SQL Constraints
 

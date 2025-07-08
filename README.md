@@ -65,12 +65,6 @@
 
 ---
 
-## Installation
-
-```bash
-npm install beamjs functional-chain-behaviour
-```
-
 ## Starter project
 
 Explore a sample project with usage examples:

@@ -2,8 +2,7 @@
 
 ![0_00](https://user-images.githubusercontent.com/3101473/227795966-12f87168-4b4a-454f-a806-0a72f5a1fe5d.png)
 
-**Private IoB & Enterprise Full-Stack Web Development Framework**  
-(Backend-JS – ExpressJS – AngularJS – MongoDB)
+Private IoB & generative AI IoC enterprise full-stack web development framework Built on BackendJS, ExpressJS, AngularJS (or Any), and MongoDB (or Many) — designed for behavior-first, declarative, and modular enterprise systems.
 
 ---
 

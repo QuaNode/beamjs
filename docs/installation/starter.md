@@ -10,7 +10,7 @@ mkdir my-beamjs-app && cd my-beamjs-app
 
 # 2. Initialize & install
 npm init -y
-npm install beamjs mongoose-timestamp mongoose-hashed-property mongoose-secret
+npm install beamjs functional-chain-behaviour mongoose-timestamp mongoose-hashed-property mongoose-secret
 
 # 3. Create server.js
 ```
@@ -326,11 +326,11 @@ module.exports.login = behaviour({
             } else {
                 next();
             }
+        }).skip(function () {
+            return !!error;
         }).map(function (response) {
-            if (error) {
+            if (!user) {
                 response.success = false;
-                response.error = error.message;
-                response.code = error.code || 500;
             } else {
                 response.success = success;
                 response.token = token;
@@ -490,19 +490,19 @@ module.exports.register = behaviour({
                     if (e) {
                         error = e;
                         success = false;
-                    } else {
-                        user = Array.isArray(savedUsers) && savedUsers[0];
+                    } else if (Array.isArray(savedUsers)) {
+                        ([user] = savedUsers);
                     }
                     next();
                 });
             } else {
                 next();
             }
+        }).skip(function () {
+            return !!error;
         }).map(function (response) {
-            if (error) {
+            if (!user) {
                 response.success = false;
-                response.error = error.message;
-                response.code = error.code || 500;
             } else {
                 response.success = success;
                 response.user = {
@@ -511,7 +511,7 @@ module.exports.register = behaviour({
                     lastName: user.lastName,
                     email: user.email
                 };
-            }
+            }            
         }).end();
     };
 });
@@ -559,6 +559,10 @@ module.exports.getProfile = behaviour({
     path: '/user/profile',
     method: 'GET',
     parameters: {
+        token: {
+            key: 'X-Access-Token',
+            type: 'header'
+        },
         authenticated: {
             key: 'authenticated',
             type: 'middleware'
@@ -604,6 +608,192 @@ module.exports.getProfile = behaviour({
 });
 ```
 
+```javascript
+// src/behaviours/user/profile/update/index.js
+/*jslint node: true*/
+'use strict';
+
+var backend = require('beamjs').backend();
+var behaviour = backend.behaviour();
+var {
+  FunctionalChainBehaviour
+} = require('functional-chain-behaviour')();
+
+module.exports.updateProfile = behaviour({
+
+    name: 'updateProfile',
+    inherits: FunctionalChainBehaviour,
+    version: '1',
+    type: 'database_with_action',
+    path: '/user/profile/update',
+    method: 'POST',
+    parameters: {
+        token: {
+            key: 'X-Access-Token',
+            type: 'header'
+        },
+        firstName: {
+            key: 'firstName',
+            type: 'body'
+        },
+        lastName: {
+            key: 'lastName',
+            type: 'body'
+        },
+        authenticated: {
+            key: 'authenticated',
+            type: 'middleware'
+        },
+        user: {
+            key: 'user',
+            type: 'middleware'
+        }
+    },
+    returns: {
+        updated: {
+            key: 'updated',
+            type: 'body'
+        },
+        user: {
+            key: 'user',
+            type: 'body'
+        }
+    }
+}, function (init) {
+
+    return function () {
+        var self = init.apply(this, arguments).self();
+        var { authenticated, user, firstName, lastName } = self.parameters;
+        var error = null;
+        var updated = false;
+
+        self.catch(function (e) {
+            return error || e;
+        }).next().guard(function () {
+            if (!authenticated) {
+                error = new Error('Unauthorized access');
+                error.code = 401;
+                return false;
+            }
+            if (firstName && typeof firstName !== 'string') {
+                error = new Error('First name must be a string');
+                error.code = 400;
+                return false;
+            }
+            if (lastName && typeof lastName !== 'string') {
+                error = new Error('Last name must be a string');
+                error.code = 400;
+                return false;
+            }
+            return true;
+        }).async(function (next, models) {
+            if (error) return next();
+            if (firstName) user.firstName = firstName;
+            if (lastName) user.lastName = lastName;
+            models([user]).save(function (e, updatedUsers) {
+                if (e) {
+                    error = e;
+                } else if (Array.isArray(updatedUsers)) {
+                    var [updatedUser] = updatedUsers;
+                    if (updatedUser) {
+                        user = updatedUser;
+                        updated = true;
+                    }
+                }
+                next();
+            });
+        }).skip(function () {
+            return !!error;
+        }).map(function (response) {
+            response.updated = updated;
+            response.user = {
+                _id: user._id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                mobile: user.mobile,
+                status: user.status
+            };
+        }).end();
+    };
+});
+```
+
+```javascript
+// src/behaviours/user/auth/logout/index.js
+/*jslint node: true*/
+'use strict';
+
+var backend = require('beamjs').backend();
+var behaviour = backend.behaviour();
+var {
+  FunctionalChainBehaviour
+} = require('functional-chain-behaviour')();
+
+module.exports.logout = behaviour({
+
+    name: 'logout',
+    inherits: FunctionalChainBehaviour,
+    version: '1',
+    type: 'database_with_action',
+    path: '/auth/logout',
+    method: 'POST',
+    parameters: {
+        token: {
+            key: 'X-Access-Token',
+            type: 'header'
+        },
+        authenticated: {
+            key: 'authenticated',
+            type: 'middleware'
+        },
+        user: {
+            key: 'user',
+            type: 'middleware'
+        }
+    },
+    returns: {
+        success: {
+            key: 'success',
+            type: 'body'
+        }
+    }
+}, function (init) {
+
+    return function () {
+        var self = init.apply(this, arguments).self();
+        var { authenticated, user } = self.parameters;
+        var error = null;
+        var success = false;
+
+        self.catch(function (e) {
+            return error || e;
+        }).next().guard(function () {
+            if (!authenticated) {
+                error = new Error('Unauthorized access');
+                error.code = 401;
+                return false;
+            }
+            return true;
+        }).async(function (next) {
+            var secret = user.secret;
+            user.generateNewSecret(function (e) {
+                if (e) {
+                    error = e;
+                } else {
+                    success = user.secret !== secret;
+                }
+                next();
+            });
+        }).skip(function () {
+            return !!error;
+        }).map(function (response) {
+            response.success = success;
+        }).end();
+    };
+});
+```
+
 ### 🚀 Run Your App
 
 ```bash
@@ -640,7 +830,7 @@ curl -X POST http://localhost:8282/api/v1/auth/login \
 
 ---
 
-**🎯 Result:** Production-ready API with authentication, validation, and database operations in under 100 lines of code!
+**🎯 Result:** Production-ready API with authentication, validation, and database operations in minutes!
 
 ---
 

@@ -42,11 +42,7 @@ BeamJS enables advanced query pipelines—such as aggregation followed by map-re
 behaviour.entity(new Model({
     // Aggregation
     aggregate: {
-        include: [{
-            get: 'posts',
-            as: 'postCount',
-            of: '$size'  // Count array elements
-        }],
+        include: ['posts'],
         group: ['status'],
         flatten: ['tags'], // Unwind arrays
         filter: true,      // Apply filter query as $match   
@@ -93,14 +89,14 @@ behaviour.entity(new Model({
     ],
     
     // Join conditions
-    required: false,        // LEFT JOIN vs INNER JOIN
+    required: false,       // LEFT JOIN vs INNER JOIN
     marked: true,          // Include soft-deleted records
     subFilter: false,      // Disable subquery optimization
     
     // Advanced includes with functions
     including: [{
-        get: 'price',
-        of: ['AVG'],       // SQL function
+        get: 'AVG',        // SQL function
+        of: FIELD('price'),       
         as: 'averagePrice'
     }]
 }));
@@ -393,7 +389,7 @@ FUNCTION({
     new QueryExpression({
         fieldName: FUNCTION({
             get: 'lower',
-            of: COLUMN('title')
+            of: FIELD('title')
         }),
         comparisonOperator: LIKE,
         fieldValue: '%javascript%'
@@ -401,7 +397,7 @@ FUNCTION({
     new QueryExpression({
         fieldName: FUNCTION({
             get: 'lower', 
-            of: COLUMN('content')
+            of: FIELD('content')
         }),
         comparisonOperator: LIKE,
         fieldValue: '%beamjs%',
@@ -626,7 +622,7 @@ var buildSearchQuery = function(searchTerms, categories, dateRange) {
             query.push(new QueryExpression({
                 fieldName: FUNCTION({
                     get: 'lower',
-                    of: COLUMN('title')
+                    of: FIELD('title')
                 }),
                 comparisonOperator: LIKE,
                 fieldValue: '%' + term.toLowerCase() + '%',

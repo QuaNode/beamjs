@@ -22,7 +22,8 @@ Private IoB & generative AI IoC enterprise full-stack web development framework 
 ## Why BeamJS and Backend-JS?
 
 - Designed for agility, BeamJS supports highly configurable, modular, and adaptive systems.
-- It is an enterprise-grade, declarative framework for private IoB, allowing you to implement organizational and customer behaviors seamlessly and securely—especially when integrating with AI agents.
+- BeamJS is an **enterprise-grade, declarative framework for private IoB**, enabling seamless and secure implementation of both organizational and customer behaviors.
+- It is especially powerful when **building or integrating with AI agents**, providing an **IoC to embed intelligent behaviors within structured and secured workflows of tasks**.
 - Features include:
   - Database encryption for pseudonymization and GDPR compliance.
   - A built-in data mapping pipeline.

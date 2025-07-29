@@ -23,7 +23,7 @@ Private IoB & generative AI IoC enterprise full-stack web development framework 
 
 - Designed for agility, BeamJS supports highly configurable, modular, and adaptive systems.
 - BeamJS is an **enterprise-grade, declarative framework for private IoB**, enabling seamless and secure implementation of both organizational and customer behaviors.
-- It is especially powerful when **building or integrating with AI agents**, providing an **IoC to embed intelligent behaviors within structured and secured workflows of tasks**.
+- It is especially powerful when building or integrating with AI agents, as it provides an IoC to embed intelligent behaviors within structured and secure workflows — making AI less indeterministic and more predictable.
 - Features include:
   - Database encryption for pseudonymization and GDPR compliance.
   - A built-in data mapping pipeline.
@@ -54,6 +54,9 @@ Private IoB & generative AI IoC enterprise full-stack web development framework 
   - [More coming soon](https://github.com/QuaNode)
 
 - The framework powers the **Behaviours** product, where code is generated directly from user stories. Importantly, the generated code is fully editable and maintainable—unlike most other code generators.
+- The framework represents a state-of-the-art implementation of programming paradigms shaped by great human minds:
+	•	BEAMJS and its sub-frameworks are inspired by declarative programming and functional programming.
+	•	BEAMJS SDKs draw on principles from agent-oriented programming and meta-programming.
 
 ---
 

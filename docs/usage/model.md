@@ -2,6 +2,12 @@
 
 BeamJS provides a unified interface for both SQL and NoSQL databases through its model system. It abstracts the complexity of different database engines while maintaining consistency across MongoDB (via Mongoose) and SQL databases (via Sequelize).
 
+---
+
+![0_00](./query.png)
+
+---
+
 ### Key Features
 
 - **Unified API**: Same interface for both SQL and NoSQL databases
@@ -217,13 +223,13 @@ module.exports.user = model({
         cache: true,
 
         // Make the model readonly (security)
-        readonly: true
+        readonly: true,
 
         // MongoDB: To activate map-reduce pipeline by default on this model
-        mapReduce: { ... }
+        mapReduce: { ... },
 
         // MongoDB: To activate aggregation pipeline by default on this model
-        aggregate: { ... }
+        aggregate: { ... },
 
         // SQL: To define default having, selecting, and grouping in SELECT statements
         having: { ... },
@@ -231,7 +237,7 @@ module.exports.user = model({
         group: { ... },
 
         // SQL: To allow nested SELECT statements
-        subFilter: true
+        subFilter: true,
 
         // Paginate this model by default
         paginate: true,

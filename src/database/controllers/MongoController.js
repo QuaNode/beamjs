@@ -77,6 +77,7 @@ var ComparisonOperators = module.exports.ComparisonOperators = {
             ])
         };
     },
+    EXISTS: "$exists",
     LT: "$lt",
     LE: "$lte",
     GT: "$gt",
@@ -603,6 +604,18 @@ var ComputationOperators = module.exports.ComputationOperators = {
             this[key] = undefined;
         }, 60000);
         return this[key] = operator;
+    },
+    FUNCTION(option) {
+
+        let many = Array.isArray(option.of);
+        return {
+
+            ["$" + option.get
+            ]: many ? constructAggregate(...[
+                option.of,
+                option.as
+            ])[option.as] : option.of
+        };
     }
 };
 
@@ -1287,12 +1300,14 @@ var getExecuteAggregate = function (session) {
             callback
         ] = arguments;
         var {
+            including,
             include,
             exclude,
             filter,
             restrict,
             distinct,
             flatten,
+            group,
             sort,
             populate,
             paginate,
@@ -1302,9 +1317,12 @@ var getExecuteAggregate = function (session) {
         } = features.aggregate || {};
         if (!output) {
 
+            if (!including) including = features.including;
             if (!include) include = features.include;
             if (!exclude) exclude = features.exclude;
             if (!distinct) distinct = features.distinct;
+            if (!group) group = features.group;
+            if (!distinct) distinct = group;
             if (!sort) sort = features.sort;
             if (!populate) populate = features.populate;
             if (typeof paginate !== "boolean") {
@@ -1342,7 +1360,6 @@ var getExecuteAggregate = function (session) {
             ])[restrict];
         }
         var constructedAggregate;
-        var group;
         var collection;
         if (filter && typeof distinct === "string") {
 
@@ -1363,26 +1380,49 @@ var getExecuteAggregate = function (session) {
                     return _id;
                 }() : "$" + distinct
             };
-            if (Array.isArray(sort)) {
+        } else group = undefined;
+        if (Array.isArray(including)) {
 
-                sort.forEach(function (option) {
+            if (!group) group = { _id: null };
+            including.forEach(function (option) {
 
-                    if (typeof option.by !== "string") {
+                if (typeof option.get !== "string") {
 
-                        throw new Error("Invalid sort" +
-                            " by field name");
-                    }
-                    var accum = "$min";
-                    if (option.order === "desc") {
+                    throw new Error("Invalid group" +
+                        " aggregation function");
+                }
+                if (typeof option.as !== "string") {
 
-                        accum = "$max";
-                    }
-                    group[option.by] = {
+                    throw new Error("Invalid field" +
+                        " name for aggregation");
+                }
+                group[
+                    option.as
+                ] = ComputationOperators.FUNCTION(...[
+                    option
+                ]);
+            });
+        } else if (group && Array.isArray(sort)) {
 
-                        [accum]: "$" + option.by
-                    };
+            sort.forEach(function (option) {
+
+                if (typeof option.by !== "string") {
+
+                    throw new Error("Invalid sort" +
+                        " by field name");
+                }
+                var get = "min";
+                if (option.order === "desc") {
+
+                    get = "max";
+                }
+                group[
+                    option.as
+                ] = ComputationOperators.FUNCTION({
+
+                    get, of: "$" + option.by
                 });
-            }
+            });
         }
         if (aggregateExpressions.length > 0) {
 
@@ -1437,7 +1477,6 @@ var getExecuteAggregate = function (session) {
             }
         }
         if (redact) aggregate = aggregate.redact(redact);
-        if (group) aggregate = aggregate.group(group);
         if (Array.isArray(flatten)) flatten.forEach(...[
             function (path) {
 
@@ -1448,6 +1487,7 @@ var getExecuteAggregate = function (session) {
                 });
             }
         ]);
+        if (group) aggregate = aggregate.group(group);
         if (filter && Array.isArray(sort)) {
 
             aggregate = aggregate.sort(...[

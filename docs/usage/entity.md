@@ -207,7 +207,7 @@ BeamJS automatically reconstructs queries in an optimized way, requiring no expl
 // Only load required fields
 .entity(new User({
     readonly: true,
-    select: ['_id', 'name', 'email', 'status']
+    include: ['_id', 'name', 'email', 'status']
 }))
 
 // Exclude heavy fields

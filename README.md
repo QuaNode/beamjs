@@ -50,13 +50,33 @@ Private IoB & generative AI IoC enterprise full-stack web development framework 
   - [droid-behaviours](https://github.com/QuaNode/droid-behaviours) – For Android.
   - [ios-behaviours](https://github.com/QuaNode/ios-behaviours) – For iOS.
   - [php-behaviours](https://github.com/QuaNode/php-behaviours) – For PHP.
+  - **flutter-behaviours** – For Flutter.
   - **titanium-behaviours** – For Appcelerator Titanium.
   - [More coming soon](https://github.com/QuaNode)
 
-- The framework powers the **Behaviours** product, where code is generated directly from user stories. Importantly, the generated code is fully editable and maintainable—unlike most other code generators.
 - The framework represents a state-of-the-art implementation of programming paradigms shaped by great human minds:
-  - BEAMJS and its sub-frameworks are inspired by declarative programming and functional programming.
-  - BEAMJS SDKs draw on principles from agent-oriented programming and meta-programming.
+  - BeamJS and its sub-frameworks are inspired by declarative programming and functional programming.
+  - BeamJS SDKs draw on principles from agent-oriented programming and meta-programming.
+- The framework powers the **Behaviors** Engine for software engineering:
+	- Chain-of-Thought (CoT) for planning sequential system operations.
+	- Tree-of-Thoughts (ToT) for structuring hierarchical system behaviors.
+	- Behavior-first programming as an executable translation of behavioral models — a key reducer of essential complexity in modern agile, AI-assisted software development.
+	- High-level declarative abstraction that remains tech-agnostic to isolate low-level technologies and minimize accidental complexity — the main source of LLM hallucinations and security violations.
+- The results:
+	- Requires far less context as input to SLM — no need for folders of specs, just correct requirements or user stories.
+	- Generates highly deterministic, hallucination-free, durable code — an asset, not a debt.
+	- Minimal or no code review or debugging is required.
+	- Produces very compact output, thanks to declarative programming — consuming far fewer tokens.
+	- Operates as a single-step generation, not a multi-step agent consuming extra compute and time.
+	- Enables a true inversion of control for GenAI, embedding security and compliance deeply for enterprise-grade performance.
+	- A starter can build like an expert without losing deep technical understanding, thanks to transparent declarative abstraction.
+	- Domain context boundaries are fully respected yet open for modifiability — addressing the gap left by traditional DDD in the AI era.
+
+It isn’t a replacement for developers — it empowers them to focus on iterative development and validation testing.
+
+---
+
+![0_00](./engine.png)
 
 ---
 
@@ -98,4 +118,4 @@ Explore a sample project with usage examples:
 
 ## 📄 License
 
-- [licensed as MIT](./LICENSE).
+- [MIT](./LICENSE).

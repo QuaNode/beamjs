@@ -112,12 +112,7 @@ var ResourceController = function () {
             ]);
             return function () { };
         }
-        var {
-            ranges,
-            start,
-            end,
-            buffer_size
-        } = resource;
+        var { ranges } = resource;
         var ranging = typeof ranges === "string";
         if (ranging) {
 
@@ -135,7 +130,7 @@ var ResourceController = function () {
             ranging = Array.isArray(ranges);
             if (ranging) {
 
-                ranging &= ranges.length === 1;
+                ranging &= ranges.length > 0;
                 ranging &= ranges.type === "bytes";
             }
             if (ranging) Object.assign(...[
@@ -143,6 +138,11 @@ var ResourceController = function () {
                 ranges[0]
             ]);
         }
+        var {
+            start,
+            end,
+            buffer_size
+        } = resource;
         var starting = typeof start === "number";
         invalid = starting;
         if (invalid) {

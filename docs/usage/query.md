@@ -43,6 +43,11 @@ behaviour.entity(new Model({
     // Aggregation
     aggregate: {
         include: ['posts'],
+        including: [{
+            get: 'sum',
+            of: 1,
+            as: 'count'
+        }],
         group: ['status'],
         flatten: ['tags'], // Unwind arrays
         filter: true,      // Apply filter query as $match   

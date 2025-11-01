@@ -276,6 +276,7 @@ module.exports.myBehaviour = behaviour({
     unless: ['login', 'register'],          // Skip for these behaviours
     for: ['authenticated'],                 // Only run for these behaviours
     origins: '*',                           // CORS origins
+    maxAge: 86400,                          // CORS preflight cache duration
     
     // Performance and scaling
     queue: function(name, parameters) {     // Custom queueing logic

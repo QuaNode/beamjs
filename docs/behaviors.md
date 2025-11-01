@@ -92,7 +92,8 @@ self.catch(function (e) {
 }).next()  // ← Essential separation
  .guard(function () {
     // Validation logic
-}).next()  // ← Essential separation
+    // Returning false stops the chain
+})         // ← No separation after guard 
  .authenticate([...])
  .then(function (result, error) {
     // Handle authentication

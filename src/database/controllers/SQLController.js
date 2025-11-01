@@ -129,10 +129,7 @@ var ComputationOperators = module.exports.ComputationOperators = {
         let many = Array.isArray(option.of);
         return Sequelize.fn(...[
             ...[option.get],
-            ...(many ? option.of.map(function (öf) {
-
-                return öf;
-            }) : [option.of])
+            ...(many ? option.of : [option.of])
         ]);
     }
 };

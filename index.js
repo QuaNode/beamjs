@@ -1,9 +1,9 @@
 /*jslint node: true */
 "use strict";
 
-var fs = require("fs");
-var debug = require("debug");
 var backend = require("backend-js");
+var debug = require("debug");
+var fs = require("fs");
 
 debug.enable("beam:*,backend:*");
 debug = debug("beam:index");

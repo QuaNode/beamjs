@@ -122,7 +122,7 @@ var responseAdaper = {
     },
     writeStatusCode(_, res, proxyRes) {
 
-        res.statusCode = proxyRes.statusCode;
+        res.status(proxyRes.statusCode);
         if (proxyRes.statusMessage) {
 
             res.statusMessage = proxyRes.statusMessage;
@@ -192,9 +192,9 @@ var webAdapter = {
             options.target,
             setupOutgoing(req, options)
         ]);
-        req.on("aborted", function () {
+        req.socket.on("close", function () {
 
-            proxyReq.destroy();
+            if (!res.writableEnded) proxyReq.destroy();
         });
         var proxyError = function (err) {
 
@@ -228,7 +228,7 @@ var webAdapter = {
                     ])) break;
                 }
             }
-            if (!res.finished) proxyRes.pipe(res);
+            if (!res.writableEnded) proxyRes.pipe(res);
         });
         req.pipe(proxyReq);
     }

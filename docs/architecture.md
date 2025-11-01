@@ -44,7 +44,7 @@ module.exports.processOrder = behavior({
         }).next()
          .guard(function () {
             // ✅ Input validation
-         }).next()
+         })
          .authenticate([...])
          .then(function (result, error) {
             // 🔐 Secure authentication

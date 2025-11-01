@@ -152,7 +152,7 @@ module.exports.authenticate = behaviour({
             return !error && decoded && decoded.jwtid;
         }).entity(new User({
             exclude: undefined
-        })).query([
+        })).query(() => [
             new QueryExpression({
                 fieldName: '_id',
                 comparisonOperator: EQUAL,

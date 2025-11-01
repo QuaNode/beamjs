@@ -86,7 +86,7 @@ var parseTokenList = function (str) {
             case 0x2c: /* , */
                 list.push(str.substring(start, end));
                 start = end = i + 1;
-                break
+                break;
             default:
                 end = i + 1;
                 break;
@@ -162,8 +162,7 @@ var isFresh = function (req, res) {
 var notModified = function (res) {
 
     removeContentHeaderFields(res);
-    res.statusCode = 304;
-    res.end();
+    res.status(304).end();
 };
 
 var isRangeFresh = function (req, res) {
@@ -383,6 +382,7 @@ module.exports = function (key, options) {
         if (sizing) sizing &= stat.size > 0;
         if (sizing) len = stat.size;
         if (!len && data_size) len = data_size;
+        var size = len || 0;
         var offset = out.start >= 0 ? out.start : 0;
         if (len) len = Math.max(0, len - offset);
         if (out.end > 0) {
@@ -390,7 +390,7 @@ module.exports = function (key, options) {
             var bytes = out.end - offset + 1;
             if (len > bytes) len = bytes;
         }
-        var ranges = out.ranges;
+        var ranges = out.ranges, ranged = false;
         if (options.acceptRanges && len) {
 
             if (!ranges) {
@@ -418,19 +418,23 @@ module.exports = function (key, options) {
                     next(error);
                     return true;
                 }
-                if (ranges !== -2 && ranges.length === 1) {
+                if (ranges !== -2 && ranges.length > 0) {
 
-                    res.statusCode = 206;
-                    res.setHeader(...[
-                        "Content-Range",
-                        contentRange("bytes", len, ranges[0])
-                    ]);
-                    offset += ranges[0].start;
-                    len = ranges[0].end - ranges[0].start + 1;
+                    var range = ranges[0].end - ranges[0].start + 1;
+                    if (range < size) {
+
+                        res.status(206).setHeader(...[
+                            "Content-Range",
+                            contentRange("bytes", len, ranges[0])
+                        ]);
+                    }
+                    len = range;
+                    ranged = true;
                 }
             }
         }
-        if (len && path && path.endsWith("zip")) {
+        var zipPath = path && path.endsWith(".zip");
+        if (len && (zipPath || ranged)) {
 
             res.setHeader("Content-Length", len);
         }
@@ -440,7 +444,7 @@ module.exports = function (key, options) {
             return true;
         }
         var streams = [stream];
-        if (!path || !path.endsWith("zip")) {
+        if (!zipPath) {
 
             var gzip = gzipMaybe(req, res);
             streams.push(gzip);
@@ -448,7 +452,10 @@ module.exports = function (key, options) {
         streams.push(res);
         (pipeline || pump)(streams, function (err) {
 
-            if (err) next(err);
+            if (err && err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+
+                next(err);
+            }
         });
         return true;
     };

@@ -26,7 +26,7 @@ var getPort = function (req, target) {
 
     var ports = target ? target.match(/:(\d+)/) : "";
     if (ports) return ports[1];
-    var { host } = req.headers;
+    let { host } = req.headers;
     ports = host ? host.match(/:(\d+)/) : "";
     if (ports) return ports[1];
     if (hasEncryptedConnection(req)) return "443";
@@ -35,7 +35,7 @@ var getPort = function (req, target) {
 
 var setupOutgoing = function (req, options) {
 
-    var { target, setHost, reverse } = options;
+    var { target, setHost, trustHost } = options;
     var outgoing = {};
     outgoing.port = parseInt(getPort(req, target));
     if (!outgoing.port) {
@@ -46,8 +46,19 @@ var setupOutgoing = function (req, options) {
     outgoing.headers = Object.assign({}, req.headers || {});
     if (setHost) {
 
-        outgoing.headers["host"] = new URL(target).host;
-    } else if (reverse) outgoing.rejectUnauthorized = false;
+        let host = new URL(target).host;
+        if (typeof setHost === "string") {
+
+            host = setHost;
+        }
+        outgoing.servername = host;
+        outgoing.headers["host"] = host;
+    }
+    if (trustHost) {
+
+        outgoing.rejectUnauthorized = false;
+        outgoing.checkServerIdentity = () => undefined;
+    }
     outgoing.agent = false;
     var { headers } = outgoing;
     var { connection } = headers;

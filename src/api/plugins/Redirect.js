@@ -3,9 +3,9 @@
 
 var { URLSearchParams } = require("url");
 
-module.exports = function (key) {
+module.exports = function (key, permanent) {
 
-    return function (out, _, res, __) {
+    return function (out, req, res, __) {
 
         if (typeof out !== "object") out = {};
         if (typeof key !== "string") return false;
@@ -21,7 +21,12 @@ module.exports = function (key) {
             if (url.endsWith("?")) delimiter = "";
             url += delimiter + query;
         }
-        res.redirect(url);
+        var method = req.method.toUpperCase();
+        if (method != "GET") {
+            res.redirect(permanent ? 308 : 307, url);
+        } else if (method == "GET" && permanent) {
+            res.redirect(301, url);
+        } else res.redirect(url);
         return true;
     };
 };

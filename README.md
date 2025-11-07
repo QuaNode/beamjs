@@ -71,8 +71,8 @@ Private IoB & generative AI IoC enterprise full-stack web development framework 
 	- Enables a true inversion of control for GenAI, embedding security and compliance deeply for enterprise-grade performance.
 	- A starter can build like an expert without losing deep technical understanding, thanks to transparent declarative abstraction.
 	- Domain context boundaries are fully respected yet open for modifiability — addressing the gap left by traditional DDD in the AI era.
- 	- It’s full-stack generation — backend, frontend, mobile, IoT, services, and more — all seamlessly integrated from the start, thanks to declarative agent SDKs.
-  	- The generated code supports incremental architecture — switch from request–response to real-time or multi-tenancy with a single line of code. With a truly tech-agnostic approach, you write once and run on any database or service, supporting diverse modern architectures.
+	- It’s full-stack generation — backend, frontend, mobile, IoT, services, and more — all seamlessly integrated from the start, thanks to declarative agent SDKs.
+	- The generated code supports incremental architecture — switch from request–response to real-time or multi-tenancy with a single line of code. With a truly tech-agnostic approach, you write once and run on any database or service, supporting diverse modern architectures.
 
 It isn’t a replacement for developers — it empowers them to focus on iterative development and validation testing.
 

@@ -263,14 +263,15 @@ map: function(property, superProperty) {
 ```javascript
 module.exports.myBehaviour = behaviour({
     // Core identification
-    name: 'myBehaviour',                    // Required: Unique behaviour name
+    name: 'myBehaviour',                    // Required: Unique behaviour name for routes
     version: '1',                           // Required: Behaviour version
-    type: 'database_with_action',           // Required: Execution type
+    type: 'database_with_action',           // Execution type (default: database)
     
     // Routing (for route behaviours)
     path: '/api/endpoint',                  // URL path
-    method: 'POST',                         // HTTP method
+    method: 'POST',                         // Required: HTTP method for routes
     host: 'api.domain.com',                 // Virtual host binding
+    direct: true                            // Direct endpoint operates outside policies
     
     // Security and filtering  
     unless: ['login', 'register'],          // Skip for these behaviours

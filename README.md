@@ -36,6 +36,7 @@ Private IoB & generative AI IoC enterprise full-stack web development framework 
   - Support for connectionless long-polling HTTP requests.
   - Event-driven architecture over mixed HTTP/WebSocket protocols for pulling and pushing data.
   - Abstract, secure WebSocket handling for scalable real-time events, including features like sub-rooms.
+  - Behavioral network mesh of nodes (application-level) designed for blazing-fast state management and seamless synchronization across distributed system nodes.
   - It is ready for event-sourcing applications.
 
 - Backend-JS introduces the concept of **API Behaviors**—organizational and customer behaviors implemented vertically using a customizable enterprise algorithmic mental model. This model follows a *Behavior-First* approach inspired by BDD. [Read more](https://github.com/QuaNode/Backend-JS/wiki/Behavior-first-design).

@@ -62,7 +62,7 @@ Private IoB & generative AI IoC enterprise full-stack web development framework 
 	- Chain-of-Thought (CoT) for planning sequential system operations.
 	- Tree-of-Thoughts (ToT) for structuring hierarchical system behaviors.
 	- Behavior-first programming as an executable translation of behavioral models — a key reducer of essential complexity in modern agile, AI-assisted software development.
-	- High-level declarative abstraction that remains tech-agnostic to isolate low-level technologies and minimize accidental complexity — the main source of LLM hallucinations and security violations.
+	- A high-level declarative abstraction that remains technology-agnostic, isolating low-level mechanisms to minimize accidental complexity and its resulting LLM hallucinations and security violations, by formalizing anchor tokens as a constrained, grounded Chain of Verification (CoVe) layer rather than conceptual verification alone.
 - The results:
 	- Requires far less context as input to SLM — no need for folders of specs, just correct requirements or user stories.
 	- Generates highly deterministic, hallucination-free, durable code — an asset, not a debt.

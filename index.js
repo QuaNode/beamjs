@@ -155,7 +155,7 @@ beam.database = function (KEY, options) {
                 ]);
             }
         }
-    }
+    } else throw new Error("Missing database type");
     return beam;
 };
 
@@ -236,13 +236,13 @@ beam.storage = function (KEY, options) {
                 ]);
             }
         }
-    }
+    } else throw new Error("Missing storage type");
     return beam;
 };
 
 beam.backend = function (database, storage) {
 
-    var storageOptions;
+    var storageOptions, storageAdding = !!storage;
     if (typeof storage === "object") {
 
         if (storage) {
@@ -265,8 +265,11 @@ beam.backend = function (database, storage) {
 
         storage = "local";
     }
-    beam.storage(storage, storageOptions);
-    var databaseOptions;
+    if (storageAdding) {
+
+        beam.storage(storage, storageOptions);
+    }
+    var databaseOptions, databaseAdding = !!database;
     if (typeof database === "object") {
 
         if (database) {
@@ -287,7 +290,10 @@ beam.backend = function (database, storage) {
 
         database = "main";
     }
-    beam.database(database, databaseOptions);
+    if (databaseAdding) {
+
+        beam.database(database, databaseOptions);
+    }
     return backend;
 };
 

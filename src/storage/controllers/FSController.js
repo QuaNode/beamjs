@@ -3,13 +3,27 @@
 "use strict";
 
 var fs = require("fs");
-var { Writable } = require("stream");
+var debug = require("debug")("beam:FSController");
+var {
+    Writable,
+    pipeline,
+    PassThrough
+} = require("stream");
+var pump = require("pump");
 var { resolve } = require("path");
 var parseRange = require("range-parser");
 
 var MAX_READ_SIZE = 5 * 1024 * 1024;
 var READ_SIZE = 64 * 1024;
 var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
+var GRACE_TIMEOUT = 60000;
+var MAX_FDS = 512;
+var activeFDs = 0;
+
+setInterval(function () {
+
+    activeFDs = 0;
+}, GRACE_TIMEOUT);
 
 var decode = function (path) {
 
@@ -78,11 +92,17 @@ var ResourceController = function () {
             ]);
             return function () { };
         }
+        if (activeFDs > MAX_FDS) {
+
+            error = new Error("Too many open files");
+            error.code = 500;
+            callback(null, error);
+            return function () { };
+        }
         path = resource.path = resolve(path);
         if (!fs.existsSync(path)) {
 
-            error = new Error("Resource is not" +
-                " existed");
+            error = new Error("Resource is not existed");
             error.code = 404;
             callback(null, error);
             return function () { };
@@ -91,8 +111,7 @@ var ResourceController = function () {
         resource.stats = stats;
         if (!stats.isFile()) {
 
-            error = new Error("Resource is not" +
-                " a file");
+            error = new Error("Resource is not a file");
             error.code = 400;
             callback(null, error);
             return function () { };
@@ -107,8 +126,8 @@ var ResourceController = function () {
 
             callback(...[
                 null,
-                new Error("Missing read permission" +
-                    " for the resource")
+                new Error("Missing read permission for" +
+                    " the resource")
             ]);
             return function () { };
         }
@@ -155,8 +174,7 @@ var ResourceController = function () {
 
             callback(...[
                 null,
-                new Error("Invalid resource reading" +
-                    " start")
+                new Error("Invalid resource reading start")
             ]);
             return function () { };
         }
@@ -169,8 +187,7 @@ var ResourceController = function () {
         }
         if (invalid) {
 
-            error = new Error("Invalid resource reading" +
-                " end");
+            error = new Error("Invalid resource reading end");
             error.code = 400;
             callback(null, error);
             return function () { };
@@ -189,39 +206,83 @@ var ResourceController = function () {
         }
         if (invalid) {
 
-            error = new Error("Invalid resource buffer" +
-                " size");
+            error = new Error("Invalid resource buffer size");
             error.code = 400;
             callback(null, error);
             return function () { };
         }
+        var abortC;
+        if (typeof AbortController === "function") {
+
+            abortC = new AbortController();
+        }
+        activeFDs++;
         var reader = fs.createReadStream(...[
             path,
             {
                 start: starting ? start : undefined,
                 end: ending ? end : undefined,
-                highWaterMark: buffering ? buffer_size : READ_SIZE
+                highWaterMark: buffering ? buffer_size : READ_SIZE,
+                signal: abortC ? abortC.signal : undefined
             }
         ]).on("close", function () {
 
+            cleanFD();
+        }).on("error", function () {
+
+            cancelled = true;
+        }), interval = setInterval(function () {
+
+            if (!closed && (reader.readableEnded || cancelled)) {
+
+                cleanFD(true);
+            }
+        }, GRACE_TIMEOUT), closed = false, cancelled = false;
+        var cleanFD = function (destroy) {
+
             closed = true;
+            if (destroy) {
+
+                var withError = new Error("Clean resource");
+                if (abortC) {
+
+                    abortC.abort(withError);
+                } else reader.destroy(withError);
+            }
             if (interval) {
 
                 clearInterval(interval);
+                interval = undefined;
             }
-        }), interval = setInterval(function () {
+            if (activeFDs > 0) {
 
-            if (!closed && reader.readableEnded) {
-
-                reader.destroy();
+                activeFDs--;
             }
-        }, 60000), closed = false;
+        };
         var writing = stream instanceof Writable;
         if (writing || streaming) {
 
-            if (writing) reader.pipe(stream); else {
+            var pass = new PassThrough();
+            var destroy = pass.destroy.bind(pass);
+            pass.destroy = function (err) {
 
-                if (streaming) stream(reader);
+                var MESSAGE = "ERR_STREAM_PREMATURE_CLOSE";
+                if (!err || err.code !== MESSAGE) {
+
+                    destroy(err);
+                } else cancelled = true;
+            };
+            if (writing) {
+
+                var streams = [pass, stream];
+                (pipeline || pump)(streams, function (err) {
+
+                    if (err) debug(err);
+                });
+            } else if (streaming) {
+
+                reader.pipe(pass);
+                stream(pass);
             }
             resource.stream = reader;
             callback(resource);
@@ -242,7 +303,7 @@ var ResourceController = function () {
         }
         return function () {
 
-            reader.destroy();
+            cancelled = true;
         };
     };
 };
